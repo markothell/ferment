@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
 import { communityHome } from "@/domain/communities";
+import { communityQuestions } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { CircleCard } from "@/components/app/CircleCard";
+import { RoundRow } from "@/components/app/RoundRow";
 import { Top } from "@/components/app/Top";
 
 export async function generateMetadata({ params }: PageProps<"/c/[community]">): Promise<Metadata> {
@@ -14,7 +16,10 @@ export async function generateMetadata({ params }: PageProps<"/c/[community]">):
 
 export default async function CommunityPage({ params }: PageProps<"/c/[community]">) {
   const { me, community, isHost } = await loadCommunity((await params).community);
-  const home = await communityHome(db, community, me.id);
+  const [home, questions] = await Promise.all([communityHome(db, community, me.id), communityQuestions(db, community.id, me.id)]);
+  const welcome = questions.find((q) => q.welcome);
+  const others = questions.filter((q) => !q.welcome);
+  const mayAsk = community.membersPostOpenQuestions || isHost;
   const base = `/c/${community.slug}`;
   const setupLeft = isHost && (!home.welcome || home.circles.length === 0 || home.members.length < 2);
 
@@ -36,15 +41,32 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
           </Link>
         )}
 
-        {home.welcome && (
-          <section className="card space-y-2">
+        {welcome && (
+          <Link href={`${base}/r/${welcome.id}`} className="card block space-y-2">
             <span className="label flex items-center gap-2">
-              <span className="dot-live" aria-hidden /> <span className="live">open question</span>
+              <span className="dot-live" aria-hidden /> <span className="live">welcome question</span>
             </span>
-            <p className="display text-2xl leading-snug">{home.welcome.question}</p>
-            <p className="text-sm text-[var(--ink-faint)]">Answering opens with rounds, coming next.</p>
-          </section>
+            <p className="display text-2xl leading-snug">{welcome.question}</p>
+            <p className="mono text-sm text-[var(--ink-soft)]">
+              {welcome.responded} shared{welcome.respondedByMe ? " · you shared" : ""}
+            </p>
+            {!welcome.respondedByMe && <span className="button mt-2">Answer it</span>}
+          </Link>
         )}
+
+        <section className="space-y-4">
+          <div className="flex items-baseline justify-between">
+            <h2 className="display text-2xl">Open questions</h2>
+            {mayAsk && <Link href={`${base}/ask`} className="link text-sm">Ask the community</Link>}
+          </div>
+          {others.length === 0 ? (
+            <p className="text-[var(--ink-soft)]">None yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {others.map((q) => <RoundRow key={q.id} round={q} href={`${base}/r/${q.id}`} />)}
+            </ul>
+          )}
+        </section>
 
         <section className="space-y-4">
           <div className="flex items-baseline justify-between">

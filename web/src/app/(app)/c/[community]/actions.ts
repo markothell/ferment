@@ -6,6 +6,10 @@ import { db } from "@/db";
 import { circleById, createCircle, joinCircle, leaveCircle, type Circle } from "@/domain/circles";
 import { setWelcomeQuestion, updateWelcomeNote } from "@/domain/communities";
 import { createInvite } from "@/domain/invites";
+import type { PromptInput } from "@/domain/prompts";
+import {
+  postOpenQuestion, promoteRound, respond, revealNow, suggestRound, toggleReaction, toggleSupport, withdrawRound,
+} from "@/domain/rounds";
 import { attempt, type ActionState } from "@/lib/actions";
 import { loadCommunity } from "@/lib/community";
 import { sendMail } from "@/lib/email";
@@ -88,6 +92,91 @@ export async function join(_prev: ActionState, form: FormData): Promise<ActionSt
 export async function leave(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, community } = await loadCommunity(str(form, "community"));
   await leaveCircle(db, { circleId: str(form, "circle"), userId: me.id });
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return undefined;
+}
+
+// ── Rounds ────────────────────────────────────────────────────────────────
+
+function promptFrom(form: FormData): PromptInput {
+  const reveal = str(form, "reveal");
+  return {
+    question: str(form, "question"),
+    context: str(form, "context"),
+    shape: "story",
+    telling: str(form, "telling") === "text" ? "text" : "voice",
+    reveal: reveal === "open" || reveal === "after_share" ? reveal : "sealed",
+  };
+}
+
+export async function suggest(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const circleId = str(form, "circle");
+  const failed = await attempt(() =>
+    suggestRound(db, { circleId, userId: me.id, prompt: promptFrom(form), timerHours: str(form, "timer") || null }),
+  );
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return { ok: "Suggested. It opens once enough of the circle supports it." };
+}
+
+export async function ask(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  let round: { id: string } | undefined;
+  const failed = await attempt(async () => {
+    round = await postOpenQuestion(db, {
+      communityId: community.id, userId: me.id, prompt: promptFrom(form), timerHours: str(form, "timer") || null,
+    });
+  });
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  redirect(`/c/${community.slug}/r/${round!.id}`);
+}
+
+export async function support(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => toggleSupport(db, { roundId: str(form, "round"), userId: me.id }));
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return undefined;
+}
+
+export async function promote(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => promoteRound(db, { roundId: str(form, "round"), userId: me.id }));
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return undefined;
+}
+
+export async function withdraw(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => withdrawRound(db, { roundId: str(form, "round"), userId: me.id }));
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return undefined;
+}
+
+export async function share(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => respond(db, { roundId: str(form, "round"), userId: me.id, input: { text: str(form, "text") } }));
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return { ok: "Shared." };
+}
+
+export async function reveal(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => revealNow(db, { roundId: str(form, "round"), userId: me.id }));
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return undefined;
+}
+
+export async function react(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => toggleReaction(db, { responseId: str(form, "response"), userId: me.id }));
+  if (failed) return failed;
   revalidatePath(`/c/${community.slug}`, "layout");
   return undefined;
 }

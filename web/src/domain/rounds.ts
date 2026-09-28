@@ -500,3 +500,23 @@ export async function communityMemberTotal(db: DB, communityId: string): Promise
   const [{ n }] = await db.select({ n: count() }).from(communityMembers).where(eq(communityMembers.communityId, communityId));
   return n;
 }
+
+/** Open questions to the whole community, newest first, welcome question aside. */
+export async function communityQuestions(db: DB, communityId: string, viewerId: string, now = new Date()) {
+  await db
+    .update(rounds)
+    .set({ phase: "closed", closedAt: now, closedVia: "timer" })
+    .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
+  return db
+    .select({
+      id: rounds.id, phase: rounds.phase, welcome: rounds.welcome, question: prompts.question,
+      authorName: user.name, authorEmail: user.email, openedAt: rounds.openedAt, closesAt: rounds.closesAt,
+      responded: sql<number>`(select count(*)::int from ${responses} where ${responses.roundId} = ${rounds.id})`,
+      respondedByMe: sql<boolean>`exists(select 1 from ${responses} where ${responses.roundId} = ${rounds.id} and ${responses.userId} = ${viewerId})`,
+    })
+    .from(rounds)
+    .innerJoin(prompts, eq(prompts.id, rounds.promptId))
+    .innerJoin(user, eq(user.id, rounds.authorId))
+    .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId), inArray(rounds.phase, ["open", "closed"])))
+    .orderBy(desc(rounds.welcome), desc(rounds.openedAt));
+}

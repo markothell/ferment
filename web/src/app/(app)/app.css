@@ -94,3 +94,14 @@
 /* --live marks what is open right now, and nothing else. */
 .ferment .live { color: var(--live); }
 .ferment .dot-live { width: 8px; height: 8px; border-radius: 999px; background: var(--live); display: inline-block; }
+
+/* A reaction: a small ring, filled in --mine once it's yours. */
+.ferment .mark {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.ferment .mark-on { color: var(--mine); border-color: var(--mine); }

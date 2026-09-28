@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { CIRCLE_MAX, CIRCLE_MIN, circleBySlug, circleHome } from "@/domain/circles";
+import { approvalsNeeded, circleRounds } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { Form } from "@/components/app/Form";
+import { PromptFields } from "@/components/app/PromptFields";
+import { RoundRow } from "@/components/app/RoundRow";
 import { Top } from "@/components/app/Top";
-import { join, leave } from "../../actions";
+import { join, leave, promote, suggest, support, withdraw } from "../../actions";
 
 type Props = PageProps<"/c/[community]/circles/[circle]">;
 
@@ -23,13 +26,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `${circle.name} · ferment` };
 }
 
-const PHASE_LABEL: Record<string, string> = {
-  nominated: "suggested", queued: "up next", open: "open", closed: "closed", skipped: "skipped",
-};
-
 export default async function CirclePage({ params }: Props) {
   const { me, community, circle } = await load(params);
   const home = await circleHome(db, circle, me.id);
+  const all = home.isMember ? await circleRounds(db, circle.id, me.id) : [];
+  const live = all.filter((r) => r.phase === "open");
+  const queued = all.filter((r) => r.phase === "queued");
+  const suggested = all.filter((r) => r.phase === "nominated");
+  const past = all.filter((r) => r.phase === "closed").reverse();
+  const needed = approvalsNeeded(circle, home.members.length);
+  const isHost = circle.hostId === me.id;
+  const roundHref = (id: string) => `/c/${community.slug}/r/${id}`;
   const forming = circle.status === "forming";
   const need = Math.max(0, CIRCLE_MIN - home.members.length);
   const hidden = (
@@ -66,9 +73,7 @@ export default async function CirclePage({ params }: Props) {
               </li>
             ))}
           </ul>
-          {home.isMember ? (
-            <Form action={leave} submit="Leave this circle" pending="Leaving…" quiet>{hidden}</Form>
-          ) : home.members.length < CIRCLE_MAX ? (
+          {home.isMember ? null : home.members.length < CIRCLE_MAX ? (
             <Form action={join} submit="I'm in" pending="Joining…">{hidden}</Form>
           ) : (
             <p className="label">full</p>
@@ -76,21 +81,77 @@ export default async function CirclePage({ params }: Props) {
         </section>
 
         {home.isMember && (
-          <section className="space-y-3">
-            <h2 className="display text-2xl">Rounds</h2>
-            {home.rounds.length === 0 ? (
-              <p className="text-[var(--ink-soft)]">No questions yet. Suggesting one comes with rounds, next.</p>
-            ) : (
-              <ul className="space-y-3">
-                {home.rounds.map((r) => (
-                  <li key={r.id} className="card space-y-1">
-                    <span className={r.phase === "open" ? "label live" : "label"}>{PHASE_LABEL[r.phase]}</span>
-                    <p className="text-lg">{r.question}</p>
-                  </li>
-                ))}
-              </ul>
+          <>
+            <section className="space-y-3">
+              <h2 className="display text-2xl">Open now</h2>
+              {live.length === 0 ? (
+                <p className="text-[var(--ink-soft)]">
+                  {forming ? "The first question opens when the circle begins." : "Nothing open. Suggest a question below."}
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {live.map((r) => <RoundRow key={r.id} round={r} href={roundHref(r.id)} expected={home.members.length} />)}
+                </ul>
+              )}
+            </section>
+
+            {(queued.length > 0 || suggested.length > 0) && (
+              <section className="space-y-3">
+                <h2 className="display text-2xl">Waiting</h2>
+                <ul className="space-y-3">
+                  {[...queued, ...suggested].map((r) => (
+                    <li key={r.id} className="card space-y-3">
+                      <span className="label">
+                        {r.phase === "queued" ? (r.promotedAt ? "up next · promoted" : "up next") : `suggested · ${r.supports} of ${needed} to queue`}
+                      </span>
+                      <p className="text-lg leading-snug">{r.question}</p>
+                      <p className="text-sm text-[var(--ink-soft)]">from {r.authorId === me.id ? "you" : displayName({ name: r.authorName, email: r.authorEmail })}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {r.phase === "nominated" && (
+                          <Form action={support} submit={r.supportedByMe ? "● supported" : "○ support"} quiet className="">
+                            {hidden}<input type="hidden" name="round" value={r.id} />
+                          </Form>
+                        )}
+                        {isHost && (r.phase === "nominated" || !r.promotedAt) && (
+                          <Form action={promote} submit="Promote" quiet className="">
+                            {hidden}<input type="hidden" name="round" value={r.id} />
+                          </Form>
+                        )}
+                        {(isHost || r.authorId === me.id) && (
+                          <Form action={withdraw} submit="Withdraw" quiet className="">
+                            {hidden}<input type="hidden" name="round" value={r.id} />
+                          </Form>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
-          </section>
+
+            <details className="card">
+              <summary className="cursor-pointer font-medium">Suggest a question</summary>
+              <div className="pt-4">
+                <Form action={suggest} submit="Suggest" pending="Suggesting…">
+                  {hidden}
+                  <PromptFields />
+                </Form>
+              </div>
+            </details>
+
+            {past.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="display text-2xl">Before</h2>
+                <ul className="space-y-3">
+                  {past.map((r) => <RoundRow key={r.id} round={r} href={roundHref(r.id)} />)}
+                </ul>
+              </section>
+            )}
+
+            <section className="border-t border-[var(--rule)] pt-6">
+              <Form action={leave} submit="Leave this circle" pending="Leaving…" buttonClass="link text-sm" className="">{hidden}</Form>
+            </section>
+          </>
         )}
       </main>
     </>
