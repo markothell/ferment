@@ -1,0 +1,67 @@
+/* Ferment — the Culture palette (09_community/design/ferment/palette.css),
+   scoped to the app so the draft lander keeps its own tokens for now.
+   --live marks what is open right now and nothing else. */
+
+.ferment {
+  --ground:    #E7EAD6;
+  --raised:    #F6F7EE;
+  --ink:       #1C2A25;
+  --ink-soft:  #4E5F58;
+  --ink-faint: #7C8B83;
+  --live:      #1E7F72;
+  --mine:      #C94B66;
+  --shared:    #D99A1E;
+  --shared-soft: #EDD9A6;
+  --rule:        rgba(28, 42, 37, 0.13);
+  --rule-strong: rgba(28, 42, 37, 0.30);
+  color-scheme: light;
+
+  min-height: 100dvh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-hanken), system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ferment {
+    --ground:    #111A17;
+    --raised:    #182420;
+    --ink:       #E3E8D5;
+    --ink-soft:  #9FAEA5;
+    --ink-faint: #6F7F77;
+    --live:      #43B8A5;
+    --mine:      #EC7E93;
+    --shared:    #E6AE45;
+    --shared-soft: #4A4226;
+    --rule:        rgba(227, 232, 213, 0.12);
+    --rule-strong: rgba(227, 232, 213, 0.28);
+    color-scheme: dark;
+  }
+}
+
+.ferment .display { font-family: var(--font-instrument), Georgia, serif; font-weight: 400; }
+.ferment .mono    { font-family: var(--font-geist-mono), ui-monospace, monospace; }
+
+.ferment .field {
+  width: 100%;
+  background: var(--raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 17px; /* ≥16px so iOS doesn't zoom on focus */
+  color: var(--ink);
+}
+.ferment .field:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+.ferment .button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ground);
+  font-weight: 500;
+  font-size: 17px;
+}
+.ferment .button:disabled { opacity: 0.55; }
+.ferment .link { text-decoration: underline; text-underline-offset: 3px; color: var(--ink-soft); }
