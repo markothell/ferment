@@ -24,7 +24,15 @@ function open(): DB {
     return drizzleNeon({ client: new Pool({ connectionString: url }), schema, casing: "snake_case" }) as unknown as DB;
   }
   mkdirSync("./.data", { recursive: true });
-  return drizzlePglite({ client: new PGlite("./.data/pglite"), schema, casing: "snake_case" }) as unknown as DB;
+  const client = new PGlite("./.data/pglite");
+  // PGlite's files don't survive a hard stop mid-write, so close it on the
+  // way out (Ctrl-C, or the dev server restarting its worker).
+  const close = (signal: NodeJS.Signals) => {
+    client.close().finally(() => process.kill(process.pid, signal));
+  };
+  process.once("SIGINT", close);
+  process.once("SIGTERM", close);
+  return drizzlePglite({ client, schema, casing: "snake_case" }) as unknown as DB;
 }
 
 export const db: DB = (g.__fermentDb ??= open());
