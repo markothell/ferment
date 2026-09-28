@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+/* The Toono language, carried over from the circles app (08_holoscopic/apps/DESIGN.md):
+   felt grounds, larch ink, and the sky through the crown ring.
+   The rule that is easy to break: --sky marks what is live and nothing else.
+   --ochre is one person's mark; --rope and --shared carry what the group made together. */
+
+:root {
+  --ground:      #F7F2E9;
+  --ground-deep: #EFE7D8;
+  --card:        #FDFAF4;
+
+  --ink:         #3A2E20;
+  --ink-soft:    #6D5E4A;
+  --ink-faint:   #9C8D75;
+
+  --sky:         #3D7FB5;
+  --sky-soft:    #DCE8F2;
+  --ochre:       #C08A3E;
+  --rope:        #B49A6E;
+  --shared:      #EDE3D0;
+
+  /* The measured polarity pair — travels with the placement mechanic. */
+  --pole-a:      #2F7D7B;
+  --pole-b:      #B15C3C;
+
+  --rule:        rgba(58, 46, 32, 0.14);
+  --rule-strong: rgba(58, 46, 32, 0.30);
+
+  --shadow-card: 0 1px 1px rgba(58, 46, 32, 0.04), 0 6px 18px rgba(58, 46, 32, 0.06);
+
+  --font-display: "Iowan Old Style", Palatino, Georgia, serif;
+  --font-body: Seravek, "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-ground:      var(--ground);
+  --color-ground-deep: var(--ground-deep);
+  --color-card:        var(--card);
+  --color-ink:         var(--ink);
+  --color-ink-soft:    var(--ink-soft);
+  --color-ink-faint:   var(--ink-faint);
+  --color-sky:         var(--sky);
+  --color-sky-soft:    var(--sky-soft);
+  --color-ochre:       var(--ochre);
+  --color-rope:        var(--rope);
+  --color-shared:      var(--shared);
+  --color-pole-a:      var(--pole-a);
+  --color-pole-b:      var(--pole-b);
+  --color-rule:        var(--rule);
+
+  --font-display: "Iowan Old Style", Palatino, Georgia, serif;
+  --font-body: Seravek, "Gill Sans", "Trebuchet MS", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+/* Shared SVG motion. Everything that moves has a still version. */
+.fade-in { opacity: 0; animation: fade-in .8s ease forwards; }
+.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1s ease forwards; }
+.pulse {
+  transform-box: fill-box; transform-origin: center;
+  animation: pulse 2.6s ease-out infinite;
+}
+@keyframes fade-in { to { opacity: 1; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pulse {
+  0% { transform: scale(1); opacity: .5; }
+  70%, 100% { transform: scale(1.7); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .fade-in { animation: none; opacity: 1; }
+  .draw { animation: none; stroke-dashoffset: 0; }
+  .pulse { animation: none; opacity: 0; }
+  * { transition-duration: 0s !important; }
+}

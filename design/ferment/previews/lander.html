@@ -1,0 +1,285 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferment Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+  /* The page itself is set in the Culture system, so the viewer's theme shows it in light or dark. */
+  :root {
+    --ground: #E7EAD6;
+    --raised: #F6F7EE;
+    --ink: #1C2A25;
+    --ink-soft: #4E5F58;
+    --ink-faint: #7C8B83;
+    --live: #1E7F72;
+    --mine: #C94B66;
+    --shared: #D99A1E;
+    --rule: rgba(28, 42, 37, .13);
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+      --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45;
+      --rule: rgba(227, 232, 213, .12); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+    --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45;
+    --rule: rgba(227, 232, 213, .12); color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--ground); color: var(--ink); font: 16px/1.55 var(--sans); padding: 0 16px; padding-block: 48px 88px; }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 64px; }
+  .eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  h1, h2 { font-family: var(--serif); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+  h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1; }
+  h2 { font-size: clamp(30px, 4vw, 40px); line-height: 1.05; }
+  h1 em, h2 em { color: var(--live); }
+  p { margin: 0; }
+  .lede { max-width: 64ch; color: var(--ink-soft); }
+  .intro, .block { display: grid; gap: 16px; }
+  .block-head { display: grid; gap: 10px; max-width: 68ch; }
+  .block-head p { color: var(--ink-soft); }
+  .decisions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .decisions span { font: 400 12px/1 var(--mono); padding: 8px 11px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink-soft); }
+  .decisions b { color: var(--ink); font-weight: 500; }
+  .tag { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+
+  /* Wordmark: Hanken Grotesk, lowercase, tight */
+  .wm { display: inline-flex; align-items: center; gap: .3em; font: 500 1em/1 var(--sans); letter-spacing: -.035em; }
+  .wm svg { width: 1.15em; height: 1.15em; flex: none; }
+
+  /* Mark */
+  .mark-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  .mark-panel { border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; display: grid; }
+  .mark-panel .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 22px 36px; padding: 32px 16px; }
+  .mark-panel .row.l { background: #E7EAD6; color: #1C2A25; }
+  .mark-panel .row.d { background: #111A17; color: #E3E8D5; }
+  .mark-panel .big { width: 120px; height: 120px; }
+  .sizes { display: flex; align-items: flex-end; gap: 14px; }
+  .sizes svg:nth-child(1) { width: 32px; height: 32px; }
+  .sizes svg:nth-child(2) { width: 20px; height: 20px; }
+  .sizes svg:nth-child(3) { width: 16px; height: 16px; }
+  .anatomy { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .anatomy div { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+  .anatomy b { font: 600 14px/1.3 var(--sans); }
+  .anatomy span { font-size: 14px; color: var(--ink-soft); }
+
+  /* Hero pair. Each hero pins its own theme so both show whatever the viewer's setting. */
+  .hero {
+    --h-ground: #E7EAD6; --h-raised: #F6F7EE; --h-ink: #1C2A25; --h-soft: #4E5F58; --h-faint: #7C8B83;
+    --h-live: #1E7F72; --h-mine: #C94B66; --h-shared: #D99A1E; --h-rule: rgba(28,42,37,.13);
+    position: relative; border-radius: 8px; border: 1px solid var(--rule);
+    background: var(--h-ground); color: var(--h-ink);
+    display: grid; min-height: 520px;
+  }
+  .hero.dark {
+    --h-ground: #111A17; --h-raised: #182420; --h-ink: #E3E8D5; --h-soft: #9FAEA5; --h-faint: #6F7F77;
+    --h-live: #43B8A5; --h-mine: #EC7E93; --h-shared: #E6AE45; --h-rule: rgba(227,232,213,.12);
+  }
+  .hero .copy { padding: 26px 32px 56px; display: flex; flex-direction: column; gap: 20px; }
+  .hero nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .hero nav .wm { font-size: 23px; }
+  .hero .links { display: flex; gap: 20px; font: 400 14px/1 var(--sans); color: var(--h-soft); }
+  .hero .headline { margin-top: auto; display: grid; gap: 18px; padding-top: 120px; }
+  .hero h3 { margin: 0; font: 400 clamp(36px, 9vw, 104px)/.92 var(--serif); letter-spacing: -.01em; text-wrap: balance; }
+  .hero h3 em { color: var(--h-live); }
+  .hero .sub { max-width: 40ch; font-size: 15.5px; line-height: 1.5; color: var(--h-soft); }
+  .hero .ctas { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin-top: 6px; }
+  .btn { background: var(--h-ink); color: var(--h-ground); font: 500 14.5px/1 var(--sans); padding: 13px 19px; border-radius: 999px; text-decoration: none; }
+  .quiet { font: 400 11.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--h-ink); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 3px; }
+  .btn:focus-visible, .quiet:focus-visible { outline: 2px solid var(--h-live); outline-offset: 3px; }
+
+  /* Palette */
+  .pal { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--raised); }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; font-size: 14px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  th { font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  td.role b { display: block; font-weight: 600; }
+  td.role span { color: var(--ink-soft); font-size: 13px; }
+  .sw { display: flex; align-items: center; gap: 10px; font: 400 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .sw i { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(128,128,128,.28); flex: none; }
+  .sw small { display: block; color: var(--ink-faint); margin-top: 4px; font-size: 11px; }
+
+  .type { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .tcard { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 18px; display: grid; gap: 10px; align-content: start; }
+  .tcard p { font-size: 14px; color: var(--ink-soft); }
+
+  .questions ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; max-width: 72ch; color: var(--ink-soft); }
+  .questions li b { color: var(--ink); font-weight: 600; }
+
+  @media (max-width: 820px) {
+    .hero { min-height: 440px; }
+    .hero .headline { padding-top: 72px; }
+    .hero .copy { padding: 22px 20px 28px; }
+    .hero .links { display: none; }
+    .mark-grid, .anatomy, .type { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="eyebrow">ferment.earth · design directions · round 7</div>
+    <h1>Room to <em>breathe</em></h1>
+    <p class="lede">The hero drawing is gone. The lander now opens on the wordmark, a two-line headline, and open space. Rising is the logo, and the palette and type are unchanged.</p>
+    <div class="decisions">
+      <span><b>logo</b> · Rising</span>
+      <span><b>wordmark</b> · Hanken Grotesk, lowercase</span>
+      <span><b>palette</b> · Culture, light + dark</span>
+      <span><b>hero</b> · type and space only</span>
+    </div>
+  </header>
+
+  <section class="block">
+    <div class="block-head">
+      <div class="eyebrow">The lander, both themes</div>
+      <h2>How people become <em>community</em></h2>
+      <p>The headline is set large in Instrument Serif on two lines, with one word in italic green. The copy sits at the bottom of the frame, and everything above it is left open.</p>
+    </div>
+    <div class="hero" data-tone="light">
+      <div class="copy">
+        <nav>
+          <span class="wm"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg>ferment</span>
+          <span class="links"><span>How it works</span><span>Circles</span><span>Sign in</span></span>
+        </nav>
+        <div class="headline">
+          <h3>How people<br>become <em>community</em>.</h3>
+          <p class="sub">Small groups think together here and slowly turn into something more. Everyone gets heard, and the group can see itself.</p>
+          <div class="ctas"><a class="btn" href="#">Start a circle</a><a class="quiet" href="#">See a sample map</a></div>
+        </div>
+      </div>
+          </div>
+    <div class="hero dark" data-tone="dark">
+      <div class="copy">
+        <nav>
+          <span class="wm"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg>ferment</span>
+          <span class="links"><span>How it works</span><span>Circles</span><span>Sign in</span></span>
+        </nav>
+        <div class="headline">
+          <h3>How people<br>become <em>community</em>.</h3>
+          <p class="sub">Small groups think together here and slowly turn into something more. Everyone gets heard, and the group can see itself.</p>
+          <div class="ctas"><a class="btn" href="#">Start a circle</a><a class="quiet" href="#">See a sample map</a></div>
+        </div>
+      </div>
+          </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <div class="eyebrow">The logo</div>
+      <h2>Rising</h2>
+      <p>Two overlapping circles and three thoughts lifting off.</p>
+    </div>
+    <div class="mark-grid">
+      <div class="mark-panel">
+        <div class="row l"><svg class="big" viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg><div class="sizes"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg><svg viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg><svg viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg></div></div>
+        <div class="row d"><svg class="big" viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg><div class="sizes"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg><svg viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg><svg viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg></div></div>
+      </div>
+      <div class="mark-panel">
+        <div class="row l"><span class="wm" style="font-size:52px"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg>ferment</span><span class="wm" style="font-size:20px"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="light" aria-hidden="true"></svg>ferment</span></div>
+        <div class="row d"><span class="wm" style="font-size:52px"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg>ferment</span><span class="wm" style="font-size:20px"><svg viewBox="0 0 64 64" data-mark="rise" data-tone="dark" aria-hidden="true"></svg>ferment</span></div>
+      </div>
+    </div>
+    <div class="anatomy">
+      <div><b>Two arcs</b><span>Two circles of people, overlapping where they share members. The overlap also makes the "m" in ferment.</span></div>
+      <div><b>Three thoughts</b><span>What the circles make together. Always saffron, the "shared" color, and always rising and slightly off-center.</span></div>
+      <div><b>No green</b><span>The mark never uses the live color. Green stays reserved for things that are open right now.</span></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <div class="eyebrow">Palette, both themes</div>
+      <h2>Same roles, tuned for each ground</h2>
+      <p>Unchanged. Contrast is measured against each theme's ground (4.5 is the bar for body text, 3 for large text and marks).</p>
+    </div>
+    <div class="pal">
+      <table>
+        <thead><tr><th>Role</th><th>Light</th><th>Dark</th></tr></thead>
+        <tbody id="pal-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <div class="eyebrow">Type</div>
+      <h2>Three faces, three jobs</h2>
+    </div>
+    <div class="type">
+      <div class="tcard"><span class="eyebrow">Display · Instrument Serif</span><span style="font:400 40px/1 var(--serif)">Tools for <em style="color:var(--live)">becoming</em></span><p>Headlines. Italic is kept for one word per headline.</p></div>
+      <div class="tcard"><span class="eyebrow">Wordmark + body · Hanken Grotesk</span><span style="font:400 16px/1.5 var(--sans)">Answers stay sealed until everyone has had their say. Nobody has to go first.</span><p>The name, people's names, running text, buttons, and the product UI.</p></div>
+      <div class="tcard"><span class="eyebrow">Utility · Geist Mono</span><span style="font:400 12px/1.6 var(--mono);text-transform:uppercase;letter-spacing:.06em">Open now · 7 of 9 answered · closes Thu</span><p>Counts, states and small labels. This is where the techy side of the system lives.</p></div>
+    </div>
+  </section>
+
+  <section class="block questions">
+    <div class="block-head">
+      <div class="eyebrow">To discuss</div>
+      <h2>Next decisions</h2>
+    </div>
+    <ol>
+      <li><b>Headline italic.</b> "community" is now the italic green word.</li>
+      <li><b>Build it.</b> If this holds, the next step is the design system itself (tokens for both themes, type scale, components), followed by moving it into <code>09_community/web</code>.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  const NS = 'http://www.w3.org/2000/svg';
+  const TONES = {
+    light: { ground: '#E7EAD6', raised: '#F6F7EE', ink: '#1C2A25', soft: '#4E5F58', faint: '#7C8B83', live: '#1E7F72', mine: '#C94B66', shared: '#D99A1E' },
+    dark:  { ground: '#111A17', raised: '#182420', ink: '#E3E8D5', soft: '#9FAEA5', faint: '#6F7F77', live: '#43B8A5', mine: '#EC7E93', shared: '#E6AE45' },
+  };
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+  const pt = (cx, cy, r, deg) => [cx + r * Math.cos(deg * Math.PI / 180), cy + r * Math.sin(deg * Math.PI / 180)];
+  function arc(cx, cy, r, a0, a1) {
+    const [x0, y0] = pt(cx, cy, r, a0), [x1, y1] = pt(cx, cy, r, a1);
+    return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 0 1 ${x1.toFixed(2)},${y1.toFixed(2)}`;
+  }
+
+  /* Rising: two arcs overlapping like an m, three thoughts lifting off. */
+  function rising(svg, t) {
+    const s = { fill: 'none', stroke: t.ink, 'stroke-width': 5, 'stroke-linecap': 'round' };
+    el('path', { d: arc(23, 52, 15, 180, 360), ...s }, svg);
+    el('path', { d: arc(41, 52, 15, 180, 360), ...s }, svg);
+    [[32, 26, 4.6], [24, 14.5, 3.3], [39, 7.5, 3.8]].forEach(([x, y, r]) => el('circle', { cx: x, cy: y, r, fill: t.shared }, svg));
+  }
+  document.querySelectorAll('svg[data-mark="rise"]').forEach(svg => rising(svg, TONES[svg.dataset.tone]));
+
+  /* Palette table with live contrast against each theme's ground */
+  const ROWS = [
+    ['Ground', 'Page background', 'ground', 'Agar', 'Cellar'],
+    ['Raised', 'Cards, panels, inputs', 'raised', 'Whey', 'Crock'],
+    ['Ink', 'Text, lines, people', 'ink', 'Brine', 'Lantern'],
+    ['Ink soft', 'Secondary text', 'soft', 'Brine 70', 'Lantern 70'],
+    ['Live', 'Open now. The only green.', 'live', 'Verdigris', 'Verdigris lit'],
+    ['Mine', 'You, or one person\'s mark', 'mine', 'Beet', 'Beet lit'],
+    ['Shared', 'Conversations, what the group made together', 'shared', 'Saffron', 'Saffron lit'],
+  ];
+  const lum = hex => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  const body = document.getElementById('pal-body');
+  ROWS.forEach(([role, use, key, nl, nd]) => {
+    const tr = document.createElement('tr');
+    const cell = (tone, name) => {
+      const hex = TONES[tone][key];
+      const skip = key === 'ground' || key === 'raised';
+      const r = skip ? '' : ratio(hex, TONES[tone].ground).toFixed(1) + ':1 on ground';
+      return `<td><div class="sw"><i style="background:${hex}"></i><div>${name} · ${hex}<small>${r || '&nbsp;'}</small></div></div></td>`;
+    };
+    tr.innerHTML = `<td class="role"><b>${role}</b><span>${use}</span></td>${cell('light', nl)}${cell('dark', nd)}`;
+    body.appendChild(tr);
+  });
+})();
+</script>
