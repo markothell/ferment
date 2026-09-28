@@ -6,11 +6,11 @@ import { circleMembers, circles, communities, communityMembers, prompts, respons
 import { hostAllowlist, normalizeEmail } from "@/lib/access";
 import { newId } from "@/lib/id";
 import { refuse } from "./errors";
+import { normalizePrompt } from "./prompts";
 import { uniqueSlug } from "./slug";
 
 export const NAME_MAX = 60;
 export const NOTE_MAX = 2000;
-export const QUESTION_MAX = 200;
 
 export type Community = typeof communities.$inferSelect;
 export type Membership = typeof communityMembers.$inferSelect;
@@ -104,9 +104,8 @@ export async function setWelcomeQuestion(
   { communityId, userId, question, now = new Date() }: { communityId: string; userId: string; question: string; now?: Date },
 ): Promise<void> {
   await requireHost(db, communityId, userId);
-  const q = question.trim();
-  if (!q) refuse("Write the question.");
-  if (q.length > QUESTION_MAX) refuse(`Questions are ${QUESTION_MAX} characters at most.`);
+  const prompt = normalizePrompt({ question, shape: "story", telling: "voice", reveal: "open" });
+  const q = prompt.question;
 
   await db.transaction(async (tx) => {
     const [current] = await tx
@@ -128,10 +127,7 @@ export async function setWelcomeQuestion(
     }
 
     const promptId = newId();
-    await tx.insert(prompts).values({
-      id: promptId, communityId, authorId: userId, question: q,
-      shape: "story", telling: "voice", secondsPerNote: 60, reveal: "open",
-    });
+    await tx.insert(prompts).values({ id: promptId, communityId, authorId: userId, ...prompt });
     await tx.insert(rounds).values({
       id: newId(), promptId, communityId, authorId: userId,
       welcome: true, phase: "open", openedAt: now, editAfterClose: true,

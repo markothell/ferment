@@ -8,7 +8,9 @@ import { and, asc, count, eq, isNull, lt } from "drizzle-orm";
 import type { DB } from "@/db";
 import { circleMembers, circles, communities, prompts, rounds, user } from "@/db/schema";
 import { newId } from "@/lib/id";
-import { QUESTION_MAX, requireMember } from "./communities";
+import { requireMember } from "./communities";
+import { normalizePrompt } from "./prompts";
+import { settleCircle } from "./rounds";
 import { refuse } from "./errors";
 import { uniqueSlug } from "./slug";
 
@@ -66,20 +68,16 @@ export async function createCircle(
   if (clean.length > 60) refuse("Circle names are 60 characters at most.");
   const desc = description.trim();
   if (desc.length > DESCRIPTION_MAX) refuse("That description is too long.");
-  const question = firstQuestion.trim();
-  if (question.length > QUESTION_MAX) refuse(`Questions are ${QUESTION_MAX} characters at most.`);
+  const first = firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
 
   const [community] = await db.select().from(communities).where(eq(communities.id, communityId)).limit(1);
   const slug = await uniqueSlug(clean, async (s) => Boolean(await circleBySlug(db, communityId, s)));
 
   return db.transaction(async (tx) => {
     let originPromptId: string | null = null;
-    if (question) {
+    if (first) {
       originPromptId = newId();
-      await tx.insert(prompts).values({
-        id: originPromptId, communityId, authorId: userId, question,
-        shape: "story", telling: "voice", secondsPerNote: 60, reveal: "sealed",
-      });
+      await tx.insert(prompts).values({ id: originPromptId, communityId, authorId: userId, ...first });
     }
 
     const [circle] = await tx
@@ -137,6 +135,10 @@ export async function joinCircle(
       return { formed: true };
     }
     return { formed: false };
+  }).then(async (r) => {
+    // Formed: its queued first question opens now.
+    if (r.formed) await settleCircle(db, circleId, now);
+    return r;
   });
 }
 
