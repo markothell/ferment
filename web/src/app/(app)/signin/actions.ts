@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import * as z from "zod";
 import { auth } from "@/lib/auth";
 import { normalizeEmail } from "@/lib/access";
+import { safeNext } from "@/lib/session";
 
 export type SignInState = { sentTo?: string; error?: string } | undefined;
 
@@ -16,7 +17,7 @@ export async function requestLink(_prev: SignInState, form: FormData): Promise<S
 
   // Same answer whether or not a link was sent (src/lib/access.ts).
   await auth.api.signInMagicLink({
-    body: { email, callbackURL: "/home", errorCallbackURL: "/signin?error=link" },
+    body: { email, callbackURL: safeNext(form.get("next")), errorCallbackURL: "/signin?error=link" },
     headers: await headers(),
   });
   return { sentTo: email };

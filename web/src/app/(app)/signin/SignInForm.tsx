@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { requestLink, type SignInState } from "./actions";
 
-export function SignInForm() {
+export function SignInForm({ next }: { next: string }) {
   const [state, action, pending] = useActionState<SignInState, FormData>(requestLink, undefined);
 
   if (state?.sentTo) {
@@ -19,6 +19,7 @@ export function SignInForm() {
 
   return (
     <form action={action} className="space-y-4">
+      <input type="hidden" name="next" value={next} />
       <label htmlFor="email" className="block text-[var(--ink-soft)]">
         Your email
       </label>

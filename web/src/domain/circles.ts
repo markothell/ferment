@@ -4,9 +4,9 @@
 // fourth person joins. A proposal that never gets there expires after the
 // community's proposal window (default 7 days).
 
-import { and, count, eq, isNull, lt } from "drizzle-orm";
+import { and, asc, count, eq, isNull, lt } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circleMembers, circles, communities, prompts, rounds } from "@/db/schema";
+import { circleMembers, circles, communities, prompts, rounds, user } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { QUESTION_MAX, requireMember } from "./communities";
 import { refuse } from "./errors";
@@ -164,4 +164,24 @@ export async function expireProposals(db: DB, now = new Date()): Promise<string[
     .where(and(eq(circles.status, "forming"), lt(circles.formingExpiresAt, now)))
     .returning({ id: circles.id });
   return rows.map((r) => r.id);
+}
+
+/** Everything the circle page shows. Rounds are for members only. */
+export async function circleHome(db: DB, circle: Circle, viewerId: string) {
+  const members = await db
+    .select({ userId: user.id, name: user.name, email: user.email, joinedAt: circleMembers.joinedAt })
+    .from(circleMembers)
+    .innerJoin(user, eq(user.id, circleMembers.userId))
+    .where(and(eq(circleMembers.circleId, circle.id), isNull(circleMembers.leftAt)))
+    .orderBy(asc(circleMembers.joinedAt));
+  const isMember = members.some((m) => m.userId === viewerId);
+  const roundRows = isMember
+    ? await db
+        .select({ id: rounds.id, phase: rounds.phase, question: prompts.question, authorId: rounds.authorId })
+        .from(rounds)
+        .innerJoin(prompts, eq(prompts.id, rounds.promptId))
+        .where(eq(rounds.circleId, circle.id))
+        .orderBy(asc(rounds.createdAt))
+    : [];
+  return { members, isMember, rounds: roundRows };
 }

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentSession } from "@/lib/auth";
+import { safeNext } from "@/lib/session";
 import { SignInForm } from "./SignInForm";
 
 export const metadata: Metadata = { title: "Sign in · ferment" };
 
 export default async function SignInPage({ searchParams }: PageProps<"/signin">) {
-  if (await currentSession()) redirect("/home");
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+  const to = safeNext(next);
+  if (await currentSession()) redirect(to);
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4 py-12">
@@ -17,7 +19,7 @@ export default async function SignInPage({ searchParams }: PageProps<"/signin">)
       {error === "link" && (
         <p className="mb-6 text-[var(--mine)]">That link has expired or was already used. Ask for a new one.</p>
       )}
-      <SignInForm />
+      <SignInForm next={to} />
     </main>
   );
 }

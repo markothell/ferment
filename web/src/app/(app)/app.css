@@ -65,3 +65,32 @@
 }
 .ferment .button:disabled { opacity: 0.55; }
 .ferment .link { text-decoration: underline; text-underline-offset: 3px; color: var(--ink-soft); }
+
+.ferment .button-quiet {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink);
+  font-weight: 500;
+}
+.ferment .button-quiet:disabled { opacity: 0.55; }
+
+.ferment .card {
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.ferment .label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--ink-faint);
+}
+
+/* --live marks what is open right now, and nothing else. */
+.ferment .live { color: var(--live); }
+.ferment .dot-live { width: 8px; height: 8px; border-radius: 999px; background: var(--live); display: inline-block; }
