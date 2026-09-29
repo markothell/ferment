@@ -11,7 +11,7 @@ export default async function NewCirclePage({ params }: PageProps<"/c/[community
   const { community } = await loadCommunity((await params).community);
   return (
     <>
-      <Top here={{ label: community.name, href: `/c/${community.slug}` }} />
+      <Top trail={[{ label: community.name, href: `/c/${community.slug}` }, { label: "Propose a circle" }]} />
       <main className="mx-auto max-w-2xl space-y-8 px-4 py-8">
         <div className="space-y-2">
           <h1 className="display text-4xl">Propose a circle</h1>

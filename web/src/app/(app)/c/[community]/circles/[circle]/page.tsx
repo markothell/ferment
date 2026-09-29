@@ -48,7 +48,7 @@ export default async function CirclePage({ params }: Props) {
 
   return (
     <>
-      <Top here={{ label: community.name, href: `/c/${community.slug}` }} />
+      <Top trail={[{ label: community.name, href: `/c/${community.slug}` }, { label: circle.name }]} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
         <header className="space-y-3">
           <span className="label">{forming ? "forming" : circle.status}</span>

@@ -173,10 +173,9 @@ export async function reveal(_prev: ActionState, form: FormData): Promise<Action
   return undefined;
 }
 
-export async function react(_prev: ActionState, form: FormData): Promise<ActionState> {
+/** The reaction ring: toggled optimistically by the client, so no state comes back. */
+export async function mark(form: FormData): Promise<void> {
   const { me, community } = await loadCommunity(str(form, "community"));
-  const failed = await attempt(() => toggleReaction(db, { responseId: str(form, "response"), userId: me.id }));
-  if (failed) return failed;
+  await attempt(() => toggleReaction(db, { responseId: str(form, "response"), userId: me.id }));
   revalidatePath(`/c/${community.slug}`, "layout");
-  return undefined;
 }

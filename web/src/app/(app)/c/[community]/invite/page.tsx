@@ -16,7 +16,7 @@ export default async function InvitePage({ params }: PageProps<"/c/[community]/i
 
   return (
     <>
-      <Top here={{ label: community.name, href: `/c/${community.slug}` }} />
+      <Top trail={[{ label: community.name, href: `/c/${community.slug}` }, { label: "Invite" }]} />
       <main className="mx-auto max-w-2xl space-y-8 px-4 py-8">
         <div className="space-y-2">
           <h1 className="display text-4xl">Invite someone</h1>

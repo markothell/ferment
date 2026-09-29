@@ -33,7 +33,7 @@ export default async function SetupPage({ params }: PageProps<"/c/[community]/se
 
   return (
     <>
-      <Top here={{ label: community.name, href: base }} />
+      <Top trail={[{ label: community.name, href: base }, { label: "Set up" }]} />
       <main className="mx-auto max-w-2xl space-y-8 px-4 py-8">
         <div className="space-y-2">
           <h1 className="display text-4xl">Set up {community.name}</h1>

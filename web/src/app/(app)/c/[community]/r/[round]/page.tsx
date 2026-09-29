@@ -8,8 +8,10 @@ import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
 import { Form } from "@/components/app/Form";
+import { Mark } from "@/components/app/Mark";
 import { Top } from "@/components/app/Top";
-import { react, reveal, share } from "../../actions";
+import { TurnDot } from "@/components/app/TurnDot";
+import { mark, reveal, share } from "../../actions";
 
 type Props = PageProps<"/c/[community]/r/[round]">;
 
@@ -49,15 +51,19 @@ export default async function RoundPage({ params }: Props) {
     </>
   );
   const canWrite = view.canTakePart && (open || closed) && (!view.mine || open || round.editAfterClose);
-  const where = circle ? { label: circle.name, href: `${base}/circles/${circle.slug}` } : { label: community.name, href: base };
+  const trail = [
+    { label: community.name, href: base },
+    ...(circle ? [{ label: circle.name, href: `${base}/circles/${circle.slug}` }] : []),
+    { label: round.welcome ? "Welcome question" : circle ? "Round" : "Open question" },
+  ];
 
   return (
     <>
-      <Top here={where} />
+      <Top trail={trail} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
         <header className="space-y-3">
           <span className={open ? "label live flex items-center gap-2" : "label"}>
-            {open && <span className="dot-live" aria-hidden />}
+            <TurnDot open={open} answered={Boolean(view.mine)} />
             {round.welcome ? "welcome question" : circle ? `a round in ${circle.name}` : "open question"}
             {" · "}
             {open ? (round.closesAt ? `closes ${relative(round.closesAt)}` : "open") : round.phase === "closed" ? "closed" : "not open yet"}
@@ -105,19 +111,16 @@ export default async function RoundPage({ params }: Props) {
                       {isMine ? "You" : displayName(r)}
                     </p>
                     {r.text && <p className="whitespace-pre-line">{r.text}</p>}
-                    <div className="flex items-center gap-3">
-                      {round.reactions && !isMine ? (
-                        <Form action={react} submit={reacted ? "●" : "○"} buttonClass={reacted ? "mark mark-on" : "mark"} className="">
-                          {hidden}
-                          <input type="hidden" name="response" value={r.id} />
-                        </Form>
-                      ) : null}
-                      {r.reactedBy.length > 0 && (
-                        <span className="mono text-xs text-[var(--ink-faint)]">
-                          {r.reactedBy.length}
-                        </span>
-                      )}
-                    </div>
+                    {round.reactions && !isMine ? (
+                      <Mark
+                        on={reacted}
+                        count={r.reactedBy.length}
+                        action={mark}
+                        fields={{ community: community.slug, round: round.id, response: r.id }}
+                      />
+                    ) : r.reactedBy.length > 0 ? (
+                      <span className="mono text-xs text-[var(--ink-faint)]">○ {r.reactedBy.length}</span>
+                    ) : null}
                   </li>
                 );
               })}

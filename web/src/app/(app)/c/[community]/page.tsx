@@ -7,6 +7,7 @@ import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { CircleCard } from "@/components/app/CircleCard";
 import { RoundRow } from "@/components/app/RoundRow";
+import { TurnDot } from "@/components/app/TurnDot";
 import { Top } from "@/components/app/Top";
 
 export async function generateMetadata({ params }: PageProps<"/c/[community]">): Promise<Metadata> {
@@ -25,7 +26,7 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
 
   return (
     <>
-      <Top here={{ label: community.name, href: base }} links={[{ label: "Invite", href: `${base}/invite` }]} />
+      <Top trail={[{ label: community.name }]} links={[{ label: "Invite", href: `${base}/invite` }]} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
         <header className="space-y-3">
           <h1 className="display text-4xl">{community.name}</h1>
@@ -43,12 +44,12 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
 
         {welcome && (
           <Link href={`${base}/r/${welcome.id}`} className="card block space-y-2">
-            <span className="label flex items-center gap-2">
-              <span className="dot-live" aria-hidden /> <span className="live">welcome question</span>
+            <span className="label live flex items-center gap-2">
+              <TurnDot open answered={welcome.respondedByMe} /> welcome question
             </span>
             <p className="display text-2xl leading-snug">{welcome.question}</p>
             <p className="mono text-sm text-[var(--ink-soft)]">
-              {welcome.responded} shared{welcome.respondedByMe ? " · you shared" : ""}
+              {welcome.responded} shared
             </p>
             {!welcome.respondedByMe && <span className="button mt-2">Answer it</span>}
           </Link>
