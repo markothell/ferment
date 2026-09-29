@@ -11,7 +11,10 @@ npm test                     # vitest, against an in-memory Postgres
 
 Nothing else to install. With no `DATABASE_URL`, the app runs on an embedded Postgres (PGlite)
 in `.data/`, migrated at startup. With no `RESEND_API_KEY`, sign-in links and other mail print
-to the dev server console.
+to the dev server console and are appended to `.data/outbox.log`. With no `BLOB_READ_WRITE_TOKEN`,
+voice recordings are saved to `.data/audio`.
+
+Sample pages that need no sign-in: `/demo/circle`, `/demo/community`, `/demo/feed`.
 
 ## Layout
 

@@ -148,3 +148,14 @@
 .ferment .chip-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--shared-soft); border: 1.2px solid var(--shared); }
 .ferment .chip-live { background: var(--raised); border: 2px solid var(--live); }
 @media (prefers-reduced-motion: reduce) { .ferment .feed-chev { transition: none; } }
+
+/* The record button: a ring with your color inside. */
+.ferment .record {
+  width: 64px; height: 64px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--rule-strong); background: var(--raised);
+}
+.ferment .record:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.ferment .record:disabled { opacity: .55; }
+.ferment .record-dot { width: 22px; height: 22px; border-radius: 999px; background: var(--mine); }
+.ferment audio { accent-color: var(--ink); height: 40px; }

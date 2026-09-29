@@ -4,9 +4,12 @@ import { db } from "@/db";
 import { circleById } from "@/domain/circles";
 import { Refusal } from "@/domain/errors";
 import { roundView } from "@/domain/rounds";
+import { formatDuration } from "@/lib/audio/recorder";
+import { audioStorage } from "@/lib/audioStore";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
+import { Composer } from "@/components/app/Composer";
 import { Form } from "@/components/app/Form";
 import { Mark } from "@/components/app/Mark";
 import { Top } from "@/components/app/Top";
@@ -79,18 +82,19 @@ export default async function RoundPage({ params }: Props) {
         {canWrite && (
           <section className="card space-y-3">
             <h2 className="font-medium">{view.mine ? "Your answer" : "Your turn"}</h2>
-            {view.mine && closed && !round.editAfterClose ? null : (
-              <Form action={share} submit={view.mine ? "Update" : "Share"} pending="Sharing…">
-                {hidden}
-                <textarea
-                  name="text"
-                  rows={5}
-                  className="field"
-                  defaultValue={view.mine?.text ?? ""}
-                  placeholder={prompt.telling === "voice" ? "Voice recording is coming next. For now, write it." : "Write it here."}
-                  maxLength={5000}
-                />
-              </Form>
+            {view.mine && closed && !round.editAfterClose ? null : prompt.shape === "story" || prompt.shape === "story_placement" ? (
+              <Composer
+                action={share}
+                community={community.slug}
+                roundId={round.id}
+                telling={prompt.telling ?? "voice"}
+                maxSeconds={prompt.secondsPerNote ?? 60}
+                storage={audioStorage()}
+                existing={view.mine ? { text: view.mine.text, audioUrl: view.mine.audioUrl, audioSeconds: view.mine.audioSeconds } : null}
+                submitLabel={view.mine ? "Update" : "Share"}
+              />
+            ) : (
+              <p className="text-[var(--ink-soft)]">Answering this kind of question opens soon.</p>
             )}
           </section>
         )}
@@ -110,6 +114,12 @@ export default async function RoundPage({ params }: Props) {
                     <p className={isMine ? "font-medium text-[var(--mine)]" : "font-medium"}>
                       {isMine ? "You" : displayName(r)}
                     </p>
+                    {r.audioUrl && (
+                      <div className="space-y-1">
+                        <audio controls preload="none" src={r.audioUrl} className="w-full" />
+                        {r.audioSeconds ? <p className="mono text-xs text-[var(--ink-faint)]">{formatDuration(r.audioSeconds * 1000)}</p> : null}
+                      </div>
+                    )}
                     {r.text && <p className="whitespace-pre-line">{r.text}</p>}
                     {round.reactions && !isMine ? (
                       <Mark

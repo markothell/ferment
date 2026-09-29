@@ -17,6 +17,7 @@ import {
   circleMembers, circles, communities, communityMembers, prompts, reactions, responseWords, responses,
   roundSupports, rounds, user, words,
 } from "@/db/schema";
+import { isOurAudio } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
 import { activeMemberCount, isCircleMember } from "./circles";
 import { membershipOf, requireMember } from "./communities";
@@ -289,7 +290,9 @@ export async function respond(
   const tells = prompt.shape === "story" || prompt.shape === "story_placement";
   const places = prompt.shape === "placement" || prompt.shape === "story_placement";
 
-  // Audio is fixed from the moment it's submitted.
+  // Audio is fixed from the moment it's submitted, and only ever points at our storage.
+  if (input.audioUrl && !existing?.audioUrl && !isOurAudio(input.audioUrl)) refuse("That recording didn't come from here.");
+  if (input.audioUrl && !tells) refuse("This question doesn't take recordings.");
   const audioUrl = existing?.audioUrl ?? (input.audioUrl || null);
   const audioSeconds = existing?.audioUrl ? existing.audioSeconds : (input.audioSeconds ?? null);
   if (tells && !text && !audioUrl) refuse("Say something, or write it.");
@@ -311,7 +314,7 @@ export async function respond(
     } else {
       await tx.insert(responses).values({
         id: responseId, roundId, userId, text, audioUrl, audioSeconds, x, y,
-        transcriptStatus: audioUrl ? "pending" : "none", createdAt: now, updatedAt: now,
+        transcriptStatus: "none", createdAt: now, updatedAt: now, // transcription: to do
       });
     }
 

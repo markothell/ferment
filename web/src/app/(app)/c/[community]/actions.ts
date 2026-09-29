@@ -160,7 +160,13 @@ export async function withdraw(_prev: ActionState, form: FormData): Promise<Acti
 
 export async function share(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, community } = await loadCommunity(str(form, "community"));
-  const failed = await attempt(() => respond(db, { roundId: str(form, "round"), userId: me.id, input: { text: str(form, "text") } }));
+  const audioUrl = str(form, "audioUrl") || null;
+  const seconds = Number(str(form, "audioSeconds"));
+  const input = {
+    ...(form.has("text") ? { text: str(form, "text") } : {}),
+    ...(audioUrl ? { audioUrl, audioSeconds: Number.isFinite(seconds) && seconds > 0 ? seconds : null } : {}),
+  };
+  const failed = await attempt(() => respond(db, { roundId: str(form, "round"), userId: me.id, input }));
   if (failed) return failed;
   revalidatePath(`/c/${community.slug}`, "layout");
   return { ok: "Shared." };

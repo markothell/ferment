@@ -144,10 +144,10 @@ describe("responding and closing", () => {
 
   it("freezes all but text after the close, and audio from the start", async () => {
     const id = await openRound({ question: "Where are you?", shape: "story_placement", axes: [{ poleA: "rested", poleB: "worn" }] });
-    await respond(db, { roundId: id, userId: people[1], input: { text: "tired", audioUrl: "https://a/1.m4a", x: 0.8 }, now: t0 });
-    await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "https://a/2.m4a", x: 0.6 }, now: t0 });
+    await respond(db, { roundId: id, userId: people[1], input: { text: "tired", audioUrl: "/api/audio/local/take1.m4a", x: 0.8 }, now: t0 });
+    await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "/api/audio/local/take2.m4a", x: 0.6 }, now: t0 });
     let mine = (await roundView(db, id, people[1], t0)).mine!;
-    expect(mine.audioUrl).toBe("https://a/1.m4a");
+    expect(mine.audioUrl).toBe("/api/audio/local/take1.m4a");
     expect(mine.x).toBe(0.6);
 
     await revealNow(db, { roundId: id, userId: people[1], now: t0 });
@@ -155,6 +155,12 @@ describe("responding and closing", () => {
     mine = (await roundView(db, id, people[1], t0)).mine!;
     expect(mine.text).toBe("rested now");
     expect(mine.x).toBe(0.6);
+  });
+
+  it("only takes recordings from our own storage", async () => {
+    const id = await openRound();
+    await expect(respond(db, { roundId: id, userId: people[1], input: { audioUrl: "https://evil.example/x.m4a" } })).rejects.toThrow(/didn't come from here/);
+    await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "https://abc123.public.blob.vercel-storage.com/rounds/r1/take-x9.m4a", audioSeconds: 12 } });
   });
 
   it("requires the shape's parts", async () => {
