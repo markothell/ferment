@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
 import { communityHome, communityMapData } from "@/domain/communities";
+import { feed } from "@/domain/feed";
 import { communityQuestions } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { CircleCard } from "@/components/app/CircleCard";
 import { CommunityMap } from "@/components/app/CommunityMap";
+import { FeedList } from "@/components/app/FeedList";
 import { RoundRow } from "@/components/app/RoundRow";
 import { TurnDot } from "@/components/app/TurnDot";
 import { Top } from "@/components/app/Top";
@@ -23,6 +25,7 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
     communityQuestions(db, community.id, me.id),
     communityMapData(db, community.id),
   ]);
+  const talk = (await feed(db, community.id, me.id)).slice(0, 3);
   const welcome = questions.find((q) => q.welcome);
   const others = questions.filter((q) => !q.welcome);
   const mayAsk = community.membersPostOpenQuestions || isHost;
@@ -83,6 +86,16 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
             </ul>
           )}
         </section>
+
+        {talk.length > 0 && (
+          <section className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <h2 className="display text-2xl">What we&apos;re talking about</h2>
+              <Link href={`${base}/feed`} className="link text-sm">See all</Link>
+            </div>
+            <FeedList items={talk} community={community.slug} openFirst={false} />
+          </section>
+        )}
 
         <section className="space-y-4">
           <div className="flex items-baseline justify-between">

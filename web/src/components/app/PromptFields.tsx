@@ -7,23 +7,30 @@ const REVEALS = [
 ] as const;
 
 /** The question builder's fields. Story answers for now; the other shapes come next. */
-export function PromptFields({ defaultReveal = "sealed" }: { defaultReveal?: (typeof REVEALS)[number]["value"] }) {
+export function PromptFields({
+  defaultReveal = "sealed", defaults = {},
+}: {
+  defaultReveal?: (typeof REVEALS)[number]["value"];
+  defaults?: { question?: string; context?: string; telling?: "voice" | "text" | null; reveal?: (typeof REVEALS)[number]["value"] };
+}) {
+  const reveal = defaults.reveal ?? defaultReveal;
+  const telling = defaults.telling ?? "voice";
   return (
     <>
-      <Field label="The question" name="question" required maxLength={200} />
-      <Field label="A little context" name="context" multiline maxLength={1000} placeholder="Optional" rows={2} />
+      <Field label="The question" name="question" required maxLength={200} defaultValue={defaults.question} />
+      <Field label="A little context" name="context" multiline maxLength={1000} placeholder="Optional" rows={2} defaultValue={defaults.context} />
       <fieldset className="space-y-2">
         <legend className="mb-2 font-medium">Answers lead with</legend>
         <div className="flex gap-6">
-          <label className="flex items-center gap-2"><input type="radio" name="telling" value="voice" defaultChecked /> voice</label>
-          <label className="flex items-center gap-2"><input type="radio" name="telling" value="text" /> writing</label>
+          <label className="flex items-center gap-2"><input type="radio" name="telling" value="voice" defaultChecked={telling === "voice"} /> voice</label>
+          <label className="flex items-center gap-2"><input type="radio" name="telling" value="text" defaultChecked={telling === "text"} /> writing</label>
         </div>
       </fieldset>
       <fieldset className="space-y-2">
         <legend className="mb-2 font-medium">When people see each other&apos;s answers</legend>
         {REVEALS.map((r) => (
           <label key={r.value} className="flex gap-3 rounded-[10px] border border-[var(--rule)] p-3">
-            <input type="radio" name="reveal" value={r.value} defaultChecked={r.value === defaultReveal} className="mt-1" />
+            <input type="radio" name="reveal" value={r.value} defaultChecked={r.value === reveal} className="mt-1" />
             <span>
               <span className="block font-medium">{r.label}</span>
               <span className="block text-sm text-[var(--ink-soft)]">{r.hint}</span>

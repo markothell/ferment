@@ -59,8 +59,12 @@ export async function isCircleMember(db: DB, circleId: string, userId: string): 
 export async function createCircle(
   db: DB,
   {
-    communityId, userId, name, description = "", firstQuestion = "", now = new Date(),
-  }: { communityId: string; userId: string; name: string; description?: string; firstQuestion?: string; now?: Date },
+    communityId, userId, name, description = "", firstQuestion = "", promptId = null, now = new Date(),
+  }: {
+    communityId: string; userId: string; name: string; description?: string; now?: Date;
+    /** A new first question, or an existing prompt: "start a circle around this". */
+    firstQuestion?: string; promptId?: string | null;
+  },
 ): Promise<Circle> {
   await requireMember(db, communityId, userId);
   const clean = name.trim().replace(/\s+/g, " ");
@@ -68,13 +72,17 @@ export async function createCircle(
   if (clean.length > 60) refuse("Circle names are 60 characters at most.");
   const desc = description.trim();
   if (desc.length > DESCRIPTION_MAX) refuse("That description is too long.");
-  const first = firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
+  const first = !promptId && firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
+  if (promptId) {
+    const [existing] = await db.select({ communityId: prompts.communityId }).from(prompts).where(eq(prompts.id, promptId)).limit(1);
+    if (!existing || existing.communityId !== communityId) refuse("That question isn't in this community.");
+  }
 
   const [community] = await db.select().from(communities).where(eq(communities.id, communityId)).limit(1);
   const slug = await uniqueSlug(clean, async (s) => Boolean(await circleBySlug(db, communityId, s)));
 
   return db.transaction(async (tx) => {
-    let originPromptId: string | null = null;
+    let originPromptId: string | null = promptId;
     if (first) {
       originPromptId = newId();
       await tx.insert(prompts).values({ id: originPromptId, communityId, authorId: userId, ...first });

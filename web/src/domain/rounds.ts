@@ -165,6 +165,12 @@ export async function suggestRound(
   if (!(await isCircleMember(db, circleId, userId))) refuse("Only members can suggest a question here.");
 
   const p = await promptFor(db, circle.communityId, userId, prompt);
+  const [already] = await db
+    .select({ phase: rounds.phase })
+    .from(rounds)
+    .where(and(eq(rounds.circleId, circleId), eq(rounds.promptId, p.id), inArray(rounds.phase, ["nominated", "queued", "open"])))
+    .limit(1);
+  if (already) refuse(already.phase === "open" ? "That question is open in this circle right now." : "That question is already waiting in this circle.");
   const [round] = await db
     .insert(rounds)
     .values({
@@ -219,13 +225,13 @@ export async function withdrawRound(db: DB, { roundId, userId }: { roundId: stri
 /** A question to the whole community. Open at once; no queue. */
 export async function postOpenQuestion(
   db: DB,
-  { communityId, userId, prompt, now = new Date(), ...rest }: { communityId: string; userId: string; prompt: PromptInput; now?: Date } & RoundSettings,
+  { communityId, userId, prompt, now = new Date(), ...rest }: { communityId: string; userId: string; prompt: PromptInput | { promptId: string }; now?: Date } & RoundSettings,
 ): Promise<Round> {
   const m = await requireMember(db, communityId, userId);
   const [community] = await db.select().from(communities).where(eq(communities.id, communityId)).limit(1);
   if (!community.membersPostOpenQuestions && m.role !== "host") refuse("In this community, hosts post the open questions.");
 
-  const p = await createPrompt(db, { communityId, authorId: userId, ...prompt });
+  const p = await promptFor(db, communityId, userId, prompt);
   const s = settings(rest);
   const [round] = await db
     .insert(rounds)

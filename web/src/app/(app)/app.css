@@ -125,3 +125,26 @@
 @media (prefers-reduced-motion: reduce) {
   .ferment .cm-fade, .ferment .cm-part { transition: none; }
 }
+
+/* The feed. */
+.ferment .feed { list-style: none; margin: 0; padding: 0; }
+.ferment .feed-item + .feed-item { border-top: 1px solid var(--rule); }
+.ferment .feed-row {
+  list-style: none; cursor: pointer;
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) 16px; gap: 12px; align-items: center;
+  padding: 12px 4px; border-radius: 8px;
+}
+.ferment .feed-row::-webkit-details-marker { display: none; }
+.ferment .feed-row:focus-visible { outline: 2px solid var(--live); outline-offset: 1px; }
+.ferment .feed-chev { color: var(--ink-faint); font-size: 18px; transition: transform .15s; justify-self: end; }
+.ferment details[open] > .feed-row .feed-chev { transform: rotate(90deg); }
+.ferment .feed-more { display: grid; gap: 12px; padding: 0 4px 18px 64px; font-size: 14px; color: var(--ink-soft); }
+@media (max-width: 480px) { .ferment .feed-more { padding-left: 4px; } }
+.ferment .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px 4px 8px;
+  font-size: 13px; color: var(--ink);
+}
+.ferment .chip-dot { width: 9px; height: 9px; border-radius: 999px; background: var(--shared-soft); border: 1.2px solid var(--shared); }
+.ferment .chip-live { background: var(--raised); border: 2px solid var(--live); }
+@media (prefers-reduced-motion: reduce) { .ferment .feed-chev { transition: none; } }

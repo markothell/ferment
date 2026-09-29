@@ -17,7 +17,4 @@ export async function requireUser(next = "/home"): Promise<SessionUser> {
   return { id, name, email };
 }
 
-/** A person's name as others see it: their own, or their email's first half. */
-export function displayName(u: { name: string | null; email: string }): string {
-  return u.name?.trim() || u.email.split("@")[0];
-}
+export { displayName } from "./names";

@@ -43,6 +43,7 @@ export async function proposeCircle(_prev: ActionState, form: FormData): Promise
     circle = await createCircle(db, {
       communityId: community.id, userId: me.id,
       name: str(form, "name"), description: str(form, "description"), firstQuestion: str(form, "question"),
+      promptId: str(form, "prompt") || null,
     });
   });
   if (failed) return failed;
@@ -178,4 +179,37 @@ export async function mark(form: FormData): Promise<void> {
   const { me, community } = await loadCommunity(str(form, "community"));
   await attempt(() => toggleReaction(db, { responseId: str(form, "response"), userId: me.id }));
   revalidatePath(`/c/${community.slug}`, "layout");
+}
+
+// ── The feed ──────────────────────────────────────────────────────────────
+
+export async function suggestFromFeed(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() =>
+    suggestRound(db, { circleId: str(form, "circle"), userId: me.id, prompt: { promptId: str(form, "prompt") } }),
+  );
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return { ok: "Suggested to your circle." };
+}
+
+/** Adapt a question: a new prompt that remembers its parent, sent to one of your circles or to everyone. */
+export async function adapt(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const prompt = { ...promptFrom(form), adaptedFromId: str(form, "parent") };
+  const to = str(form, "to");
+  let href = "";
+  const failed = await attempt(async () => {
+    if (to === "everyone") {
+      const r = await postOpenQuestion(db, { communityId: community.id, userId: me.id, prompt, timerHours: str(form, "timer") || null });
+      href = `/c/${community.slug}/r/${r.id}`;
+    } else {
+      const r = await suggestRound(db, { circleId: to, userId: me.id, prompt, timerHours: str(form, "timer") || null });
+      const circle = await circleById(db, r.circleId!);
+      href = `/c/${community.slug}/circles/${circle!.slug}`;
+    }
+  });
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  redirect(href);
 }
