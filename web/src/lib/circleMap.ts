@@ -10,6 +10,10 @@ const RING_R = 150;
 export const SEAT_R = 20;
 const MAX_PAST = 16; // the spiral reaches the seats around here
 
+// Server and browser can disagree in the last digits of a float, which breaks
+// hydration; every coordinate leaves here rounded.
+const q = (v: number) => Math.round(v * 100) / 100;
+
 export type MapSeat = { id: string; name: string };
 export type MapRound = {
   id: string;
@@ -37,7 +41,7 @@ export function layoutCircle(seatsIn: MapSeat[], roundsIn: MapRound[]) {
   const seats: PlacedSeat[] = seatsIn.map((s, i) => {
     const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
     return {
-      ...s, a, x: C + RING_R * Math.cos(a), y: C + RING_R * Math.sin(a),
+      ...s, a, x: q(C + RING_R * Math.cos(a)), y: q(C + RING_R * Math.sin(a)),
       initials: initials(s.name), labelAbove: Math.sin(a) < -0.5,
     };
   });
@@ -95,12 +99,13 @@ export function layoutCircle(seatsIn: MapSeat[], roundsIn: MapRound[]) {
       const dir = s.a + fan;
       return [{
         round: r, queued: r.phase === "queued",
-        x1: s.x + (SEAT_R + 3) * Math.cos(dir), y1: s.y + (SEAT_R + 3) * Math.sin(dir),
-        x2: s.x + (SEAT_R + 24) * Math.cos(dir), y2: s.y + (SEAT_R + 24) * Math.sin(dir),
+        x1: q(s.x + (SEAT_R + 3) * Math.cos(dir)), y1: q(s.y + (SEAT_R + 3) * Math.sin(dir)),
+        x2: q(s.x + (SEAT_R + 24) * Math.cos(dir)), y2: q(s.y + (SEAT_R + 24) * Math.sin(dir)),
       }];
     });
 
   // The thread runs oldest → newest, through the center.
   const threadPoints = [...past, ...(center ? [center] : [])];
+  for (const nd of threadPoints) { nd.x = q(nd.x); nd.y = q(nd.y); nd.r = q(nd.r); }
   return { seats, nodes: threadPoints, spurs, center };
 }

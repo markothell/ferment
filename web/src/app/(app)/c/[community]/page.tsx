@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
-import { communityHome } from "@/domain/communities";
+import { communityHome, communityMapData } from "@/domain/communities";
 import { communityQuestions } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { CircleCard } from "@/components/app/CircleCard";
+import { CommunityMap } from "@/components/app/CommunityMap";
 import { RoundRow } from "@/components/app/RoundRow";
 import { TurnDot } from "@/components/app/TurnDot";
 import { Top } from "@/components/app/Top";
@@ -17,7 +18,11 @@ export async function generateMetadata({ params }: PageProps<"/c/[community]">):
 
 export default async function CommunityPage({ params }: PageProps<"/c/[community]">) {
   const { me, community, isHost } = await loadCommunity((await params).community);
-  const [home, questions] = await Promise.all([communityHome(db, community, me.id), communityQuestions(db, community.id, me.id)]);
+  const [home, questions, map] = await Promise.all([
+    communityHome(db, community, me.id),
+    communityQuestions(db, community.id, me.id),
+    communityMapData(db, community.id),
+  ]);
   const welcome = questions.find((q) => q.welcome);
   const others = questions.filter((q) => !q.welcome);
   const mayAsk = community.membersPostOpenQuestions || isHost;
@@ -34,6 +39,16 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
             <p className="whitespace-pre-line text-[var(--ink-soft)]">{community.welcomeNote}</p>
           )}
         </header>
+
+        <CommunityMap
+          people={home.members.map((m) => ({ id: m.userId, name: displayName(m) }))}
+          circles={map.circles}
+          openQuestions={map.openQuestions}
+          answerers={map.answerers}
+          viewerId={me.id}
+          base={base}
+          label={`${community.name}: ${home.members.length} people, ${map.circles.length} circles, ${map.openQuestions} open questions.`}
+        />
 
         {setupLeft && (
           <Link href={`${base}/setup`} className="card block">
@@ -55,7 +70,7 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
           </Link>
         )}
 
-        <section className="space-y-4">
+        <section id="questions" className="scroll-mt-4 space-y-4">
           <div className="flex items-baseline justify-between">
             <h2 className="display text-2xl">Open questions</h2>
             {mayAsk && <Link href={`${base}/ask`} className="link text-sm">Ask the community</Link>}

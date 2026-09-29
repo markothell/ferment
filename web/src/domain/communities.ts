@@ -1,6 +1,6 @@
 // Communities: the social home and the outermost circle (PLAN §1, §4).
 
-import { and, asc, count, eq, isNull, notInArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, notInArray } from "drizzle-orm";
 import type { DB } from "@/db";
 import { circleMembers, circles, communities, communityMembers, prompts, responses, rounds, user } from "@/db/schema";
 import { hostAllowlist, normalizeEmail } from "@/lib/access";
@@ -173,5 +173,45 @@ export async function communityHome(db: DB, community: Community, viewerId: stri
     members,
     welcome: welcome[0] ?? null,
     circles: circleRows.map((c) => ({ ...c, isMember: myCircleIds.has(c.id) })),
+  };
+}
+
+/** What the community map draws: circles with their members, what they've explored, what's open. */
+export async function communityMapData(db: DB, communityId: string) {
+  const [circleRows, memberRows, roundRows, answerRows] = await Promise.all([
+    db
+      .select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status })
+      .from(circles)
+      .where(and(eq(circles.communityId, communityId), notInArray(circles.status, ["closed", "expired"])))
+      .orderBy(asc(circles.createdAt)),
+    db
+      .select({ circleId: circleMembers.circleId, userId: circleMembers.userId })
+      .from(circleMembers)
+      .innerJoin(circles, eq(circles.id, circleMembers.circleId))
+      .where(and(eq(circles.communityId, communityId), isNull(circleMembers.leftAt)))
+      .orderBy(asc(circleMembers.joinedAt)),
+    db
+      .select({ circleId: rounds.circleId, phase: rounds.phase, n: count() })
+      .from(rounds)
+      .where(and(eq(rounds.communityId, communityId), inArray(rounds.phase, ["open", "closed"])))
+      .groupBy(rounds.circleId, rounds.phase),
+    db
+      .selectDistinct({ userId: responses.userId })
+      .from(responses)
+      .innerJoin(rounds, eq(rounds.id, responses.roundId))
+      .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId), eq(rounds.phase, "open"))),
+  ]);
+
+  const tally = (circleId: string | null, phase: "open" | "closed") =>
+    roundRows.find((r) => r.circleId === circleId && r.phase === phase)?.n ?? 0;
+
+  return {
+    circles: circleRows.map((c) => ({
+      id: c.id, slug: c.slug, name: c.name, forming: c.status === "forming",
+      members: memberRows.filter((m) => m.circleId === c.id).map((m) => m.userId),
+      explored: tally(c.id, "closed"), open: tally(c.id, "open"),
+    })),
+    openQuestions: tally(null, "open"),
+    answerers: answerRows.map((r) => r.userId),
   };
 }

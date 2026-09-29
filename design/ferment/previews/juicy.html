@@ -1,0 +1,485 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferment Attitude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..800,0..100,0..1;1,9..144,300..800,0..100,0..1&family=Geist+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+  /* Page chrome stays in today's Culture tokens, so the three directions read against what exists. */
+  :root {
+    --ground: #E7EAD6; --raised: #F6F7EE; --ink: #1C2A25; --ink-soft: #4E5F58; --ink-faint: #7C8B83;
+    --live: #1E7F72; --mine: #C94B66; --shared: #D99A1E; --shared-soft: #EDD9A6;
+    --rule: rgba(28, 42, 37, .13); --rule-strong: rgba(28, 42, 37, .30);
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    --fraunces: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --bricolage: "Bricolage Grotesque", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+      --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45; --shared-soft: #4A4226;
+      --rule: rgba(227, 232, 213, .12); --rule-strong: rgba(227, 232, 213, .28); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+    --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45; --shared-soft: #4A4226;
+    --rule: rgba(227, 232, 213, .12); --rule-strong: rgba(227, 232, 213, .28); color-scheme: dark;
+  }
+
+  /* ── Direction tokens. Each set pins its own light and dark; the page toggle picks. ── */
+  .A { --g:#EFE7D8; --r:#FAF5EB; --i:#2A221C; --s:#5F5349; --f:#8A7D70; --lv:#25694B; --mn:#B3304E; --sh:#D4901A; --shs:#F0D7A0; --ru:rgba(42,34,28,.13); --rs:rgba(42,34,28,.30); }
+  .B { --g:#E8DBC4; --r:#F6EEDF; --i:#2A1D22; --s:#5F4B50; --f:#8B7876; --lv:#3E6A1F; --mn:#A3234A; --sh:#D99414; --shs:#F1D08A; --ru:rgba(42,29,34,.14); --rs:rgba(42,29,34,.32); --crust:#9C5B2A; }
+  .C { --g:#F7F0E4; --r:#FFFBF3; --i:#1E1916; --s:#564B44; --f:#86796E; --lv:#1D7A55; --mn:#C22D5A; --sh:#E09412; --shs:#F5D89A; --ru:rgba(30,25,22,.13); --rs:rgba(30,25,22,.30);
+       --kimchi:#D2502F; --plum:#6B2A57; --kraut:#8E9D33; --miso:#B7843F; --turmeric:#E3A018; --kombucha:#C0672E; }
+  :root[data-theme="dark"] .A { --g:#1B1612; --r:#251E19; --i:#F1E7D6; --s:#BCAF9E; --f:#857868; --lv:#5CBB8D; --mn:#EE7B93; --sh:#EAAE48; --shs:#4B3A1F; --ru:rgba(241,231,214,.12); --rs:rgba(241,231,214,.28); }
+  :root[data-theme="dark"] .B { --g:#1E1619; --r:#2A1F23; --i:#F4E6D6; --s:#C2AFA3; --f:#8A7872; --lv:#A0C86E; --mn:#F27E9A; --sh:#F2B64C; --shs:#6A4E22; --ru:rgba(244,230,214,.12); --rs:rgba(244,230,214,.28); --crust:#D08A55; }
+  :root[data-theme="dark"] .C { --g:#171311; --r:#221C18; --i:#F4EBDD; --s:#C2B5A6; --f:#857869; --lv:#4FC08E; --mn:#F0739A; --sh:#F2B03A; --shs:#4E3B17; --ru:rgba(244,235,221,.12); --rs:rgba(244,235,221,.28);
+       --kimchi:#EE6C4A; --plum:#B0588F; --kraut:#BACB5C; --miso:#D6A461; --turmeric:#F2B53A; --kombucha:#E08650; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 16px/1.55 var(--sans); padding: 48px 16px 96px; }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 72px; }
+  .eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  h1 { font: 400 clamp(40px, 6vw, 64px)/1 var(--serif); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  h1 em { color: var(--mine); }
+  h2 { font: 400 clamp(28px, 3.8vw, 40px)/1.05 var(--serif); margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  .head { display: grid; gap: 16px; max-width: 70ch; }
+  .head p, .sec-head p { color: var(--ink-soft); }
+  .sec { display: grid; gap: 24px; }
+  .sec-head { display: grid; gap: 10px; max-width: 70ch; }
+
+  .theme { display: flex; gap: 8px; align-items: center; }
+  .theme > span { font: 400 12px/1 var(--mono); color: var(--ink-soft); margin-right: 4px; }
+  .theme button { font: 500 13px/1 var(--sans); color: var(--ink-soft); background: var(--raised); border: 1px solid var(--rule); padding: 9px 14px; border-radius: 999px; cursor: pointer; }
+  .theme button[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .theme button:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+
+  /* ── Where it is now ── */
+  .obs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .obs > div { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 20px; display: grid; gap: 12px; align-content: start; }
+  .obs h3 { margin: 0; font: 600 15px/1.3 var(--sans); }
+  .obs ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: var(--ink-soft); font-size: 14.5px; }
+  .obs b { color: var(--ink); font-weight: 600; }
+
+  /* ── Attitude ── */
+  .principle { font: 400 clamp(30px, 4.4vw, 48px)/1.08 var(--serif); max-width: 22ch; text-wrap: balance; }
+  .principle em { color: var(--shared); }
+  .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .three > div { border-top: 2px solid var(--ink); padding-top: 12px; display: grid; gap: 6px; }
+  .three b { font: 600 17px/1.2 var(--sans); }
+  .three span { color: var(--ink-soft); font-size: 14.5px; }
+
+  .dial { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; background: var(--raised); }
+  .dial table { width: 100%; min-width: 760px; border-collapse: collapse; font-size: 14.5px; }
+  .dial th, .dial td { text-align: left; vertical-align: top; padding: 14px 16px; border-bottom: 1px solid var(--rule); }
+  .dial tr:last-child td { border-bottom: 0; }
+  .dial th { font: 500 10.5px/1.2 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .dial th small { display: block; text-transform: none; letter-spacing: 0; font: 400 12px/1.4 var(--sans); color: var(--ink-faint); margin-top: 4px; }
+  .dial td:first-child { font: 500 11px/1.4 var(--mono); color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; width: 110px; }
+  .dial td.plain { color: var(--ink-soft); }
+  .dial td.juicy { color: var(--ink); font-weight: 500; background: color-mix(in srgb, var(--shared) 9%, transparent); }
+  .dial td.far { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--mine) 55%, transparent); }
+
+  .words { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .words > div { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 18px; display: grid; gap: 10px; align-content: start; }
+  .words .t { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+  .words .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .words .chips span { font-size: 13.5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--rule-strong); }
+  .words .no .chips span { color: var(--ink-faint); border-style: dashed; }
+  .words p { font-size: 13.5px; color: var(--ink-soft); }
+
+  /* ── A direction block ── */
+  .dir { display: grid; gap: 20px; }
+  .dir-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+  .dir-head .n { font: 500 12px/1 var(--mono); color: var(--ink-faint); letter-spacing: .06em; }
+  .dir-head p { color: var(--ink-soft); max-width: 62ch; margin-top: 8px; }
+  .swatches { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .swatches i { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(128,128,128,.3); display: block; }
+  .swatches.jars i { border-radius: 7px; }
+
+  .stage { position: relative; isolation: isolate; background: var(--g); color: var(--i); border-radius: 10px; border: 1px solid var(--rule); overflow: hidden;
+           display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .stage > * { position: relative; z-index: 1; }
+  .hero { padding: 24px 28px 36px; display: flex; flex-direction: column; gap: 18px; min-height: 480px; }
+  .hero nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .wm { display: inline-flex; align-items: center; gap: .3em; font: 500 22px/1 var(--sans); letter-spacing: -.035em; }
+  .wm svg { width: 1.2em; height: 1.2em; flex: none; overflow: visible; }
+  .hero .links { font-size: 13.5px; color: var(--s); display: flex; gap: 18px; }
+  .hero .hl { margin-top: auto; display: grid; gap: 16px; }
+  .hero h3 { margin: 0; font-weight: 400; text-wrap: balance; }
+  .hero .sub { color: var(--s); max-width: 38ch; font-size: 15.5px; }
+  .hero .ctas { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .btn { background: var(--i); color: var(--g); font: 500 14.5px/1 var(--sans); padding: 13px 20px; border-radius: 999px; border: 0; cursor: pointer; }
+  .quiet { color: var(--i); font-size: 14px; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+
+  .side { padding: 24px; display: grid; align-content: center; gap: 14px; border-left: 1px solid var(--ru); }
+  .card { background: var(--r); border: 1px solid var(--ru); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+  .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 13px; color: var(--s); }
+  .card .top b { color: var(--i); font-weight: 600; font-size: 14px; }
+  .card .q { margin: 0; font-weight: 400; line-height: 1.1; text-wrap: balance; }
+  .card .ring { width: 100%; max-width: 220px; height: auto; margin: 0 auto; display: block; overflow: visible; }
+  .card .state { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13.5px; color: var(--s); }
+  .card .state .live { color: var(--lv); font-weight: 500; }
+  .card .btn { padding: 11px 18px; font-size: 14px; }
+  .kept { display: grid; gap: 8px; }
+  .kept .lab { font-size: 12.5px; color: var(--f); }
+  .kept svg { width: 100%; height: 54px; display: block; overflow: visible; }
+
+  .costs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; font-size: 14.5px; color: var(--ink-soft); }
+  .costs b { color: var(--ink); font-weight: 600; display: block; margin-bottom: 4px; }
+
+  /* A: Kitchen table. The same structure, warmed through. */
+  .A .hero h3 { font: 400 clamp(38px, 6.4vw, 76px)/.95 var(--fraunces); font-variation-settings: "SOFT" 50, "WONK" 0, "opsz" 96; letter-spacing: -.02em; }
+  .A .hero h3 em { color: var(--mn); }
+  .A .card .q { font: 400 26px/1.1 var(--fraunces); font-variation-settings: "SOFT" 50, "opsz" 36; }
+  .A .stage::before { content: ""; position: absolute; inset: 0; z-index: 0; opacity: .35; background-image: var(--grain); mix-blend-mode: multiply; pointer-events: none; }
+  :root[data-theme="dark"] .A .stage::before { mix-blend-mode: screen; opacity: .12; }
+
+  /* B: Starter. Softer, fatter, and alive: the grain is heavier, the bubbles are uneven, the open question breathes. */
+  .B .hero h3 { font: 560 clamp(40px, 6.8vw, 82px)/.92 var(--fraunces); font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 120; letter-spacing: -.025em; }
+  .B .hero .hl { gap: 22px; }
+  .B .hero h3 em { color: var(--sh); font-weight: 480; }
+  .B .card .q { font: 560 27px/1.08 var(--fraunces); font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 36; }
+  .B .card { border-radius: 18px; }
+  .B .btn { background: var(--mn); color: #FFF6EE; }
+  :root[data-theme="dark"] .B .btn { color: #22171A; }
+  .B .stage { border-radius: 18px; }
+  .B .stage::before { content: ""; position: absolute; inset: 0; z-index: 0; opacity: .6; background-image: var(--grain); mix-blend-mode: multiply; pointer-events: none; }
+  .B .stage::after { content: ""; position: absolute; z-index: 0; right: -12%; top: -30%; width: 70%; aspect-ratio: 1; border-radius: 50%;
+                     background: radial-gradient(closest-side, color-mix(in srgb, var(--sh) 26%, transparent), transparent); pointer-events: none; }
+  :root[data-theme="dark"] .B .stage::before { mix-blend-mode: screen; opacity: .2; }
+  .B .side { border-left: 0; }
+
+  /* C: Preserves. Color leads: every circle gets its own jar color, the type is chunky, no grain, flat fields. */
+  .C .hero h3 { font: 780 clamp(38px, 6.4vw, 78px)/.9 var(--bricolage); font-variation-settings: "opsz" 96; letter-spacing: -.035em; }
+  .C .hero h3 em { font-style: normal; color: var(--kimchi); }
+  .C .card { border: 0; background: var(--plum); color: #FBEFF4; }
+  .C .card .top, .C .card .state { color: rgba(251,239,244,.75); }
+  .C .card .top b { color: #fff; }
+  .C .card .state .live { color: #B6F0CF; }
+  .C .card .q { font: 740 26px/1.02 var(--bricolage); letter-spacing: -.02em; }
+  .C .card .btn { background: #FBEFF4; color: var(--plum); }
+  :root[data-theme="dark"] .C .card { background: #4A1D3C; }
+  .C .side { background: var(--turmeric); border-left: 0; }
+  .C .side .kept .lab { color: rgba(30,25,22,.7); }
+
+  @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  @keyframes rise { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(-22px); opacity: 0; } }
+  .breathe { transform-box: fill-box; transform-origin: center; animation: breathe 4.8s ease-in-out infinite; }
+  .rise { animation: rise 3.6s ease-out infinite; }
+  .wm:hover .lift { animation: rise 2.4s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) { .breathe, .rise, .wm:hover .lift { animation: none; } .rise { opacity: 0; } }
+
+  .rec { display: grid; gap: 14px; max-width: 72ch; color: var(--ink-soft); }
+  .rec b { color: var(--ink); font-weight: 600; }
+  .rec ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+
+  @media (max-width: 860px) {
+    .stage { grid-template-columns: 1fr; }
+    .side { border-left: 0; border-top: 1px solid var(--ru); }
+    .hero { min-height: 400px; padding: 20px 20px 28px; }
+    .hero .links { display: none; }
+    .obs, .three, .words, .costs { grid-template-columns: 1fr; }
+    .dir-head { grid-template-columns: 1fr; }
+    .swatches { justify-content: flex-start; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">ferment.earth · attitude · round 8</div>
+    <h1>Juicy, not <em>clever</em></h1>
+    <p>What's here now is careful, calm and trustworthy, and it reads like a lab more than a kitchen. This page names what's missing, sets a tone of voice, and shows three ways to warm up the look, from a light touch to fully saturated. All three keep the structure you've built: the Rising logo, the circle map grammar, and the rule that green means open now.</p>
+    <div class="theme" role="group" aria-label="Theme">
+      <span>Theme</span>
+      <button type="button" data-t="light" aria-pressed="false">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <section class="sec">
+    <div class="sec-head">
+      <div class="eyebrow">Where it is now</div>
+      <h2>The science of fermenting, not the taste of it</h2>
+    </div>
+    <div class="obs">
+      <div>
+        <h3>What reads as clinical</h3>
+        <ul>
+          <li><b>Lab names on the palette.</b> Agar, Brine, Verdigris. The ground is a pale mint-gray that feels like a petri dish. The README even says "biology is a hint."</li>
+          <li><b>Hairlines and perfect circles.</b> 1px rules, 13% opacity, exact geometry. That's precise. It isn't lively.</li>
+          <li><b>Mono uppercase labels.</b> "OPEN NOW · 7 OF 9 ANSWERED" looks like a dashboard. The README already calls it "the techy side."</li>
+          <li><b>Instrument Serif is thin and cool.</b> It's elegant and editorial, like a gallery catalogue. It doesn't look like it has any appetite.</li>
+          <li><b>The copy explains rules.</b> "Answers stay sealed until everyone has had their say." That builds trust, but you can't taste it.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>What's already juicy, and should stay</h3>
+        <ul>
+          <li><b>The Rising logo.</b> Bubbles lifting off two circles are the fermentation, already there without any fuss.</li>
+          <li><b>Beet and saffron.</b> Real food colors. They're only doing small jobs now and could carry more.</li>
+          <li><b>The example questions.</b> "What fed you this week?" "A potluck for the street?" "A book we all disliked." These are the juiciest thing in the product. The voice should sound like them.</li>
+          <li><b>"Sealed," "kept," "passed on."</b> These are already kitchen words. The rest of the language can follow them.</li>
+          <li><b>Answers opened together.</b> The reveal is a shared moment, like cutting the loaf. It deserves more ceremony than a table.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head">
+      <div class="eyebrow">The attitude</div>
+    </div>
+    <p class="principle">The name carries the metaphor. Everything else just <em>tastes like it</em>.</p>
+    <div class="three">
+      <div><b>Warm</b><span>Kitchen and table, not lab and bench. Crust, honey, beet and brine, with a little grain on the surface, like flour on a counter.</span></div>
+      <div><b>Generous</b><span>Big type, room to breathe, and fat marks rather than hairlines. Say things plainly and specifically: "Tuesday Tables," not "your group."</span></div>
+      <div><b>Alive</b><span>Slightly uneven, the way handmade things are. What's open now breathes. Nothing wobbles for show.</span></div>
+    </div>
+
+    <div class="dial">
+      <table>
+        <thead><tr>
+          <th></th>
+          <th>Plain<small>today's copy</small></th>
+          <th>Juicy<small>the target</small></th>
+          <th>Too far<small>clever, winking, explaining the metaphor</small></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Lander</td><td class="plain">Small groups think together here and slowly turn into something more.</td><td class="juicy">Small groups, good questions, and time. What you make together gets passed on.</td><td class="far">Get cultured. Let your community ferment.</td></tr>
+          <tr><td>Answered</td><td class="plain">Sealed: you'll see everyone's when it closes.</td><td class="juicy">Yours is in. We open them all together on Thursday.</td><td class="far">Your answer is fermenting 🫧 Crack the jar Thursday!</td></tr>
+          <tr><td>Empty</td><td class="plain">Nothing open. Suggest a question below.</td><td class="juicy">Nothing on the table. Bring a question.</td><td class="far">Your starter's hungry! Feed it a question.</td></tr>
+          <tr><td>Button</td><td class="plain">Close and reveal now</td><td class="juicy">Open it now</td><td class="far">Pop the lid</td></tr>
+          <tr><td>History</td><td class="plain">Every question a circle explores stays on its map.</td><td class="juicy">Everything you've chewed on together stays here, and it keeps adding up.</td><td class="far">Your culture's getting funky 😏</td></tr>
+          <tr><td>Invite</td><td class="plain">Ferment is invite-only: someone in a community can invite you.</td><td class="juicy">Ferment is passed hand to hand. Someone already in will bring you in.</td><td class="far">Like a sourdough starter, you need someone to share theirs with you!</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="words">
+      <div><span class="t">Reach for</span><div class="chips"><span>table</span><span>feed</span><span>keep</span><span>pass on</span><span>bring</span><span>open</span><span>taste</span><span>warm</span><span>chew on</span><span>together</span></div><p>Everyday kitchen and table words. They're sensory, but nobody would call them a pun.</p></div>
+      <div><span class="t">Use rarely</span><div class="chips"><span>culture</span><span>starter</span><span>rise</span><span>jar</span><span>ferment</span></div><p>Save these for the one moment each is true, like the first invite or the reveal. If they're everywhere, they turn into a theme park.</p></div>
+      <div class="no"><span class="t">Never</span><div class="chips"><span>funky</span><span>get cultured</span><span>bubbling with</span><span>ripe</span><span>juicy</span><span>🫧 😏</span></div><p>No winks, no emojis telling the joke, and never explain the metaphor. The look can be juicy. The words shouldn't say so.</p></div>
+    </div>
+  </section>
+
+  <!-- ── Direction 1 ── -->
+  <section class="dir A">
+    <div class="dir-head">
+      <div><span class="n">1</span><h2>Kitchen table</h2><p>The smallest step. Same layout and same roles. The ground moves from agar to oat, the ink from brine-green to rye, and the green becomes sorrel. Fraunces, set soft, replaces Instrument Serif for headlines. A light grain goes on the ground.</p></div>
+      <div class="swatches" aria-label="Palette"><i style="background:var(--g)"></i><i style="background:var(--r)"></i><i style="background:var(--i)"></i><i style="background:var(--lv)"></i><i style="background:var(--mn)"></i><i style="background:var(--sh)"></i></div>
+    </div>
+    <div class="stage">
+      <div class="hero">
+        <nav><span class="wm"><svg viewBox="0 0 64 64" data-logo="A" aria-hidden="true"></svg>ferment</span><span class="links"><span>How it works</span><span>Circles</span><span>Sign in</span></span></nav>
+        <div class="hl">
+          <h3>How people become <em>community</em>.</h3>
+          <p class="sub">Small groups, good questions, and time. What you make together gets passed on.</p>
+          <div class="ctas"><button class="btn" type="button">Start a circle</button><span class="quiet">Look around a sample circle</span></div>
+        </div>
+      </div>
+      <div class="side"><div class="card" data-card="A"></div></div>
+    </div>
+    <div class="costs">
+      <div><b>What it gets you</b>Warmth, straight away, and almost nothing to rebuild. Every rule in the README still holds.</div>
+      <div><b>What it costs</b>It's polite. It's warmer, but still not juicy. Hand it to a reviewer and they'd call it "nice."</div>
+    </div>
+  </section>
+
+  <!-- ── Direction 2 ── -->
+  <section class="dir B">
+    <div class="dir-head">
+      <div><span class="n">2</span><h2>Starter</h2><p>The culture is alive. The ground is crumb, the ink is plum-black, and the green is pickle. Fraunces is set fat and soft with its wonky italics on. Kept rounds are uneven bubbles instead of perfect dots, and the open question breathes slowly with a bubble rising off it. The main button is beet.</p></div>
+      <div class="swatches" aria-label="Palette"><i style="background:var(--g)"></i><i style="background:var(--r)"></i><i style="background:var(--i)"></i><i style="background:var(--lv)"></i><i style="background:var(--mn)"></i><i style="background:var(--sh)"></i><i style="background:var(--crust)"></i></div>
+    </div>
+    <div class="stage">
+      <div class="hero">
+        <nav><span class="wm"><svg viewBox="0 0 64 64" data-logo="B" aria-hidden="true"></svg>ferment</span><span class="links"><span>How it works</span><span>Circles</span><span>Sign in</span></span></nav>
+        <div class="hl">
+          <h3>Culture is something you <em>pass on</em>.</h3>
+          <p class="sub">Small groups, good questions, and time. What you make together gets passed on.</p>
+          <div class="ctas"><button class="btn" type="button">Start a circle</button><span class="quiet">Look around a sample circle</span></div>
+        </div>
+      </div>
+      <div class="side"><div class="card" data-card="B"></div></div>
+    </div>
+    <div class="costs">
+      <div><b>What it gets you</b>Appetite. The type has body, the page has texture, and the logo's bubbles now show up across the whole system. It's the one that makes you want to open it.</div>
+      <div><b>What it costs</b>The motion has to stay slow and rare, only on what's open now, or it gets cute. Uneven shapes need a seeded generator so the same round always looks the same.</div>
+    </div>
+  </section>
+
+  <!-- ── Direction 3 ── -->
+  <section class="dir C">
+    <div class="dir-head">
+      <div><span class="n">3</span><h2>Preserves</h2><p>Color leads, like a shelf of jars. Each circle gets its own color (kimchi, plum, kraut, miso, turmeric, kombucha), so a community looks like a pantry. The headline type is chunky and grotesque. No grain, just flat, confident fields.</p></div>
+      <div class="swatches jars" aria-label="Palette"><i style="background:var(--kimchi)"></i><i style="background:var(--plum)"></i><i style="background:var(--kraut)"></i><i style="background:var(--miso)"></i><i style="background:var(--turmeric)"></i><i style="background:var(--kombucha)"></i></div>
+    </div>
+    <div class="stage">
+      <div class="hero">
+        <nav><span class="wm"><svg viewBox="0 0 64 64" data-logo="C" aria-hidden="true"></svg>ferment</span><span class="links"><span>How it works</span><span>Circles</span><span>Sign in</span></span></nav>
+        <div class="hl">
+          <h3>Made <em>together</em>, passed around.</h3>
+          <p class="sub">Small groups, good questions, and time. What you make together gets passed on.</p>
+          <div class="ctas"><button class="btn" type="button">Start a circle</button><span class="quiet">Look around a sample circle</span></div>
+        </div>
+      </div>
+      <div class="side"><div class="card" data-card="C"></div><div class="kept" data-shelf></div></div>
+    </div>
+    <div class="costs">
+      <div><b>What it gets you</b>The most joy and the most recognizable. Every circle gets an identity people can point to: "we're the plum one."</div>
+      <div><b>What it costs</b>It breaks the color-means-something rules. Saffron can't mean "shared" once every circle has its own color. The circle map would need rethinking, and six or more hues have to stay legible in both themes.</div>
+    </div>
+  </section>
+
+  <section class="sec rec">
+    <div class="sec-head">
+      <div class="eyebrow">Recommendation</div>
+      <h2>Starter, with a light hand</h2>
+    </div>
+    <p><b>Take direction 2 as the target and the juicy column as the voice.</b> It keeps every rule you've already decided (green is open now, beet is you, saffron is what the group made) and gives them a body. Kitchen table is too timid for what you described. Preserves is fun, but it throws away the color grammar that makes the circle map readable.</p>
+    <p>From Preserves, borrow one thing: a circle can pick one accent color for its own page, used only on its own page.</p>
+    <ol>
+      <li><b>Headline face.</b> Fraunces, soft and a little heavy, or keep Instrument Serif and warm everything else? The face is the biggest single lever on "juicy."</li>
+      <li><b>Mono.</b> Keep Geist Mono for counts, but drop the uppercase letterspaced labels in the product. That look is most of what reads as "dashboard."</li>
+      <li><b>Motion budget.</b> One breathing thing per screen, and only on what's open now.</li>
+      <li><b>The reveal.</b> The moment a round opens is where this attitude pays off most. It's worth its own mockup next.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const hash = location.hash.slice(1);
+  if (hash === "light" || hash === "dark") root.dataset.theme = hash;
+  if (!root.dataset.theme) root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const buttons = document.querySelectorAll(".theme button");
+  const mark = () => buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === root.dataset.theme)));
+  buttons.forEach(b => b.addEventListener("click", () => { root.dataset.theme = b.dataset.t; mark(); }));
+  mark();
+
+  // Grain: fractal noise as a tiled data URI, set once on the root.
+  const grain = `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>`;
+  root.style.setProperty("--grain", `url("data:image/svg+xml;utf8,${grain.replace(/"/g, "'")}")`);
+
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
+  const V = n => `var(--${n})`;
+
+  // Seeded so a given bubble always has the same shape.
+  const rng = seed => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  function blob(cx, cy, r, seed, wob = .09) {
+    const rand = rng(seed), n = 7, pts = [];
+    for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2, rr = r * (1 + (rand() - .5) * 2 * wob); pts.push([cx + rr * Math.cos(a), cy + rr * Math.sin(a)]); }
+    // Closed Catmull-Rom through the points, as cubic Béziers.
+    let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`;
+    for (let k = 0; k < n; k++) {
+      const p0 = pts[(k - 1 + n) % n], p1 = pts[k], p2 = pts[(k + 1) % n], p3 = pts[(k + 2) % n];
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(2)},${c1[1].toFixed(2)} ${c2[0].toFixed(2)},${c2[1].toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
+    }
+    return d + "Z";
+  }
+  const arc = (cx, cy, r) => `M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}`;
+
+  // ── Logos: Rising, three weights of juice ──
+  document.querySelectorAll("svg[data-logo]").forEach(svg => {
+    const v = svg.dataset.logo, sw = v === "C" ? 7 : v === "B" ? 6 : 5;
+    const s = { fill: "none", stroke: V("i"), "stroke-width": sw, "stroke-linecap": "round" };
+    el("path", { d: arc(23, 52, 15), ...s }, svg);
+    el("path", { d: arc(41, 52, 15), ...s }, svg);
+    const thoughts = [[32, 26, 4.6], [24, 14.5, 3.3], [39, 7.5, 3.8]];
+    thoughts.forEach(([x, y, r], k) => {
+      if (v === "B") el("path", { d: blob(x, y, r * 1.08, 11 + k * 7, .12), fill: V("sh") }, svg);
+      else el("circle", { cx: x, cy: y, r: v === "C" ? r * 1.1 : r, fill: V("sh") }, svg);
+    });
+    if (v === "B") el("circle", { cx: 30, cy: 20, r: 1.6, fill: V("sh"), class: "lift", opacity: 0 }, svg);
+  });
+
+  // ── The open round, as a card ──
+  const SEATS = ["Ama", "Bo", "Cleo", "Dev", "Esi", "Finn", "Gus", "Hana", "Ines", "You"];
+  const ANSWERED = new Set([0, 1, 3, 4, 6, 7]);
+  const KEPT = [
+    ["A potluck for the street?", 9], ["What do we owe our neighbours?", 8], ["How often should we meet?", 6],
+    ["A book we all disliked", 5], ["Who do you call when it's hard?", 7], ["Summer: pause or keep going?", 4], ["Where should we go next?", 6],
+  ];
+
+  function ring(v) {
+    const svg = el("svg", { viewBox: "0 0 220 220", class: "ring", role: "img", "aria-label": "Ten seats around an open question. Six have answered; you haven't yet." });
+    const C = 110, R = 84, onPlum = v === "C";
+    const faint = onPlum ? "rgba(251,239,244,.45)" : V("f");
+    el("circle", { cx: C, cy: C, r: R, fill: "none", stroke: onPlum ? "rgba(251,239,244,.18)" : V("ru"), "stroke-width": 1 }, svg);
+    SEATS.forEach((name, k) => {
+      const a = -Math.PI / 2 + k / SEATS.length * Math.PI * 2, x = C + R * Math.cos(a), y = C + R * Math.sin(a);
+      const you = name === "You", done = ANSWERED.has(k), r = v === "A" ? 9 : 10;
+      let attrs;
+      if (you) attrs = { fill: "none", stroke: onPlum ? "#FFB3C9" : V("mn"), "stroke-width": 2.4 };
+      else if (done) attrs = onPlum ? { fill: "#FBEFF4" } : { fill: V("shs"), stroke: V("sh"), "stroke-width": 1.4 };
+      else attrs = { fill: "none", stroke: faint, "stroke-width": 1.3, "stroke-dasharray": v === "A" ? "" : "2.5 3" };
+      if (v === "B") el("path", { d: blob(x, y, r, 101 + k * 13, .1), ...attrs }, svg);
+      else el("circle", { cx: x, cy: y, r, ...attrs }, svg);
+      const t = el("text", { x: C + (R + 22) * Math.cos(a), y: C + (R + 22) * Math.sin(a) + 4, "text-anchor": "middle", "font-size": 10.5, fill: faint, "font-family": "Hanken Grotesk, system-ui, sans-serif" }, svg);
+      t.textContent = name;
+    });
+    // The center: open now.
+    const live = onPlum ? "#B6F0CF" : V("lv");
+    if (v === "B") {
+      el("path", { d: blob(C, C, 30, 7, .06), fill: V("r"), stroke: live, "stroke-width": 3, class: "breathe" }, svg);
+      [[C - 6, C - 34, 3.2, "0s"], [C + 8, C - 40, 2.2, "1.4s"], [C + 1, C - 36, 2.6, "2.5s"]].forEach(([x, y, r, delay]) =>
+        el("circle", { cx: x, cy: y, r, fill: live, class: "rise", style: `animation-delay:${delay}` }, svg));
+    } else {
+      el("circle", { cx: C, cy: C, r: 30, fill: onPlum ? "rgba(251,239,244,.08)" : V("r"), stroke: live, "stroke-width": v === "C" ? 3.5 : 2 }, svg);
+    }
+    const n = el("text", { x: C, y: C + 6, "text-anchor": "middle", fill: live, "font-size": v === "A" ? 16 : 18, "font-weight": v === "A" ? 500 : 700,
+      "font-family": v === "C" ? "Bricolage Grotesque, sans-serif" : v === "B" ? "Fraunces, serif" : "Geist Mono, monospace" }, svg);
+    n.textContent = "6/10";
+    return svg;
+  }
+
+  function kept(v) {
+    const box = document.createElement("div"); box.className = "kept";
+    const lab = document.createElement("span"); lab.className = "lab"; lab.textContent = v === "C" ? "On the shelf · 7 kept" : "Kept · 7 rounds";
+    const svg = el("svg", { viewBox: "0 0 300 54", preserveAspectRatio: "xMinYMid meet", role: "img", "aria-label": "Seven rounds kept, sized by how many took part." });
+    let x = 4;
+    KEPT.forEach(([q, n], k) => {
+      const r = 6 + n * 1.6;
+      if (v === "B") {
+        const y = 27 + ((k % 2) ? 6 : -5);
+        el("path", { d: blob(x + r, y, r, 300 + k * 17, .14), fill: V("shs"), stroke: V("sh"), "stroke-width": 1.4 }, svg).appendChild(el("title", {})).textContent = q;
+        x += r * 2 - 5;
+      } else if (v === "C") {
+        const jars = ["kimchi", "plum", "kraut", "miso", "kombucha", "plum", "kimchi"];
+        const h = 18 + n * 3.2;
+        el("rect", { x, y: 52 - h, width: 30, height: h, rx: 6, fill: V(jars[k]) }, svg).appendChild(el("title", {})).textContent = q;
+        el("rect", { x: x + 3, y: 52 - h - 5, width: 24, height: 6, rx: 2, fill: "rgba(30,25,22,.55)" }, svg);
+        x += 36;
+      } else {
+        el("circle", { cx: x + r, cy: 27, r, fill: V("shs"), stroke: V("sh"), "stroke-width": 1.2 }, svg).appendChild(el("title", {})).textContent = q;
+        x += r * 2 + 6;
+      }
+    });
+    box.append(lab, svg);
+    return box;
+  }
+
+  document.querySelectorAll("[data-card]").forEach(card => {
+    const v = card.dataset.card;
+    card.innerHTML = `
+      <div class="top"><b>Tuesday Tables</b><span>10 people · round 15</span></div>
+      <h4 class="q">What fed you this week?</h4>`;
+    card.appendChild(ring(v));
+    const st = document.createElement("div"); st.className = "state";
+    st.innerHTML = `<span><span class="live">● Open</span> · we open them all together Thursday</span><button class="btn" type="button">Add yours</button>`;
+    card.appendChild(st);
+    if (v !== "C") card.appendChild(kept(v));
+  });
+  document.querySelectorAll("[data-shelf]").forEach(s => s.replaceWith(kept("C")));
+})();
+</script>

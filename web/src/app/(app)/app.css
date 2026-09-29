@@ -112,7 +112,7 @@
 .ferment .cm-act:focus-visible circle:first-child { stroke-width: 2.5; }
 .ferment .cm-fade, .ferment .cm-part { transition: opacity .15s; }
 .ferment .cm-tip {
-  position: absolute; z-index: 5; max-width: 240px;
+  position: absolute; z-index: 5; width: max-content; max-width: min(240px, 70vw);
   transform: translate(-50%, calc(-100% - 12px));
   display: grid; gap: 3px;
   background: var(--raised); color: var(--ink);
