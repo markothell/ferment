@@ -160,7 +160,8 @@ describe("responding and closing", () => {
   it("only takes recordings from our own storage", async () => {
     const id = await openRound();
     await expect(respond(db, { roundId: id, userId: people[1], input: { audioUrl: "https://evil.example/x.m4a" } })).rejects.toThrow(/didn't come from here/);
-    await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "https://abc123.public.blob.vercel-storage.com/rounds/r1/take-x9.m4a", audioSeconds: 12 } });
+    await expect(respond(db, { roundId: id, userId: people[1], input: { audioUrl: "https://other.public.blob.vercel-storage.com/rounds/r1/take.m4a" } })).rejects.toThrow(/didn't come from here/);
+    await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "/api/audio/local/take9.m4a", audioSeconds: 12 } });
   });
 
   it("requires the shape's parts", async () => {
