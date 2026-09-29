@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { CIRCLE_MAX, CIRCLE_MIN, circleBySlug, circleHome } from "@/domain/circles";
-import { approvalsNeeded, circleRounds } from "@/domain/rounds";
+import { approvalsNeeded, circleResponders, circleRounds } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
+import { CircleMap } from "@/components/app/CircleMap";
 import { Form } from "@/components/app/Form";
 import { PromptFields } from "@/components/app/PromptFields";
 import { RoundRow } from "@/components/app/RoundRow";
@@ -29,7 +30,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CirclePage({ params }: Props) {
   const { me, community, circle } = await load(params);
   const home = await circleHome(db, circle, me.id);
-  const all = home.isMember ? await circleRounds(db, circle.id, me.id) : [];
+  const [all, responders] = home.isMember
+    ? await Promise.all([circleRounds(db, circle.id, me.id), circleResponders(db, circle.id)])
+    : [[], {} as Record<string, string[]>];
+  const mapRounds = all
+    .filter((r) => r.phase !== "skipped")
+    .map((r) => ({
+      id: r.id, question: r.question, phase: r.phase, authorId: r.authorId,
+      responders: responders[r.id] ?? [], at: r.openedAt ?? r.createdAt, closesAt: r.closesAt,
+    }));
   const live = all.filter((r) => r.phase === "open");
   const queued = all.filter((r) => r.phase === "queued");
   const suggested = all.filter((r) => r.phase === "nominated");
@@ -37,6 +46,7 @@ export default async function CirclePage({ params }: Props) {
   const needed = approvalsNeeded(circle, home.members.length);
   const isHost = circle.hostId === me.id;
   const roundHref = (id: string) => `/c/${community.slug}/r/${id}`;
+  const host = home.members.find((m) => m.userId === circle.hostId);
   const forming = circle.status === "forming";
   const need = Math.max(0, CIRCLE_MIN - home.members.length);
   const hidden = (
@@ -62,17 +72,17 @@ export default async function CirclePage({ params }: Props) {
         </header>
 
         <section className="space-y-3">
-          <h2 className="display text-2xl">
-            Who&apos;s in <span className="mono text-base text-[var(--ink-faint)]">{home.members.length} of {CIRCLE_MAX}</span>
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {home.members.map((m) => (
-              <li key={m.userId} className="rounded-full border border-[var(--rule)] px-3 py-1 text-sm">
-                {displayName(m)}
-                {circle.hostId === m.userId && <span className="label ml-2">host</span>}
-              </li>
-            ))}
-          </ul>
+          <CircleMap
+            seats={home.members.map((m) => ({ id: m.userId, name: displayName(m) }))}
+            rounds={mapRounds}
+            emptySeats={forming ? need : 0}
+            roundBase={`/c/${community.slug}/r`}
+            label={`${circle.name}: ${home.members.length} people${forming ? `, ${need} more to begin` : ""}. Rounds they've shared spiral in to what's open now.`}
+          />
+          <p className="mono text-center text-sm text-[var(--ink-soft)]">
+            {home.members.length} of {CIRCLE_MAX}
+            {host ? ` · hosted by ${displayName(host)}` : " · no host"}
+          </p>
           {home.isMember ? null : home.members.length < CIRCLE_MAX ? (
             <Form action={join} submit="I'm in" pending="Joining…">{hidden}</Form>
           ) : (

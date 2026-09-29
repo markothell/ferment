@@ -520,3 +520,16 @@ export async function communityQuestions(db: DB, communityId: string, viewerId: 
     .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId), inArray(rounds.phase, ["open", "closed"])))
     .orderBy(desc(rounds.welcome), desc(rounds.openedAt));
 }
+
+/** Who answered each of a circle's rounds: the circle map's participation lines. */
+export async function circleResponders(db: DB, circleId: string): Promise<Record<string, string[]>> {
+  const rows = await db
+    .select({ roundId: responses.roundId, userId: responses.userId })
+    .from(responses)
+    .innerJoin(rounds, eq(rounds.id, responses.roundId))
+    .where(eq(rounds.circleId, circleId))
+    .orderBy(asc(responses.createdAt));
+  const out: Record<string, string[]> = {};
+  for (const r of rows) (out[r.roundId] ??= []).push(r.userId);
+  return out;
+}
