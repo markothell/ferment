@@ -81,6 +81,29 @@
   .talk svg { width: 100%; height: 30px; display: block; }
   .talk .cells { padding: 0; }
 
+  .spread { list-style: none; margin: 0; padding: 0; display: grid; }
+  .sp { border-top: 1px solid var(--rule); }
+  .sp:first-child { border-top: 0; }
+  .sp-row { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 48px minmax(0, 1fr) 16px; gap: 12px; align-items: center; padding: 10px 6px; border-radius: 6px; }
+  .sp-row:focus-visible { outline: 2px solid var(--live); outline-offset: 1px; }
+  .ripple { width: 48px; height: 48px; display: block; }
+  .sp-text { display: grid; gap: 3px; min-width: 0; }
+  .sp-q { font-size: 15px; line-height: 1.3; color: var(--ink); }
+  .sp-meta { font: 400 11px/1.4 var(--mono); color: var(--ink-faint); }
+  .sp-meta i { font-style: normal; color: var(--live); }
+  .sp-chev { color: var(--ink-faint); font-size: 18px; transition: transform .15s; justify-self: end; }
+  .sp-row[aria-expanded="true"] .sp-chev { transform: rotate(90deg); }
+  .sp-more { display: grid; gap: 10px; padding: 0 6px 14px 66px; font-size: 13.5px; color: var(--ink-soft); }
+  .sp-more[hidden] { display: none; }
+  .sp-more p { margin: 0; }
+  .sp-beyond { font: 400 11px/1.5 var(--mono); color: var(--ink-faint); }
+  .sp-circles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .sp-circles li { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px 4px 8px; font-size: 12.5px; color: var(--ink); }
+  .sp-circles svg { width: 12px; height: 12px; }
+  .sp-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sp-acts button { font: 500 12.5px/1 var(--sans); color: var(--ink-soft); background: transparent; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 7px 12px; cursor: pointer; }
+  @media (max-width: 480px) { .sp-more { padding-left: 6px; } }
+
   .key { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-soft); }
   .key span { display: inline-flex; align-items: center; gap: 7px; }
   .key svg { width: 16px; height: 16px; }
@@ -97,7 +120,7 @@
   <header class="head">
     <div class="eyebrow">ferment.earth · review · community</div>
     <h1>A community, <em>as a whole</em></h1>
-    <p>Three ways to draw one community. All three show the same example: 40 people in Hillside Tables, six circles (one still forming), ten people who haven't joined a circle yet, two open questions, and a few questions that have travelled from one circle to another. They use the circle map's colors: saffron for what was explored together, green only for what's open now, beet for one person's mark.</p>
+    <p>Two views of one community: who is here, and what they're talking about. Both show the same example: 40 people in Hillside Tables, six circles (one still forming), ten people who haven't joined a circle yet, two open questions, and a few questions that have travelled from one circle to another. They use the circle map's colors: saffron for what was explored together, green only for what's open now, beet for one person's mark.</p>
     <div class="theme" role="group" aria-label="Theme">
       <span>Theme</span>
       <button type="button" id="t-light" data-t="light" aria-pressed="false">Light</button>
@@ -122,33 +145,19 @@
     </div>
   </section>
 
-  <section class="dir" id="d2">
+  <section class="dir" id="d3">
     <div class="stage">
-      <svg id="svg2" viewBox="0 0 560 470" role="group" aria-label="Six small circles drawn as rings of seats, joined by lines wherever one person sits in two circles."></svg>
-      <div class="hint">Hover or tap a circle</div>
+      <ol class="spread" id="spread" aria-label="Questions in Hillside Tables, by how far they've spread"></ol>
+      <div class="hint">Tap a question to see where it's been asked</div>
     </div>
     <div class="copy">
       <span class="n">2</span>
-      <h2>Constellation</h2>
-      <p>Each circle is drawn as a small circle map of its own: a ring of its people, with what it's explored at the middle. Wherever one person sits in two circles, a line joins their two seats. Those bridges are how the community holds together.</p>
-      <dl>
-        <div><dt>Shows</dt><dd>Overlap. You can see which circles share people and which stand alone, which is the essay's idea of connection as overlap made visible.</dd></div>
-        <div><dt>Hides</dt><dd>The community as one room. There's no outer ring, so people outside circles are only a quiet row at the bottom.</dd></div>
-        <div><dt>Grows</dt><dd>Placing circles by overlap needs a layout pass, and with 12+ circles it starts to look like a network diagram.</dd></div>
-      </dl>
-    </div>
-  </section>
-
-  <section class="dir" id="d3">
-    <div class="stage talk" id="talk"></div>
-    <div class="copy">
-      <span class="n">3</span>
       <h2>What we're talking about</h2>
-      <p>The feed as a picture. Each row is a question; each column is a circle, plus the whole community. A dot marks each circle that took the question up, joined by a thread from where it started. The rows are ordered by how many circles took it up, which is the feed's only ranking.</p>
+      <p>The feed's view. Each question carries one mark for how far it has spread, and the detail of where sits one tap deeper. The rows are ordered by how many of this community's circles took the question up, which is the feed's only ranking.</p>
       <dl>
-        <div><dt>Shows</dt><dd>How conversation structures spread, and adaptations as branches under the question they came from. It's the protocol-as-lever idea you can read.</dd></div>
-        <div><dt>Hides</dt><dd>People. It's about questions, not who's here, so it pairs with direction 1 or 2 more than it replaces them.</dd></div>
-        <div><dt>Grows</dt><dd>Rows are cheap. Columns are the limit: past about eight circles it needs scrolling or grouping.</dd></div>
+        <div><dt>The mark</dt><dd>A ripple. The dot at the middle is where the question started: filled if it started here, hollow if it arrived from another community. The inner ring fills with the share of this community's circles that took it up. The outer ring gets one tick for each other community that took it up.</dd></div>
+        <div><dt>Beyond this community</dt><dd>Not built yet. It's the platform-level spread from the essays, drawn now so the idea has a place. Only counts cross between communities. What people answered stays with the community that asked.</dd></div>
+        <div><dt>Grows</dt><dd>It doesn't matter how many circles there are: the inner ring is always a share of the whole, and the list behind a tap is as long as it needs to be.</dd></div>
       </dl>
     </div>
   </section>
@@ -162,8 +171,8 @@
   </div>
 
   <div class="close">
-    <p><b>Where it would live.</b> At the top of the community page, the way the circle map sits at the top of a circle. Tapping a circle goes to that circle; tapping the center goes to the open questions.</p>
-    <p><b>Mixing them.</b> 1 and 3 answer different questions, who is here and what we're talking about, and could be two views of one page. 2 is the most striking, but it's the hardest to keep calm as a community grows.</p>
+    <p><b>Where they would live.</b> The circle of circles at the top of the community page, the way the circle map sits at the top of a circle: tapping a circle goes to it, tapping the center goes to the open questions. The ripple list is the feed, one tap away.</p>
+    <p><b>Dropped.</b> The constellation, where circles were joined by the people they share. It read as a network diagram more than a community.</p>
   </div>
 </div>
 
@@ -200,14 +209,16 @@
     { q: "Who cooks on Sundays?", note: "open question from Pia", answered: 11 },
   ];
   // Questions and where they went: [circle id, open now?], first is where it started.
+  // Questions and where they went. runs: [circle id, open now?], first is where it started here.
+  // beyond: how many other communities took it up. arrived: it started in another community.
   const PROMPTS = [
-    { q: "What do we owe our neighbours?", runs: [["tables"],["bread"],["parents"],["reading", true]] },
-    { q: "What fed you this week?", runs: [["bread"],["tables", true],["walkers"]] },
-    { q: "Who do you call when it's hard?", runs: [["parents"],["reading"]] },
-    { q: "Who do you call when you're stuck?", parent: 2, runs: [["reading"],["walkers"]] },
-    { q: "What are you learning right now?", runs: [["all", true]] },
-    { q: "A book that changed your mind", runs: [["reading"]] },
-    { q: "What would you teach in an hour?", runs: [["tables", true],["grief"]] },
+    { q: "What do we owe our neighbours?", runs: [["tables"],["bread"],["parents"],["reading", true]], beyond: 3, when: "Aug 12" },
+    { q: "What fed you this week?", runs: [["bread"],["tables", true],["walkers"]], beyond: 11, arrived: true, when: "Jul 3" },
+    { q: "Who do you call when it's hard?", runs: [["parents"],["reading"]], beyond: 0, when: "Jun 20" },
+    { q: "Who do you call when you're stuck?", parent: 2, runs: [["reading"],["walkers"]], beyond: 1, when: "Aug 30" },
+    { q: "What are you learning right now?", all: true, answered: 26, runs: [], beyond: 6, arrived: true, when: "May 1" },
+    { q: "A book that changed your mind", runs: [["reading"]], beyond: 0, when: "Sep 8" },
+    { q: "What would you teach in an hour?", runs: [["tables", true],["walkers"]], beyond: 2, when: "Sep 21" },
   ];
 
   // ── Shared tooltip ─────────────────────────────────────────────────────
@@ -330,132 +341,96 @@
     document.addEventListener("click", () => { reset(); tip.hide(); });
   })();
 
-  // ── 2. Constellation ───────────────────────────────────────────────────
+  // ── 2. What we're talking about ────────────────────────────────────────
   (function () {
-    const svg = document.getElementById("svg2"), stage = svg.parentElement, tip = tipper(stage);
-    const POS = { bread: [150, 150], tables: [292, 128], walkers: [214, 292], parents: [428, 150], reading: [440, 302], grief: [322, 360] };
-    const maxExp = Math.max(...CIRCLES.map(c => c.explored));
-    const rings = CIRCLES.map(c => ({ ...c, x: POS[c.id][0], y: POS[c.id][1], R: Math.max(26, 16 + 4 * c.members.length) }));
-    const where = {}; // person → [{ring, x, y}]
+    const list = document.getElementById("spread");
+    const running = CIRCLES.filter(c => !c.forming);
+    const total = running.length;
+    const nameOf = id => CIRCLES.find(c => c.id === id).name;
+    const here = p => p.all ? total : p.runs.length;
+    const ranked = PROMPTS.map((p, i) => ({ ...p, i })).sort((a, b) => here(b) - here(a) || b.beyond - a.beyond);
 
-    // Seats on each ring; a person shared with another circle takes the slot facing it.
-    rings.forEach(r => {
-      const n = Math.max(r.members.length, r.forming ? 4 : 0);
-      const slots = Array.from({ length: n }, (_, k) => -Math.PI / 2 + 2 * Math.PI * k / n);
-      const free = new Set(slots.map((_, k) => k)), place = {};
-      // Shared people take a run of adjacent slots facing the other circle. The
-      // two circles walk their runs in opposite orders, so bridges don't cross.
-      rings.filter(o => o !== r).forEach(o => {
-        const shared = r.members.filter(p => o.members.includes(p) && !(p in place)).sort((a, b) => a - b);
-        if (!shared.length) return;
-        if (r.id > o.id) shared.reverse();
-        const want = Math.atan2(o.y - r.y, o.x - r.x);
-        let mid = 0, bd = 9;
-        slots.forEach((a, k) => { const d = Math.abs(Math.atan2(Math.sin(a - want), Math.cos(a - want))); if (d < bd) { bd = d; mid = k; } });
-        let k = (mid - Math.floor((shared.length - 1) / 2) + n) % n;
-        shared.forEach(p => { while (!free.has(k)) k = (k + 1) % n; free.delete(k); place[p] = k; k = (k + 1) % n; });
-      });
-      r.members.filter(p => !(p in place)).forEach(p => { const k = [...free][0]; free.delete(k); place[p] = k; });
-      r.seats = r.members.map(p => ({ p, x: r.x + r.R * Math.cos(slots[place[p]]), y: r.y + r.R * Math.sin(slots[place[p]]) }));
-      r.empty = [...free].map(k => ({ x: r.x + r.R * Math.cos(slots[k]), y: r.y + r.R * Math.sin(slots[k]) }));
-      r.seats.forEach(s => (where[s.p] ||= []).push({ ring: r, x: s.x, y: s.y }));
-    });
-
-    const bridges = el("g", {}, svg);
-    const bridgeEls = [];
-    Object.entries(where).forEach(([p, spots]) => {
-      for (let i = 1; i < spots.length; i++) {
-        const l = el("line", { x1: spots[0].x, y1: spots[0].y, x2: spots[i].x, y2: spots[i].y, stroke: V("ink-soft"), "stroke-width": 1.4, class: "fade" }, bridges);
-        bridgeEls.push({ l, rings: [spots[0].ring.id, spots[i].ring.id] });
-      }
-    });
-
-    const ringEls = rings.map(r => {
-      const g = el("g", { class: "fade" }, svg);
-      el("circle", { cx: r.x, cy: r.y, r: r.R, fill: "none", stroke: V("rule"), "stroke-width": 1, "stroke-dasharray": r.forming ? "3 4" : null }, g);
-      if (!r.forming) {
-        el("circle", { cx: r.x, cy: r.y, r: 4 + 12 * Math.sqrt(r.explored / maxExp), fill: V("shared-soft"), stroke: V("shared"), "stroke-width": 1.2 }, g);
-        if (r.live) el("circle", { cx: r.x, cy: r.y, r: 6 + 12 * Math.sqrt(r.explored / maxExp), fill: "none", stroke: V("live"), "stroke-width": 1.6 }, g);
-      }
-      r.seats.forEach(s => el("circle", { cx: s.x, cy: s.y, r: 5.5, fill: V("raised"), stroke: V("rule-strong"), "stroke-width": 1 }, g));
-      r.empty.forEach(s => el("circle", { cx: s.x, cy: s.y, r: 5.5, fill: "none", stroke: V("ink-faint"), "stroke-width": 1, "stroke-dasharray": "2 2.5" }, g));
-      const t = el("text", { x: r.x, y: r.y + r.R + 18, "text-anchor": "middle", fill: V("ink-soft"), "font-family": "Hanken Grotesk, system-ui, sans-serif", "font-size": 11.5 }, g);
-      t.textContent = r.name;
-      el("circle", { cx: r.x, cy: r.y, r: r.R + 6, fill: "transparent" }, g);
-      const sharedWith = rings.filter(o => o !== r && o.members.some(p => r.members.includes(p)));
-      hot(g, `${r.name}: ${r.members.length} people.`, () => {
-        ringEls.forEach((e, i) => e.setAttribute("opacity", rings[i] === r || sharedWith.includes(rings[i]) ? 1 : .4));
-        bridgeEls.forEach(b => b.l.setAttribute("opacity", b.rings.includes(r.id) ? 1 : .15));
-        tip.show(g, r.name, sharedWith.length ? `shares people with ${sharedWith.map(o => o.name).join(", ")}` : r.forming ? "forming · shares no one yet" : "shares no one");
-      }, () => { ringEls.forEach(e => e.setAttribute("opacity", 1)); bridgeEls.forEach(b => b.l.setAttribute("opacity", 1)); tip.hide(); });
-      return g;
-    });
-
-    // The community's open questions, and the people not in a circle yet.
-    const qg = el("g", {}, svg);
-    el("circle", { cx: 520, cy: 40, r: 11, fill: V("raised"), stroke: V("live"), "stroke-width": 2 }, qg);
-    const qt = el("text", { x: 504, y: 44, "text-anchor": "end", fill: V("ink-soft"), "font-family": "Geist Mono, ui-monospace, monospace", "font-size": 10.5 }, qg);
-    qt.textContent = "2 open questions";
-    const loose = PEOPLE.map((_, i) => i).filter(i => !inCircle.has(i));
-    const lx = 280 - (loose.length - 1) * 8;
-    loose.forEach((p, k) => el("circle", { cx: lx + k * 16, cy: 432, r: 5, fill: "none", stroke: V("ink-faint"), "stroke-width": 1.2 }, svg));
-    const lt = el("text", { x: 280, y: 458, "text-anchor": "middle", fill: V("ink-faint"), "font-family": "Geist Mono, ui-monospace, monospace", "font-size": 10.5 }, svg);
-    lt.textContent = `${loose.length} not in a circle yet`;
-    document.addEventListener("click", () => tip.hide());
-  })();
-
-  // ── 3. What we're talking about ────────────────────────────────────────
-  (function () {
-    const host = document.getElementById("talk");
-    const SHORT = { tables: "Tables", parents: "Parents" };
-    const COLS = [...CIRCLES.map(c => ({ id: c.id, name: SHORT[c.id] || c.name })), { id: "all", name: "All" }];
-    const ranked = PROMPTS.map((p, i) => ({ ...p, i })).filter(p => p.parent === undefined)
-      .sort((a, b) => b.runs.length - a.runs.length);
-    const rows = [];
-    ranked.forEach(p => { rows.push(p); PROMPTS.forEach((c, j) => { if (c.parent === p.i) rows.push({ ...c, i: j, child: true }); }); });
-
-    const table = document.createElement("table");
-    const thead = table.createTHead().insertRow();
-    const qh = document.createElement("th"); qh.className = "q"; qh.textContent = "question"; qh.style.width = "40%"; thead.appendChild(qh);
-    const ch = document.createElement("th"); ch.colSpan = COLS.length; thead.appendChild(ch);
-    const colW = 100 / COLS.length;
-    const hs = el("svg", { viewBox: `0 0 ${COLS.length * 60} 30`, preserveAspectRatio: "none", "aria-hidden": "true" }, null);
-    hs.style.height = "30px";
-    COLS.forEach((c, k) => {
-      const t = el("text", { x: k * 60 + 30, y: 22, "text-anchor": "middle", fill: V("ink-faint"), "font-family": "Geist Mono, ui-monospace, monospace", "font-size": 10.5 }, hs);
-      t.textContent = c.name;
-    });
-    ch.appendChild(hs);
-
-    const body = table.createTBody();
-    rows.forEach(p => {
-      const tr = body.insertRow(); tr.className = "row" + (p.child ? " child" : "");
-      const q = tr.insertCell(); q.className = "q";
-      q.textContent = p.q;
-      const s = document.createElement("small");
-      const n = p.runs.filter(r => r[0] !== "all").length;
-      s.textContent = p.runs[0][0] === "all" ? "asked of everyone" : `${n} circle${n === 1 ? "" : "s"}${p.child ? " · adapted" : ""}`;
-      q.appendChild(s);
-      const cells = tr.insertCell(); cells.className = "cells"; cells.colSpan = COLS.length;
-      const svg = el("svg", { viewBox: `0 0 ${COLS.length * 60} 30`, preserveAspectRatio: "xMidYMid meet", role: "img", "aria-label": `${p.q}: ${p.runs.map(r => COLS.find(c => c.id === r[0]).name).join(", ")}` }, null);
-      const xs = p.runs.map(r => COLS.findIndex(c => c.id === r[0]) * 60 + 30);
-      COLS.forEach((_, k) => el("line", { x1: k * 60 + 30, y1: 12, x2: k * 60 + 30, y2: 18, stroke: V("rule"), "stroke-width": 1 }, svg));
-      if (xs.length > 1) el("line", { x1: Math.min(...xs), y1: 15, x2: Math.max(...xs), y2: 15, stroke: V("rule-strong"), "stroke-width": 1.3 }, svg);
-      p.runs.forEach((r, k) => {
-        const x = xs[k], live = r[1];
-        if (live) {
-          el("circle", { cx: x, cy: 15, r: 7, fill: V("raised"), stroke: V("live"), "stroke-width": 2 }, svg);
-        } else {
-          el("circle", { cx: x, cy: 15, r: 6.5, fill: V("shared-soft"), stroke: V("shared"), "stroke-width": 1.3 }, svg);
+    function ripple(p) {
+      const s = el("svg", { viewBox: "0 0 48 48", class: "ripple", "aria-hidden": "true" });
+      const C = 24, r1 = 11, r2 = 19;
+      // Outer: one tick per other community, 15° apart, so 24 closes the ring.
+      if (p.beyond === 0) {
+        el("circle", { cx: C, cy: C, r: r2, fill: "none", stroke: V("rule"), "stroke-width": 1, "stroke-dasharray": "1.5 3" }, s);
+      } else {
+        for (let k = 0; k < Math.min(p.beyond, 24); k++) {
+          const a = -Math.PI / 2 + k * Math.PI / 12;
+          el("line", { x1: C + (r2 - 2.5) * Math.cos(a), y1: C + (r2 - 2.5) * Math.sin(a), x2: C + (r2 + 2.5) * Math.cos(a), y2: C + (r2 + 2.5) * Math.sin(a), stroke: V("ink-soft"), "stroke-width": 1.6, "stroke-linecap": "round" }, s);
         }
-        if (k === 0) el("circle", { cx: x, cy: 15, r: 10.5, fill: "none", stroke: V("ink-faint"), "stroke-width": 1 }, svg);
+      }
+      // Inner: share of this community's circles. A question to everyone fills it.
+      el("circle", { cx: C, cy: C, r: r1, fill: "none", stroke: V("rule"), "stroke-width": 3 }, s);
+      const frac = p.all ? 1 : here(p) / total, len = 2 * Math.PI * r1;
+      el("circle", { cx: C, cy: C, r: r1, fill: "none", stroke: p.all ? V("live") : V("shared"), "stroke-width": 3,
+        "stroke-dasharray": `${(frac * len).toFixed(2)} ${len.toFixed(2)}`, transform: `rotate(-90 ${C} ${C})`, "stroke-linecap": frac < 1 ? "round" : "butt" }, s);
+      // Center: where it started.
+      el("circle", { cx: C, cy: C, r: 3.2, fill: p.arrived ? "none" : V("shared"), stroke: p.arrived ? V("ink-soft") : V("shared"), "stroke-width": 1.2 }, s);
+      return s;
+    }
+
+    ranked.forEach(p => {
+      const li = document.createElement("li"); li.className = "sp";
+      const btn = document.createElement("button"); btn.type = "button"; btn.className = "sp-row"; btn.setAttribute("aria-expanded", "false");
+      const id = `sp-${p.i}`; btn.setAttribute("aria-controls", id);
+      btn.appendChild(ripple(p));
+      const text = document.createElement("span"); text.className = "sp-text";
+      const q = document.createElement("span"); q.className = "sp-q"; q.textContent = p.q;
+      const meta = document.createElement("span"); meta.className = "sp-meta";
+      const open = p.all || p.runs.filter(r => r[1]).length;
+      const bits = [p.all ? `asked of everyone · ${p.answered} answered` : `${here(p)} of ${total} circles here`];
+      if (p.beyond) bits.push(`${p.beyond} ${p.beyond === 1 ? "community" : "communities"} beyond`);
+      meta.textContent = bits.join(" · ");
+      if (open) { const i = document.createElement("i"); i.textContent = p.all ? " · ● open" : ` · ● open in ${open}`; meta.appendChild(i); }
+      text.append(q, meta);
+      const chev = document.createElement("span"); chev.className = "sp-chev"; chev.setAttribute("aria-hidden", "true"); chev.textContent = "›";
+      btn.append(text, chev);
+
+      const more = document.createElement("div"); more.className = "sp-more"; more.id = id; more.hidden = true;
+      const origin = document.createElement("p");
+      origin.textContent = p.arrived
+        ? `Arrived from another community. First asked here ${p.when}${p.all ? ", as the welcome question" : ` in ${nameOf(p.runs[0][0])}`}.`
+        : `Started in ${nameOf(p.runs[0][0])}, ${p.when}.`;
+      if (p.parent !== undefined) origin.textContent += ` Adapted from “${PROMPTS[p.parent].q}”`;
+      more.appendChild(origin);
+      if (!p.all) {
+        const ul = document.createElement("ul"); ul.className = "sp-circles";
+        p.runs.forEach(([cid, live], k) => {
+          const chip = document.createElement("li");
+          const dot = el("svg", { viewBox: "0 0 12 12", "aria-hidden": "true" });
+          el("circle", live ? { cx: 6, cy: 6, r: 4, fill: V("raised"), stroke: V("live"), "stroke-width": 1.8 } : { cx: 6, cy: 6, r: 4.5, fill: V("shared-soft"), stroke: V("shared"), "stroke-width": 1.2 }, dot);
+          chip.append(dot, document.createTextNode(nameOf(cid) + (live ? " · open now" : "") + (k === 0 && !p.arrived ? " · started here" : "")));
+          ul.appendChild(chip);
+        });
+        more.appendChild(ul);
+      }
+      const kids = PROMPTS.filter(c => c.parent === p.i);
+      if (kids.length) {
+        const k = document.createElement("p");
+        k.textContent = `Adapted as ${kids.map(c => `“${c.q}”`).join(", ")}.`;
+        more.appendChild(k);
+      }
+      const b = document.createElement("p"); b.className = "sp-beyond";
+      b.textContent = p.beyond
+        ? `Also asked in ${p.beyond} other ${p.beyond === 1 ? "community" : "communities"}. Their answers stay with them.`
+        : "Not asked anywhere else yet.";
+      more.appendChild(b);
+      const acts = document.createElement("div"); acts.className = "sp-acts";
+      ["Suggest to my circle", "Start a circle around this", "Adapt"].forEach(t => { const a = document.createElement("button"); a.type = "button"; a.textContent = t; acts.appendChild(a); });
+      more.appendChild(acts);
+
+      btn.addEventListener("click", () => {
+        const on = btn.getAttribute("aria-expanded") !== "true";
+        btn.setAttribute("aria-expanded", String(on)); more.hidden = !on;
       });
-      cells.appendChild(svg);
+      li.append(btn, more);
+      list.appendChild(li);
     });
-    host.appendChild(table);
-    const hint = document.createElement("div"); hint.className = "hint";
-    hint.textContent = "The outlined dot is where a question started. Green is open now.";
-    host.appendChild(hint);
+    // Open the top circle question, so the detail is visible at rest.
+    list.querySelectorAll(".sp-row")[ranked.findIndex(p => !p.all)].click();
   })();
 })();
 </script>
