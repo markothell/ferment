@@ -19,7 +19,7 @@ const ERRORS: Record<RecorderErrorCode, string> = {
  * after that only the words can change.
  */
 export function Composer({
-  action, community, roundId, telling, maxSeconds, storage, existing, submitLabel,
+  action, community, roundId, telling, maxSeconds, storage, existing, submitLabel, children,
 }: {
   action: (prev: State, form: FormData) => Promise<State>;
   community: string;
@@ -29,6 +29,8 @@ export function Composer({
   storage: "blob" | "local";
   existing: { text: string; audioUrl: string | null; audioSeconds: number | null } | null;
   submitLabel: string;
+  /** Extra answer parts inside the same form: the placement, for "tell it and place it". */
+  children?: React.ReactNode;
 }) {
   const [state, formAction, pending] = useActionState(action, undefined);
   const [mode, setMode] = useState<"voice" | "text">(existing?.audioUrl || existing?.text ? "text" : telling);
@@ -143,6 +145,8 @@ export function Composer({
           maxLength={5000}
         />
       )}
+
+      {children}
 
       {sendError && <p className="text-[var(--mine)]" role="alert">{sendError}</p>}
       {state?.error && <p className="text-[var(--mine)]" role="alert">{state.error}</p>}

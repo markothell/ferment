@@ -102,12 +102,21 @@ export async function leave(_prev: ActionState, form: FormData): Promise<ActionS
 
 function promptFrom(form: FormData): PromptInput {
   const reveal = str(form, "reveal");
+  const shape = str(form, "shape");
+  const axes = [[str(form, "axis1a"), str(form, "axis1b")], [str(form, "axis2a"), str(form, "axis2b")]]
+    .filter(([a, b]) => a.trim() || b.trim())
+    .map(([poleA, poleB]) => ({ poleA, poleB }));
   return {
     question: str(form, "question"),
     context: str(form, "context"),
-    shape: "story",
+    shape: shape === "placement" || shape === "story_placement" || shape === "words" ? shape : "story",
     telling: str(form, "telling") === "text" ? "text" : "voice",
     reveal: reveal === "open" || reveal === "after_share" ? reveal : "sealed",
+    axes,
+    placing: str(form, "placing") === "quadrants" ? "quadrants" : "free",
+    seedWords: str(form, "words").split(/[,\n]/),
+    pickMax: Number(str(form, "pickMax")) || undefined,
+    coinMax: str(form, "coinMax") === "" ? undefined : Number(str(form, "coinMax")),
   };
 }
 
@@ -177,9 +186,12 @@ export async function share(_prev: ActionState, form: FormData): Promise<ActionS
   const { me, community } = await loadCommunity(str(form, "community"));
   const audioUrl = str(form, "audioUrl") || null;
   const seconds = Number(str(form, "audioSeconds"));
+  const num = (k: string) => (str(form, k) === "" ? undefined : Number(str(form, k)));
   const input = {
     ...(form.has("text") ? { text: str(form, "text") } : {}),
     ...(audioUrl ? { audioUrl, audioSeconds: Number.isFinite(seconds) && seconds > 0 ? seconds : null } : {}),
+    ...(form.has("x") ? { x: num("x"), y: num("y") } : {}),
+    ...(form.has("words") ? { pick: form.getAll("pick").map(String), coin: form.getAll("coin").map(String) } : {}),
   };
   const failed = await attempt(() => respond(db, { roundId: str(form, "round"), userId: me.id, input }));
   if (failed) return failed;

@@ -38,8 +38,9 @@ export default async function AdaptPage({ params }: PageProps<"/c/[community]/ad
             <input type="hidden" name="parent" value={parent.id} />
             <PromptFields
               defaults={{
-                question: parent.question, context: parent.context,
-                telling: parent.telling, reveal: parent.reveal,
+                question: parent.question, context: parent.context, shape: parent.shape,
+                telling: parent.telling, reveal: parent.reveal, axes: parent.axes, placing: parent.placing,
+                seedWords: parent.seedWords, pickMax: parent.pickMax, coinMax: parent.coinMax,
               }}
             />
             <label className="block space-y-2">

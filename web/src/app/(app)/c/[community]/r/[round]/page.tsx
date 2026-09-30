@@ -12,6 +12,10 @@ import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
 import { Composer } from "@/components/app/Composer";
 import { Form } from "@/components/app/Form";
+import { PlacementInput } from "@/components/app/PlacementInput";
+import { PlacementResult } from "@/components/app/PlacementResult";
+import { WordsInput } from "@/components/app/WordsInput";
+import { WordsPortrait } from "@/components/app/WordsPortrait";
 import { Mark } from "@/components/app/Mark";
 import { Top } from "@/components/app/Top";
 import { TurnDot } from "@/components/app/TurnDot";
@@ -59,7 +63,13 @@ export default async function RoundPage({ params }: Props) {
       <input type="hidden" name="round" value={round.id} />
     </>
   );
-  const canWrite = view.canTakePart && (open || closed) && (!view.mine || open || round.editAfterClose);
+  const tells = prompt.shape === "story" || prompt.shape === "story_placement";
+  const places = prompt.shape === "placement" || prompt.shape === "story_placement";
+  // After the close only words can change, so a placement or words answer is settled once given.
+  const canWrite = view.canTakePart && (open || closed) && (!view.mine || open || (round.editAfterClose && tells));
+  const placing = places ? (
+    <PlacementInput axes={prompt.axes} placing={prompt.placing} initial={view.mine ? { x: view.mine.x, y: view.mine.y } : null} />
+  ) : null;
   const trail = [
     { label: community.name, href: base },
     ...(circle ? [{ label: circle.name, href: `${base}/circles/${circle.slug}` }] : []),
@@ -111,7 +121,7 @@ export default async function RoundPage({ params }: Props) {
         {canWrite && (
           <section className="card space-y-3">
             <h2 className="font-medium">{view.mine ? "Your answer" : "Your turn"}</h2>
-            {view.mine && closed && !round.editAfterClose ? null : prompt.shape === "story" || prompt.shape === "story_placement" ? (
+            {view.mine && closed && !round.editAfterClose ? null : tells ? (
               <Composer
                 action={share}
                 community={community.slug}
@@ -121,9 +131,22 @@ export default async function RoundPage({ params }: Props) {
                 storage={audioStorage()}
                 existing={view.mine ? { text: view.mine.text, audioUrl: view.mine.audioUrl, audioSeconds: view.mine.audioSeconds } : null}
                 submitLabel={view.mine ? "Update" : "Share"}
-              />
+              >
+                {!(closed && view.mine) && placing}
+              </Composer>
             ) : (
-              <p className="text-[var(--ink-soft)]">Answering this kind of question opens soon.</p>
+              <Form action={share} submit={view.mine ? "Update" : "Share"} pending="Sharing…">
+                {hidden}
+                {placing}
+                {prompt.shape === "words" && (
+                  <WordsInput
+                    vocabulary={view.vocabulary}
+                    pickMax={prompt.pickMax ?? 5}
+                    coinMax={prompt.coinMax ?? 0}
+                    initialPicks={view.vocabulary.filter((w) => view.mine?.words.includes(w.label)).map((w) => w.id)}
+                  />
+                )}
+              </Form>
             )}
           </section>
         )}
@@ -131,6 +154,15 @@ export default async function RoundPage({ params }: Props) {
         <section className="space-y-4">
           <h2 className="display text-2xl">What people shared</h2>
           {REVEAL_NOTE[view.visibility] && <p className="text-[var(--ink-soft)]">{REVEAL_NOTE[view.visibility]}</p>}
+          {places && view.responses.length > 0 && (
+            <PlacementResult
+              axes={prompt.axes}
+              dots={view.responses.map((r) => ({ id: r.id, name: displayName(r), x: r.x, y: r.y, mine: r.userId === me.id }))}
+              x={view.aggregate?.x ?? null}
+              y={view.aggregate?.y ?? null}
+            />
+          )}
+          {prompt.shape === "words" && view.aggregate && <WordsPortrait words={view.aggregate.words} />}
           {view.responses.length === 0 ? (
             view.visibility === "all" && <p className="text-[var(--ink-soft)]">Nothing yet.</p>
           ) : (
@@ -150,6 +182,18 @@ export default async function RoundPage({ params }: Props) {
                       </div>
                     )}
                     {r.text && <p className="whitespace-pre-line">{r.text}</p>}
+                    {r.words.length > 0 && (
+                      <ul className="flex flex-wrap gap-1.5">
+                        {r.words.map((w) => <li key={w} className="chip">{w}</li>)}
+                      </ul>
+                    )}
+                    {prompt.shape === "placement" && r.x != null && (
+                      <p className="mono text-xs text-[var(--ink-faint)]">
+                        {prompt.axes.length === 2
+                          ? `${r.x < 0.5 ? prompt.axes[0].poleA : prompt.axes[0].poleB} · ${r.y! < 0.5 ? prompt.axes[1].poleA : prompt.axes[1].poleB}`
+                          : `${Math.round(r.x * 100)}% of the way to ${prompt.axes[0].poleB}`}
+                      </p>
+                    )}
                     {round.reactions && !isMine ? (
                       <Mark
                         on={reacted}
