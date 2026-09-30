@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { circleById, createCircle, joinCircle, leaveCircle, type Circle } from "@/domain/circles";
 import { setWelcomeQuestion, updateWelcomeNote } from "@/domain/communities";
 import { createInvite } from "@/domain/invites";
+import { setEmailPref } from "@/domain/notifications";
 import type { PromptInput } from "@/domain/prompts";
 import { suggestReply } from "@/domain/replies";
 import {
@@ -245,4 +246,13 @@ export async function adapt(_prev: ActionState, form: FormData): Promise<ActionS
   if (failed) return failed;
   revalidatePath(`/c/${community.slug}`, "layout");
   redirect(href);
+}
+
+export async function emailPref(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const pref = str(form, "pref");
+  if (pref !== "each" && pref !== "digest" && pref !== "off") return { error: "Choose one." };
+  await setEmailPref(db, { communityId: community.id, userId: me.id, pref });
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return { ok: "Saved." };
 }

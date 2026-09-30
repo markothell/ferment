@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { db } from "@/db";
+import { unreadCount } from "@/domain/notifications";
+import { currentSession } from "@/lib/auth";
 
 export type Crumb = { label: string; href?: string };
 
 /** The bar at the top of every app screen: ferment / community / circle / here. */
-export function Top({ trail = [], links = [] }: { trail?: Crumb[]; links?: { label: string; href: string }[] }) {
+export async function Top({ trail = [], links = [] }: { trail?: Crumb[]; links?: { label: string; href: string }[] }) {
+  const session = await currentSession();
+  const unread = session ? await unreadCount(db, session.user.id) : 0;
   return (
     <header className="mx-auto flex max-w-2xl items-center gap-3 px-4 pt-5 pb-2">
       <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
@@ -23,13 +28,17 @@ export function Top({ trail = [], links = [] }: { trail?: Crumb[]; links?: { lab
           ))}
         </ol>
       </nav>
-      {links.length > 0 && (
-        <nav className="flex shrink-0 gap-4 text-sm">
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} className="link">{l.label}</Link>
-          ))}
-        </nav>
-      )}
+      <nav className="flex shrink-0 items-center gap-4 text-sm">
+        {links.map((l) => (
+          <Link key={l.href} href={l.href} className="link">{l.label}</Link>
+        ))}
+        {session && (
+          <Link href="/inbox" className="inbox-link" aria-label={unread ? `Inbox, ${unread} new` : "Inbox"}>
+            Inbox
+            {unread > 0 && <span className="inbox-count">{unread > 99 ? "99+" : unread}</span>}
+          </Link>
+        )}
+      </nav>
     </header>
   );
 }

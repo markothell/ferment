@@ -168,3 +168,14 @@
 .ferment .word:disabled { opacity: .4; }
 .ferment .word-on { border-color: var(--mine); color: var(--mine); background: transparent; box-shadow: inset 0 0 0 1px var(--mine); }
 .ferment .word:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+/* Inbox. New is a mark in ink: it's news for you, not something open. */
+.ferment .inbox-link { position: relative; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.ferment .inbox-count {
+  font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 11px; line-height: 1;
+  min-width: 18px; padding: 3px 5px; border-radius: 999px; text-align: center;
+  background: var(--ink); color: var(--ground);
+}
+.ferment .inbox-row { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 12px 4px; border-bottom: 1px solid var(--rule); }
+.ferment .inbox-dot { width: 8px; height: 8px; border-radius: 999px; transform: translateY(-1px); }
+.ferment .inbox-new { background: var(--ink); }

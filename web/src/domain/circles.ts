@@ -10,6 +10,7 @@ import { circleMembers, circles, communities, prompts, rounds, user } from "@/db
 import { newId } from "@/lib/id";
 import { requireMember } from "./communities";
 import { normalizePrompt } from "./prompts";
+import { notifyCircle } from "./notifications";
 import { settleCircle } from "./rounds";
 import { refuse } from "./errors";
 import { uniqueSlug } from "./slug";
@@ -144,8 +145,11 @@ export async function joinCircle(
     }
     return { formed: false };
   }).then(async (r) => {
-    // Formed: its queued first question opens now.
-    if (r.formed) await settleCircle(db, circleId, now);
+    // Formed: tell everyone in it, and its queued first question opens now.
+    if (r.formed) {
+      await notifyCircle(db, circleId, { kind: "circle_formed", communityId: circle.communityId, actorId: userId, now });
+      await settleCircle(db, circleId, now);
+    }
     return r;
   });
 }

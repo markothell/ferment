@@ -22,6 +22,7 @@ import { newId } from "@/lib/id";
 import { activeMemberCount, isCircleMember } from "./circles";
 import { membershipOf, requireMember } from "./communities";
 import { refuse } from "./errors";
+import { notifyCircle, notifyCommunity, notifyOne } from "./notifications";
 import { cleanWord, createPrompt, promptById, wordKey, type Prompt, type PromptInput } from "./prompts";
 
 export type Round = typeof rounds.$inferSelect;
@@ -99,6 +100,9 @@ async function openRound(db: DB, round: Round, now: Date): Promise<void> {
     .update(rounds)
     .set({ phase: "open", openedAt: now, closesAt: round.timerHours ? new Date(now.getTime() + round.timerHours * HOUR_MS) : null })
     .where(eq(rounds.id, round.id));
+  if (round.circleId && round.phase !== "open") {
+    await notifyCircle(db, round.circleId, { kind: "round_opened", communityId: round.communityId, roundId: round.id, now });
+  }
   const prompt = (await promptById(db, round.promptId))!;
   if (prompt.shape === "words" && prompt.seedWords.length) {
     await db
@@ -109,10 +113,14 @@ async function openRound(db: DB, round: Round, now: Date): Promise<void> {
 }
 
 async function closeRound(db: DB, roundId: string, via: "complete" | "timer" | "manual", now: Date): Promise<void> {
-  await db
+  const [closed] = await db
     .update(rounds)
     .set({ phase: "closed", closedAt: now, closedVia: via })
-    .where(and(eq(rounds.id, roundId), eq(rounds.phase, "open")));
+    .where(and(eq(rounds.id, roundId), eq(rounds.phase, "open")))
+    .returning();
+  if (closed?.circleId) {
+    await notifyCircle(db, closed.circleId, { kind: "round_revealed", communityId: closed.communityId, roundId, now });
+  }
 }
 
 /**
@@ -191,7 +199,12 @@ export async function suggestRound(
   await db.insert(roundSupports).values({ roundId: round.id, userId, createdAt: now });
   await maybeQueue(db, round, now);
   await settleCircle(db, circleId, now);
-  return (await roundById(db, round.id))!;
+  const after = (await roundById(db, round.id))!;
+  // Still waiting on support: tell the circle so they can give it.
+  if (after.phase === "nominated") {
+    await notifyCircle(db, circleId, { kind: "suggested", communityId: circle.communityId, actorId: userId, roundId: round.id, now });
+  }
+  return after;
 }
 
 /** One support toggle per member, while a suggestion is waiting. */
@@ -251,6 +264,7 @@ export async function postOpenQuestion(
     })
     .returning();
   if (p.shape === "words") await openRound(db, round, now);
+  await notifyCommunity(db, { kind: "asked_everyone", communityId, actorId: userId, roundId: round.id, now });
   return round;
 }
 
@@ -353,6 +367,11 @@ export async function respond(
       await tx.insert(responseWords).values([...new Set(ids)].map((wordId) => ({ responseId, wordId })));
     }
   });
+
+  // Someone answered your question to everyone.
+  if (!round.circleId && !existing && !round.welcome) {
+    await notifyOne(db, round.authorId, { kind: "answered", communityId: round.communityId, actorId: userId, roundId, now });
+  }
 
   // A circle round closes when every member has responded.
   if (round.circleId && round.phase === "open" && !existing) {

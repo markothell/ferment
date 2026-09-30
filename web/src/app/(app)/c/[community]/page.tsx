@@ -11,6 +11,8 @@ import { CommunityMap } from "@/components/app/CommunityMap";
 import { FeedList } from "@/components/app/FeedList";
 import { RoundRow } from "@/components/app/RoundRow";
 import { TurnDot } from "@/components/app/TurnDot";
+import { Form } from "@/components/app/Form";
+import { emailPref } from "./actions";
 import { Top } from "@/components/app/Top";
 
 export async function generateMetadata({ params }: PageProps<"/c/[community]">): Promise<Metadata> {
@@ -19,7 +21,7 @@ export async function generateMetadata({ params }: PageProps<"/c/[community]">):
 }
 
 export default async function CommunityPage({ params }: PageProps<"/c/[community]">) {
-  const { me, community, isHost } = await loadCommunity((await params).community);
+  const { me, community, isHost, membership } = await loadCommunity((await params).community);
   const [home, questions, map] = await Promise.all([
     communityHome(db, community, me.id),
     communityQuestions(db, community.id, me.id),
@@ -125,6 +127,25 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
               </li>
             ))}
           </ul>
+        </section>
+        <section id="email" className="scroll-mt-4 space-y-3 border-t border-[var(--rule)] pt-8">
+          <h2 className="display text-2xl">Email from {community.name}</h2>
+          <Form action={emailPref} submit="Save" quiet className="space-y-3">
+            <input type="hidden" name="community" value={community.slug} />
+            {([
+              ["each", "As things happen", "A round opens, answers are revealed, someone answers your question."],
+              ["digest", "Once a day", "One email with everything from the day before."],
+              ["off", "Never", "Check your inbox here instead."],
+            ] as const).map(([value, label, hint]) => (
+              <label key={value} className="flex gap-3">
+                <input type="radio" name="pref" value={value} defaultChecked={membership.email === value} className="mt-1" />
+                <span>
+                  <span className="block font-medium">{label}</span>
+                  <span className="block text-sm text-[var(--ink-soft)]">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </Form>
         </section>
       </main>
     </>
