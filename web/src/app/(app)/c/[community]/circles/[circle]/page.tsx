@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { CIRCLE_MAX, CIRCLE_MIN, circleBySlug, circleHome } from "@/domain/circles";
@@ -37,13 +38,16 @@ export default async function CirclePage({ params }: Props) {
     .filter((r) => r.phase !== "skipped")
     .map((r) => ({
       id: r.id, question: r.question, phase: r.phase, authorId: r.authorId,
-      responders: responders[r.id] ?? [], at: r.openedAt ?? r.createdAt, closesAt: r.closesAt,
+      responders: responders[r.id] ?? [], at: r.openedAt ?? r.createdAt, closesAt: r.closesAt, replyTo: r.replyToRoundId,
     }));
   const live = all.filter((r) => r.phase === "open");
   const queued = all.filter((r) => r.phase === "queued");
   const suggested = all.filter((r) => r.phase === "nominated");
   const past = all.filter((r) => r.phase === "closed").reverse();
   const needed = approvalsNeeded(circle, home.members.length);
+  const neededForReply = approvalsNeeded(circle, home.members.length, { reply: true });
+  const question = new Map(all.map((r) => [r.id, r.question]));
+  const replyTo = (r: (typeof all)[number]) => (r.replyToRoundId ? question.get(r.replyToRoundId) ?? null : null);
   const isHost = circle.hostId === me.id;
   const roundHref = (id: string) => `/c/${community.slug}/r/${id}`;
   const host = home.members.find((m) => m.userId === circle.hostId);
@@ -100,7 +104,7 @@ export default async function CirclePage({ params }: Props) {
                 </p>
               ) : (
                 <ul className="space-y-3">
-                  {live.map((r) => <RoundRow key={r.id} round={r} href={roundHref(r.id)} expected={home.members.length} />)}
+                  {live.map((r) => <RoundRow key={r.id} round={r} href={roundHref(r.id)} expected={home.members.length} replyTo={replyTo(r)} />)}
                 </ul>
               )}
             </section>
@@ -112,8 +116,15 @@ export default async function CirclePage({ params }: Props) {
                   {[...queued, ...suggested].map((r) => (
                     <li key={r.id} className="card space-y-3">
                       <span className="label">
-                        {r.phase === "queued" ? (r.promotedAt ? "up next · promoted" : "up next") : `suggested · ${r.supports} of ${needed} to queue`}
+                        {r.phase === "queued"
+                          ? (r.promotedAt ? "up next · promoted" : "up next")
+                          : `${r.replyToRoundId ? "reply" : "suggested"} · ${r.supports} of ${r.replyToRoundId ? neededForReply : needed} to queue`}
                       </span>
+                      {r.replyToRoundId && (
+                        <p className="text-sm text-[var(--ink-soft)]">
+                          replying to <Link href={roundHref(r.replyToRoundId)} className="link">{replyTo(r)}</Link>
+                        </p>
+                      )}
                       <p className="text-lg leading-snug">{r.question}</p>
                       <p className="text-sm text-[var(--ink-soft)]">from {r.authorId === me.id ? "you" : displayName({ name: r.authorName, email: r.authorEmail })}</p>
                       <div className="flex flex-wrap gap-2">
@@ -153,7 +164,7 @@ export default async function CirclePage({ params }: Props) {
               <section className="space-y-3">
                 <h2 className="display text-2xl">Before</h2>
                 <ul className="space-y-3">
-                  {past.map((r) => <RoundRow key={r.id} round={r} href={roundHref(r.id)} />)}
+                  {past.map((r) => <RoundRow key={r.id} round={r} href={roundHref(r.id)} replyTo={replyTo(r)} />)}
                 </ul>
               </section>
             )}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { circleById } from "@/domain/circles";
 import { Refusal } from "@/domain/errors";
+import { replyContext, repliesTo } from "@/domain/replies";
 import { roundView } from "@/domain/rounds";
 import { formatDuration } from "@/lib/audio/recorder";
 import { audioStorage } from "@/lib/audioStore";
@@ -14,7 +15,9 @@ import { Form } from "@/components/app/Form";
 import { Mark } from "@/components/app/Mark";
 import { Top } from "@/components/app/Top";
 import { TurnDot } from "@/components/app/TurnDot";
-import { mark, reveal, share } from "../../actions";
+import Link from "next/link";
+import { PromptFields } from "@/components/app/PromptFields";
+import { mark, reply, reveal, share } from "../../actions";
 
 type Props = PageProps<"/c/[community]/r/[round]">;
 
@@ -27,7 +30,10 @@ async function load(params: Props["params"]) {
   });
   if (view.round.communityId !== ctx.community.id) notFound();
   const circle = view.round.circleId ? await circleById(db, view.round.circleId) : null;
-  return { ...ctx, view, circle };
+  const [replies, context] = circle && view.canTakePart
+    ? await Promise.all([repliesTo(db, view.round.id, ctx.me.id), replyContext(db, view.round, ctx.me.id)])
+    : [[], null];
+  return { ...ctx, view, circle, replies, context };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -42,7 +48,7 @@ const REVEAL_NOTE = {
 } as const;
 
 export default async function RoundPage({ params }: Props) {
-  const { me, community, view, circle } = await load(params);
+  const { me, community, view, circle, replies, context } = await load(params);
   const { round, prompt } = view;
   const base = `/c/${community.slug}`;
   const open = round.phase === "open";
@@ -57,8 +63,13 @@ export default async function RoundPage({ params }: Props) {
   const trail = [
     { label: community.name, href: base },
     ...(circle ? [{ label: circle.name, href: `${base}/circles/${circle.slug}` }] : []),
-    { label: round.welcome ? "Welcome question" : circle ? "Round" : "Open question" },
+    { label: round.welcome ? "Welcome question" : round.replyToRoundId ? "Reply" : circle ? "Round" : "Open question" },
   ];
+  // A reply is a follow-up round for the whole circle (domain/replies.ts): only
+  // to a round that has happened, and only once you can see its answers.
+  const replyable = Boolean(circle) && view.canTakePart && (open || closed);
+  const replyBlocked = !replyable ? null : view.visibility === "own" ? "You can reply once this one closes." : view.visibility === "after_share" ? "Share yours first, then you can reply." : null;
+  const REPLY_STATE = { nominated: "waiting for support", queued: "up next", open: "open now", closed: "explored" } as const;
 
   return (
     <>
@@ -67,11 +78,29 @@ export default async function RoundPage({ params }: Props) {
         <header className="space-y-3">
           <span className={open ? "label live flex items-center gap-2" : "label"}>
             <TurnDot open={open} answered={Boolean(view.mine)} />
-            {round.welcome ? "welcome question" : circle ? `a round in ${circle.name}` : "open question"}
+            {round.welcome ? "welcome question" : circle ? `a ${round.replyToRoundId ? "reply" : "round"} in ${circle.name}` : "open question"}
             {" · "}
             {open ? (round.closesAt ? `closes ${relative(round.closesAt)}` : "open") : round.phase === "closed" ? "closed" : "not open yet"}
           </span>
+          {context && (
+            <p className="mono text-xs text-[var(--ink-faint)]">
+              replying to{" "}
+              {context.chain.map((c, i) => (
+                <span key={c.id}>
+                  {i > 0 && " › "}
+                  <Link href={`${base}/r/${c.id}`} className="link">{c.question}</Link>
+                </span>
+              ))}
+            </p>
+          )}
           <h1 className="display text-4xl leading-tight">{prompt.question}</h1>
+          {context?.answer && (
+            <blockquote className="space-y-1 border-l-2 border-[var(--shared)] pl-3">
+              <p className="mono text-xs text-[var(--ink-faint)]">following up on {context.answer.name === "you" ? "your" : `${context.answer.name}'s`} answer</p>
+              {context.answer.audioUrl && <audio controls preload="none" src={context.answer.audioUrl} className="w-full" />}
+              {context.answer.text && <p className="whitespace-pre-line">{context.answer.text}</p>}
+            </blockquote>
+          )}
           {prompt.context && <p className="whitespace-pre-line text-[var(--ink-soft)]">{prompt.context}</p>}
           <p className="mono text-sm text-[var(--ink-soft)]">
             {view.responders.length}
@@ -110,7 +139,7 @@ export default async function RoundPage({ params }: Props) {
                 const isMine = r.userId === me.id;
                 const reacted = r.reactedBy.includes(me.id);
                 return (
-                  <li key={r.id} className="card space-y-2">
+                  <li key={r.id} id={`answer-${r.id}`} className="card space-y-2">
                     <p className={isMine ? "font-medium text-[var(--mine)]" : "font-medium"}>
                       {isMine ? "You" : displayName(r)}
                     </p>
@@ -137,6 +166,54 @@ export default async function RoundPage({ params }: Props) {
             </ul>
           )}
         </section>
+
+        {replyable && (
+          <section className="space-y-4 border-t border-[var(--rule)] pt-6">
+            <h2 className="display text-2xl">Replies to this round</h2>
+            {replies.length === 0 ? (
+              <p className="text-[var(--ink-soft)]">None yet. A reply is a follow-up question for the whole circle, and it branches off this round on the map.</p>
+            ) : (
+              <ul className="space-y-3">
+                {replies.map((r) => (
+                  <li key={r.id}>
+                    <Link href={`${base}/r/${r.id}`} className="card block space-y-1">
+                      <span className={r.phase === "open" ? "label live" : "label"}>
+                        {REPLY_STATE[r.phase as keyof typeof REPLY_STATE]}
+                        {r.phase === "open" || r.phase === "closed" ? ` · ${r.shared} shared` : ""}
+                      </span>
+                      <p className="text-lg leading-snug">{r.question}</p>
+                      <p className="text-sm text-[var(--ink-soft)]">from {r.author}</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {replyBlocked ? (
+              <p className="text-sm text-[var(--ink-soft)]">{replyBlocked}</p>
+            ) : (
+              <details className="card">
+                <summary className="cursor-pointer font-medium">Reply to this round</summary>
+                <div className="pt-4">
+                  <Form action={reply} submit="Suggest this reply" pending="Suggesting…">
+                    {hidden}
+                    {view.responses.some((r) => r.userId !== me.id) && (
+                      <label className="block space-y-2">
+                        <span className="block font-medium">About</span>
+                        <select name="answer" className="field" defaultValue="">
+                          <option value="">The whole round</option>
+                          {view.responses.filter((r) => r.userId !== me.id).map((r) => (
+                            <option key={r.id} value={r.id}>{displayName(r)}&apos;s answer</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                    <PromptFields defaults={{ reveal: prompt.reveal }} />
+                  </Form>
+                </div>
+              </details>
+            )}
+          </section>
+        )}
 
         {open && view.mayConduct && !round.welcome && (
           <section className="border-t border-[var(--rule)] pt-6">

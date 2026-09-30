@@ -7,6 +7,7 @@ import { circleById, createCircle, joinCircle, leaveCircle, type Circle } from "
 import { setWelcomeQuestion, updateWelcomeNote } from "@/domain/communities";
 import { createInvite } from "@/domain/invites";
 import type { PromptInput } from "@/domain/prompts";
+import { suggestReply } from "@/domain/replies";
 import {
   postOpenQuestion, promoteRound, respond, revealNow, suggestRound, toggleReaction, toggleSupport, withdrawRound,
 } from "@/domain/rounds";
@@ -119,6 +120,20 @@ export async function suggest(_prev: ActionState, form: FormData): Promise<Actio
   if (failed) return failed;
   revalidatePath(`/c/${community.slug}`, "layout");
   return { ok: "Suggested. It opens once enough of the circle supports it." };
+}
+
+/** A follow-up round the whole circle takes a turn on, answering this one. */
+export async function reply(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() =>
+    suggestReply(db, {
+      roundId: str(form, "round"), userId: me.id, prompt: promptFrom(form),
+      responseId: str(form, "answer") || null, timerHours: str(form, "timer") || null,
+    }),
+  );
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return { ok: "Suggested. It starts once one more member supports it." };
 }
 
 export async function ask(_prev: ActionState, form: FormData): Promise<ActionState> {

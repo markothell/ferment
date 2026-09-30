@@ -6,7 +6,8 @@ import type { MapRound } from "@/lib/circleMap";
 export const metadata: Metadata = { title: "A circle · ferment" };
 
 // The review fixture from design/ferment/previews/circle.html: nine people,
-// ten months in. Read-only; no sign-in.
+// ten months in, with the replies from previews/replies.html branching off.
+// Read-only; no sign-in.
 const PEOPLE = ["Ama", "Bo", "Cleo", "Dev", "Esi", "Finn", "Gus", "Hana", "Ines"];
 const PAST: [string, number, number[]][] = [
   ["How often should we meet?", 11, [2, 3, 0]],
@@ -34,6 +35,19 @@ const ROUNDS: MapRound[] = [
   { id: "s1", question: "A walk instead of a meeting?", phase: "nominated", authorId: id(4), responders: [], at: month(9), closesAt: null },
   { id: "s2", question: "Should we write something together?", phase: "queued", authorId: id(6), responders: [], at: month(9), closesAt: null },
   { id: "s3", question: "Who else should be here?", phase: "nominated", authorId: id(1), responders: [], at: month(9), closesAt: null },
+  // Replies: a chain four deep off "new members" (folds on the map), and one of each state elsewhere.
+  ...([
+    ["m1", "r4", "What would have helped in your first month?", "closed", [7, 6, 0, 2, 1, 4], 3.5],
+    ["m2", "m1", "Should every new person host once?", "closed", [1, 7, 2, 5], 4],
+    ["m3", "m2", "Who hosts first this summer?", "closed", [7, 1, 8], 5],
+    ["m4", "m3", "How did your first time hosting go?", "closed", [5, 7, 0, 2], 7],
+    ["l1", "r6", "What did the list change for you?", "closed", [2, 3, 0, 8], 6],
+    ["g1", "r9", "What would a garden on Elm need from us?", "open", [6, 0, 7], 9],
+    ["d1", "r9", "Less of a club: what would that look like?", "nominated", [], 9],
+    ["c1", "live", "The coast: one night or two?", "queued", [], 9],
+  ] as const).map(([rid, replyTo, question, phase, who, m]): MapRound => ({
+    id: rid, question, phase, replyTo, authorId: id(who[0] ?? 3), responders: who.map(id), at: month(m), closesAt: null,
+  })),
 ];
 
 export default function DemoCircle() {
@@ -45,9 +59,9 @@ export default function DemoCircle() {
           seats={PEOPLE.map((name, i) => ({ id: id(i), name }))}
           rounds={ROUNDS}
           roundBase="/demo/circle"
-          label="A circle of nine people. The rounds they shared spiral in to the question open now; three suggestions wait at the edge."
+          label="A circle of nine people. The rounds they shared spiral in to the question open now; replies branch off the rounds they answer; three suggestions wait at the edge."
         />
-        <p className="text-center text-sm text-[var(--ink-soft)]">Hover or tap a round.</p>
+        <p className="text-center text-sm text-[var(--ink-soft)]">Hover or tap a round. The smaller branches are replies.</p>
       </main>
     </>
   );

@@ -8,7 +8,7 @@ export type RoundRowData = {
 };
 
 /** One question in a list. */
-export function RoundRow({ round, href, expected }: { round: RoundRowData; href: string; expected?: number | null }) {
+export function RoundRow({ round, href, expected, replyTo }: { round: RoundRowData; href: string; expected?: number | null; replyTo?: string | null }) {
   const open = round.phase === "open";
   return (
     <li>
@@ -17,6 +17,7 @@ export function RoundRow({ round, href, expected }: { round: RoundRowData; href:
           <TurnDot open={open} answered={round.respondedByMe} />
           {open ? (round.closesAt ? `open · closes ${relative(round.closesAt)}` : "open") : "closed"}
         </span>
+        {replyTo && <p className="text-sm text-[var(--ink-soft)]">replying to {replyTo}</p>}
         <p className="text-lg leading-snug">{round.question}</p>
         <p className="mono text-sm text-[var(--ink-soft)]">
           {round.responded}{expected ? ` of ${expected}` : ""} shared

@@ -83,9 +83,14 @@ async function promptFor(db: DB, communityId: string, userId: string, p: PromptI
 
 // ── The circle machine ────────────────────────────────────────────────────
 
-/** Supports needed to queue: the circle's setting, or a third of members (at least 2), never more than there are members. */
-export function approvalsNeeded(circle: Pick<Circle, "approvalsToStart">, members: number): number {
-  const wanted = circle.approvalsToStart ?? Math.max(2, Math.ceil(members / 3));
+/**
+ * Supports needed to queue: the circle's setting, or a third of members (at
+ * least 2), never more than there are members. A reply needs less: its author
+ * and one other, since the circle already took up the round it answers.
+ */
+export function approvalsNeeded(circle: Pick<Circle, "approvalsToStart">, members: number, { reply = false } = {}): number {
+  const setting = circle.approvalsToStart ?? Math.max(2, Math.ceil(members / 3));
+  const wanted = reply ? Math.min(2, setting) : setting;
   return Math.max(1, Math.min(wanted, members));
 }
 
@@ -148,7 +153,7 @@ async function maybeQueue(db: DB, round: Round, now: Date): Promise<void> {
   const [circle] = await db.select().from(circles).where(eq(circles.id, round.circleId)).limit(1);
   const members = await activeMemberCount(db, circle.id);
   const [{ n }] = await db.select({ n: count() }).from(roundSupports).where(eq(roundSupports.roundId, round.id));
-  if (n >= approvalsNeeded(circle, members)) {
+  if (n >= approvalsNeeded(circle, members, { reply: round.replyToRoundId !== null })) {
     await db.update(rounds).set({ phase: "queued", queuedAt: now }).where(eq(rounds.id, round.id));
   }
 }
@@ -157,8 +162,12 @@ async function maybeQueue(db: DB, round: Round, now: Date): Promise<void> {
 export async function suggestRound(
   db: DB,
   {
-    circleId, userId, prompt, suggestedFromRoundId = null, now = new Date(), ...rest
-  }: { circleId: string; userId: string; prompt: PromptInput | { promptId: string }; suggestedFromRoundId?: string | null; now?: Date } & RoundSettings,
+    circleId, userId, prompt, suggestedFromRoundId = null, replyToRoundId = null, replyToResponseId = null, now = new Date(), ...rest
+  }: {
+    circleId: string; userId: string; prompt: PromptInput | { promptId: string }; suggestedFromRoundId?: string | null;
+    /** set through domain/replies.ts#suggestReply, which checks them */
+    replyToRoundId?: string | null; replyToResponseId?: string | null; now?: Date;
+  } & RoundSettings,
 ): Promise<Round> {
   const [circle] = await db.select().from(circles).where(eq(circles.id, circleId)).limit(1);
   if (!circle) refuse("That circle doesn't exist.");
@@ -176,7 +185,7 @@ export async function suggestRound(
     .insert(rounds)
     .values({
       id: newId(), promptId: p.id, communityId: circle.communityId, circleId, authorId: userId,
-      suggestedFromRoundId, phase: "nominated", createdAt: now, ...settings(rest),
+      suggestedFromRoundId, replyToRoundId, replyToResponseId, phase: "nominated", createdAt: now, ...settings(rest),
     })
     .returning();
   await db.insert(roundSupports).values({ roundId: round.id, userId, createdAt: now });
@@ -491,6 +500,7 @@ export async function circleRounds(db: DB, circleId: string, viewerId: string, n
       authorId: rounds.authorId, authorName: user.name, authorEmail: user.email,
       createdAt: rounds.createdAt, openedAt: rounds.openedAt, closedAt: rounds.closedAt, closesAt: rounds.closesAt,
       promotedAt: rounds.promotedAt, queuedAt: rounds.queuedAt,
+      replyToRoundId: rounds.replyToRoundId, replyToResponseId: rounds.replyToResponseId,
       supports: sql<number>`(select count(*)::int from ${roundSupports} where ${roundSupports.roundId} = ${rounds.id})`,
       supportedByMe: sql<boolean>`exists(select 1 from ${roundSupports} where ${roundSupports.roundId} = ${rounds.id} and ${roundSupports.userId} = ${viewerId})`,
       responded: sql<number>`(select count(*)::int from ${responses} where ${responses.roundId} = ${rounds.id})`,

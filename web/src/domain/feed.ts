@@ -6,6 +6,10 @@
 // `beyond` (other communities that took it up) and `arrived` (it started in
 // another community) are the platform-level spread from the essays. Nothing
 // crosses communities yet, so they are 0 and false; the shape is ready.
+//
+// Replies (domain/replies.ts) aren't questions of their own here: each is
+// listed under the question at the root of its chain, and never counts
+// toward that question's spread.
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { DB } from "@/db";
@@ -25,7 +29,10 @@ export async function feed(db: DB, communityId: string, viewerId: string) {
       .innerJoin(user, eq(user.id, prompts.authorId))
       .where(eq(prompts.communityId, communityId)),
     db
-      .select({ id: rounds.id, promptId: rounds.promptId, circleId: rounds.circleId, phase: rounds.phase, openedAt: rounds.openedAt, closedAt: rounds.closedAt })
+      .select({
+        id: rounds.id, promptId: rounds.promptId, circleId: rounds.circleId, phase: rounds.phase, openedAt: rounds.openedAt, closedAt: rounds.closedAt,
+        replyToRoundId: rounds.replyToRoundId,
+      })
       .from(rounds)
       .where(and(eq(rounds.communityId, communityId), inArray(rounds.phase, ["open", "closed", "nominated", "queued"]))),
     db.select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status }).from(circles).where(eq(circles.communityId, communityId)),
@@ -43,7 +50,24 @@ export async function feed(db: DB, communityId: string, viewerId: string) {
 
   const circleById = new Map(circleRows.map((c) => [c.id, c]));
   const total = Math.max(1, circleRows.filter((c) => c.status === "active" || c.status === "idle").length);
-  const ran = runRows.filter((r) => r.phase === "open" || r.phase === "closed");
+  const runById = new Map(runRows.map((r) => [r.id, r]));
+  const happened = runRows.filter((r) => r.phase === "open" || r.phase === "closed");
+  const ran = happened.filter((r) => !r.replyToRoundId);
+  // Each reply that has opened, under the question its chain started from.
+  const rootOf = (id: string): string | null => {
+    const seen = new Set<string>();
+    for (let r = runById.get(id); r && !seen.has(r.id); r = r.replyToRoundId ? runById.get(r.replyToRoundId) : undefined) {
+      seen.add(r.id);
+      if (!r.replyToRoundId) return r.promptId;
+    }
+    return null;
+  };
+  const repliesUnder = new Map<string, typeof happened>();
+  for (const r of happened) {
+    if (!r.replyToRoundId) continue;
+    const root = rootOf(r.id);
+    if (root) repliesUnder.set(root, [...(repliesUnder.get(root) ?? []), r]);
+  }
   const promptById = new Map(promptRows.map((p) => [p.id, p]));
   const children = new Map<string, string[]>();
   for (const p of promptRows) if (p.adaptedFromId) children.set(p.adaptedFromId, [...(children.get(p.adaptedFromId) ?? []), p.id]);
@@ -90,6 +114,12 @@ export async function feed(db: DB, communityId: string, viewerId: string) {
         author: displayName({ name: p.authorName, email: p.authorEmail }),
         adaptedFrom: parent ? { id: parent.id, question: parent.question } : null,
         adaptations: (children.get(p.id) ?? []).map((id) => ({ id, question: promptById.get(id)!.question })),
+        replies: (repliesUnder.get(p.id) ?? [])
+          .sort((a, b) => (a.openedAt?.getTime() ?? 0) - (b.openedAt?.getTime() ?? 0))
+          .map((r) => ({
+            roundId: r.id, question: promptById.get(r.promptId)?.question ?? "", open: r.phase === "open",
+            circle: r.circleId ? { slug: circleById.get(r.circleId)!.slug, name: circleById.get(r.circleId)!.name } : null,
+          })),
         circles: circlesTookIt,
         here: everyone ? total : circlesTookIt.length,
         total,

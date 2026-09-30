@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "What we're talking about · ferment"
 // `beyond` and `arrived` are the unbuilt platform-level spread, shown here as the concept.
 const c = (id: string, name: string, open = false, viaAdaptation = false) => ({ id, slug: id, name, open, first: null, viaAdaptation });
 const base = {
-  context: "", author: "Pia", adaptedFrom: null, adaptations: [], total: 5, everyone: null, openIn: 0,
+  context: "", author: "Pia", adaptedFrom: null, adaptations: [], replies: [], total: 5, everyone: null, openIn: 0,
   startedAt: new Date(2026, 7, 1), lastActivity: new Date(2026, 8, 1), beyond: 0, arrived: false, suggestable: [],
 } satisfies Partial<FeedItem>;
 const ITEMS: FeedItem[] = [
@@ -17,6 +17,10 @@ const ITEMS: FeedItem[] = [
   { ...base, promptId: "owe", question: "What do we owe our neighbours?", author: "Kofi", here: 4, openIn: 1, beyond: 3,
     circles: [c("tables", "Tuesday Tables"), c("bread", "Bread"), c("parents", "New Parents"), c("reading", "Reading", true)], startedIn: { name: "Tuesday Tables", slug: "tables" } },
   { ...base, promptId: "fed", question: "What fed you this week?", here: 3, openIn: 1, beyond: 11, arrived: true,
+    replies: [
+      { roundId: "fed-r1", question: "Who cooked it?", open: false, circle: { slug: "bread", name: "Bread" } },
+      { roundId: "fed-r2", question: "What would you cook for us?", open: true, circle: { slug: "tables", name: "Tuesday Tables" } },
+    ],
     circles: [c("bread", "Bread"), c("tables", "Tuesday Tables", true), c("walkers", "Walkers")], startedIn: { name: "Bread", slug: "bread" } },
   { ...base, promptId: "hard", question: "Who do you call when it's hard?", author: "Rae", here: 3,
     adaptations: [{ id: "stuck", question: "Who do you call when you're stuck?" }],

@@ -7,6 +7,7 @@ import { createCommunity, type Community } from "./communities";
 import { Refusal } from "./errors";
 import { feed } from "./feed";
 import { acceptInvite, createInvite } from "./invites";
+import { suggestReply } from "./replies";
 import { postOpenQuestion, respond, revealNow, suggestRound, toggleSupport } from "./rounds";
 
 let db: DB;
@@ -57,6 +58,22 @@ describe("the feed", () => {
     expect(items[0].startedIn?.name).toBe("One");
     expect(items[0].openIn).toBe(2);
     expect(items[0].suggestable.map((c) => c.name)).toEqual(["Three"]);
+  });
+
+  it("lists replies under the question their chain started from, not as questions of their own", async () => {
+    const first = await run(circles[0], { question: "What fed you?", reveal: "open" }, "u_a", "u_b");
+    const r1 = await suggestReply(db, { roundId: first.id, userId: "u_b", prompt: { question: "Why soup?", reveal: "open" }, now: at(1) });
+    await toggleSupport(db, { roundId: r1.id, userId: "u_c", now: at(1) });
+    const r2 = await suggestReply(db, { roundId: r1.id, userId: "u_c", prompt: { question: "Which winter?" }, now: at(2) });
+    await toggleSupport(db, { roundId: r2.id, userId: "u_a", now: at(2) });
+    await suggestReply(db, { roundId: first.id, userId: "u_a", prompt: { question: "Still waiting" }, now: at(3) });
+
+    const items = await feed(db, community.id, "u_a");
+    expect(items.map((i) => i.question)).toEqual(["What fed you?"]);
+    expect(items[0].here).toBe(1);
+    expect(items[0].replies.map((r) => [r.question, r.open, r.circle?.name])).toEqual([
+      ["Why soup?", true, "One"], ["Which winter?", true, "One"],
+    ]);
   });
 
   it("counts adaptations toward the question they came from, and lists them", async () => {

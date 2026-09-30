@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { SEAT_R, SIZE, layoutCircle, type MapRound, type MapSeat } from "@/lib/circleMap";
 import { relative } from "@/lib/time";
 
@@ -37,7 +37,7 @@ export function CircleMap({
     () => [...seats, ...Array.from({ length: emptySeats }, (_, i) => ({ id: `empty-${i}`, name: "" }))],
     [seats, emptySeats],
   );
-  const { seats: placed, nodes, spurs } = useMemo(() => layoutCircle(all, rounds), [all, rounds]);
+  const { seats: placed, thread: spiral, nodes, spurs, links } = useMemo(() => layoutCircle(all, rounds), [all, rounds]);
   const [focus, setFocus] = useState<number | null>(null);
   const [pinned, setPinned] = useState<number | null>(null);
   const active = pinned ?? focus;
@@ -49,7 +49,7 @@ export function CircleMap({
     return () => document.removeEventListener("click", off);
   }, [pinned]);
 
-  const thread = nodes.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L");
+  const thread = spiral.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" L");
   const shown = active !== null ? nodes[active] : null;
 
   return (
@@ -60,7 +60,7 @@ export function CircleMap({
         role="group"
         aria-label={label}
       >
-        {nodes.length > 1 && (
+        {spiral.length > 1 && (
           <path
             d={`M${thread}`}
             fill="none"
@@ -70,6 +70,36 @@ export function CircleMap({
             strokeLinejoin="round"
             className="cm-fade"
           />
+        )}
+
+        {/* Replies branch off the round they answer, finer than the thread. */}
+        {links.map((l) =>
+          l.folded ? (
+            <g
+              key={`${l.from}-${l.to}`}
+              role="link"
+              tabIndex={0}
+              aria-label={`${l.folded.ids.length} more ${l.folded.ids.length === 1 ? "reply" : "replies"} in between`}
+              className="cm-act cm-fade"
+              style={{ opacity: active !== null ? 0.55 : 1 }}
+              onClick={(e) => { e.stopPropagation(); router.push(roundHref(l.folded!.ids[0])); }}
+              onKeyDown={(e) => { if (e.key === "Enter") router.push(roundHref(l.folded!.ids[0])); }}
+            >
+              <line x1={l.x1} y1={l.y1} x2={l.folded.dots[0].x} y2={l.folded.dots[0].y} style={{ stroke: "var(--rule-strong)" }} strokeWidth={0.9} />
+              <line x1={l.folded.dots[1].x} y1={l.folded.dots[1].y} x2={l.x2} y2={l.y2} style={{ stroke: "var(--rule-strong)" }} strokeWidth={0.9} />
+              {l.folded.dots.map((d, i) => <circle key={i} cx={d.x} cy={d.y} r={1.2} style={{ fill: "var(--ink-faint)" }} />)}
+              <line x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="transparent" strokeWidth={14} />
+            </g>
+          ) : (
+            <line
+              key={`${l.from}-${l.to}`}
+              x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+              strokeWidth={0.9}
+              strokeLinecap="round"
+              style={{ stroke: "var(--rule-strong)", opacity: active !== null ? 0.55 : 1 }}
+              className="cm-fade"
+            />
+          ),
         )}
 
         <g>
@@ -87,7 +117,19 @@ export function CircleMap({
         </g>
 
         {spurs.map((s) => (
-          <g key={s.round.id} className="cm-fade" style={{ opacity: active !== null ? 0.55 : 1 }}>
+          <g
+            key={s.round.id}
+            className={s.onRound ? "cm-act cm-fade" : "cm-fade"}
+            style={{ opacity: active !== null ? 0.55 : 1 }}
+            {...(s.onRound && {
+              role: "link",
+              tabIndex: 0,
+              "aria-label": `A reply waiting to start: ${s.round.question}`,
+              onClick: (e: MouseEvent) => { e.stopPropagation(); router.push(roundHref(s.round.id)); },
+              onKeyDown: (e: KeyboardEvent) => { if (e.key === "Enter") router.push(roundHref(s.round.id)); },
+            })}
+          >
+            {s.onRound && <title>{`Reply: ${s.round.question}`}</title>}
             <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} style={{ stroke: "var(--mine)" }} strokeWidth={2.5} strokeLinecap="round" />
             {s.queued && <circle cx={s.x2} cy={s.y2} r={3.5} style={{ fill: "var(--mine)" }} />}
           </g>
@@ -125,7 +167,7 @@ export function CircleMap({
             key={n.id}
             tabIndex={0}
             role="button"
-            aria-label={`${n.question}. ${n.live ? "Open now. " : ""}${n.tellers.length} took part.`}
+            aria-label={`${n.reply ? "A reply: " : ""}${n.question}. ${n.live ? "Open now. " : ""}${n.tellers.length} took part.`}
             className="cm-act cm-fade"
             style={{ opacity: active !== null && active !== ni ? 0.55 : 1 }}
             onMouseEnter={() => setFocus(ni)}
@@ -146,14 +188,14 @@ export function CircleMap({
           >
             {n.live ? (
               <>
-                <circle cx={n.x} cy={n.y} r={n.r + 4} fill="none" style={{ stroke: "var(--live)" }} strokeWidth={1.2} strokeOpacity={0.45} />
-                <circle cx={n.x} cy={n.y} r={n.r} style={{ fill: "var(--raised)", stroke: "var(--live)" }} strokeWidth={2} />
+                <circle cx={n.x} cy={n.y} r={n.r + (n.reply ? 3 : 4)} fill="none" style={{ stroke: "var(--live)" }} strokeWidth={n.reply ? 1 : 1.2} strokeOpacity={0.45} />
+                <circle cx={n.x} cy={n.y} r={n.r} style={{ fill: "var(--raised)", stroke: "var(--live)" }} strokeWidth={n.reply ? 1.5 : 2} />
               </>
             ) : (
-              <circle cx={n.x} cy={n.y} r={n.r} style={{ fill: "var(--shared-soft)", stroke: "var(--shared)" }} strokeWidth={1.4} />
+              <circle cx={n.x} cy={n.y} r={n.r} style={{ fill: "var(--shared-soft)", stroke: "var(--shared)" }} strokeWidth={n.reply ? 1.1 : 1.4} />
             )}
-            {/* a larger, invisible target for fingers */}
-            <circle cx={n.x} cy={n.y} r={Math.max(n.r, 16)} fill="transparent" />
+            {/* a larger, invisible target for fingers; replies sit close, so theirs is smaller */}
+            <circle cx={n.x} cy={n.y} r={n.reply ? 9 : Math.max(n.r, 16)} fill="transparent" />
           </g>
         ))}
       </svg>
@@ -172,6 +214,7 @@ export function CircleMap({
           <b>{shown.question}</b>
           <small>
             {shown.live && <i>● </i>}
+            {shown.reply && "a reply · "}
             {when(shown, new Date())} · {shown.tellers.length} took part
           </small>
           {pinned !== null && (

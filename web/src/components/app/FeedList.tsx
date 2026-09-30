@@ -69,6 +69,25 @@ export function FeedList({
                   <p><Link className="link" href={`${base}/r/${item.everyone.roundId}`}>See the answers from everyone →</Link></p>
                 )}
 
+                {item.replies.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="mono text-[11px] text-[var(--ink-faint)]">
+                      {item.replies.length} {item.replies.length === 1 ? "reply" : "replies"} in circles
+                    </p>
+                    <ul className="space-y-1 border-l border-[var(--rule-strong)] pl-3">
+                      {item.replies.map((r) => (
+                        <li key={r.roundId} className="text-sm">
+                          <Link className="link" href={`${base}/r/${r.roundId}`}>{r.question}</Link>
+                          <span className="mono text-[11px] text-[var(--ink-faint)]">
+                            {r.circle && ` · ${r.circle.name}`}
+                            {r.open && <span className="live"> · ● open</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {item.adaptations.length > 0 && (
                   <p>
                     Adapted as{" "}

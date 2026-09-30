@@ -188,6 +188,11 @@ export const rounds = pgTable(
     authorId: userRef().notNull(),
     // Where a suggestion came from, when it was carried over from another round.
     suggestedFromRoundId: text().references((): AnyPgColumn => rounds.id, { onDelete: "set null" }),
+    // The round this one answers: a follow-up the whole circle takes a turn on.
+    // It sits on that round's branch of the circle map, off the spiral.
+    replyToRoundId: text().references((): AnyPgColumn => rounds.id, { onDelete: "cascade" }),
+    // Optionally, the one answer it follows up on, quoted at the top.
+    replyToResponseId: text().references((): AnyPgColumn => responses.id, { onDelete: "set null" }),
     welcome: boolean().notNull().default(false),
     phase: roundPhase().notNull(),
     timerHours: integer(),
@@ -205,6 +210,10 @@ export const rounds = pgTable(
     index().on(t.circleId, t.phase),
     index().on(t.communityId, t.phase),
     index().on(t.promptId),
+    index().on(t.replyToRoundId),
+    check("rounds_reply_not_self", sql`${t.replyToRoundId} is distinct from ${t.id}`),
+    check("rounds_reply_in_circle", sql`${t.replyToRoundId} is null or ${t.circleId} is not null`),
+    check("rounds_answer_needs_round", sql`${t.replyToResponseId} is null or ${t.replyToRoundId} is not null`),
     // One welcome question per community, and it is always community-wide.
     uniqueIndex("rounds_one_welcome").on(t.communityId).where(sql`${t.welcome}`),
     check("rounds_welcome_is_open_question", sql`not ${t.welcome} or ${t.circleId} is null`),
