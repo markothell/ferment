@@ -39,7 +39,10 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
       <Top trail={[{ label: community.name }]} links={[{ label: "Invite", href: `${base}/invite` }]} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
         <header className="space-y-3">
-          <h1 className="display text-4xl">{community.name}</h1>
+          <div>
+            <span className="label">your community</span>
+            <h1 className="display text-4xl">{community.name}</h1>
+          </div>
           {community.welcomeNote && (
             <p className="whitespace-pre-line text-[var(--ink-soft)]">{community.welcomeNote}</p>
           )}

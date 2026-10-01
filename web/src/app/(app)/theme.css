@@ -1,0 +1,36 @@
+/* A chosen theme, from the switch in the footer (temporary, while we build).
+   Without one, app.css follows the system. The attribute selector outranks the
+   media query in app.css, so a choice wins either way. */
+
+.ferment[data-theme="light"] {
+  --ground:    #E7EAD6;
+  --raised:    #F6F7EE;
+  --ink:       #1C2A25;
+  --ink-soft:  #4E5F58;
+  --ink-faint: #7C8B83;
+  --live:      #1E7F72;
+  --mine:      #C94B66;
+  --shared:    #D99A1E;
+  --shared-soft: #EDD9A6;
+  --rule:        rgba(28, 42, 37, 0.13);
+  --rule-strong: rgba(28, 42, 37, 0.30);
+  color-scheme: light;
+}
+
+.ferment[data-theme="dark"] {
+  --ground:    #111A17;
+  --raised:    #182420;
+  --ink:       #E3E8D5;
+  --ink-soft:  #9FAEA5;
+  --ink-faint: #6F7F77;
+  --live:      #43B8A5;
+  --mine:      #EC7E93;
+  --shared:    #E6AE45;
+  --shared-soft: #4A4226;
+  --rule:        rgba(227, 232, 213, 0.12);
+  --rule-strong: rgba(227, 232, 213, 0.28);
+  color-scheme: dark;
+}
+
+.ferment .theme-switch button { color: var(--ink-faint); }
+.ferment .theme-switch button[aria-pressed="true"] { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
