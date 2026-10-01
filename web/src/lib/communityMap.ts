@@ -4,9 +4,13 @@
 
 export const CSIZE = 560;
 const C = CSIZE / 2;
-const RING_R = 232;
+export const RING_R = 232;
 const CENTER_CLEAR = 58; // room for the open questions
 const GAP = 34;          // between circles, room for a label
+// Seats sit no further apart than they would with this many people, so a young
+// community gathers in an arc at the top instead of scattering round the ring;
+// from here on the ring closes.
+const FULL_AT = 36;
 
 // Server and browser can disagree in the last digits of a float, which breaks
 // hydration; every coordinate leaves here rounded.
@@ -31,8 +35,10 @@ export function layoutCommunity(people: CommunityPerson[], circlesIn: CommunityC
   const inCircle = new Set(circlesIn.flatMap((c) => c.members));
   const n = Math.max(order.length, 1);
   const seatR = n > 60 ? 4 : 5.5;
+  const full = n >= FULL_AT;
+  const step = (2 * Math.PI) / (full ? n : FULL_AT);
   const seats = order.map((id, k) => {
-    const a = -Math.PI / 2 + (2 * Math.PI * k) / n;
+    const a = -Math.PI / 2 + step * (k - (n - 1) / 2);
     return { id, name: byId.get(id)!.name, a, x: q(C + RING_R * Math.cos(a)), y: q(C + RING_R * Math.sin(a)), inCircle: inCircle.has(id) };
   });
   const seatOf = new Map(seats.map((s) => [s.id, s]));
@@ -80,7 +86,7 @@ export function layoutCommunity(people: CommunityPerson[], circlesIn: CommunityC
   const openDot = (nd: { x: number; y: number; r: number }) => ({ x: q(nd.x + nd.r * Math.SQRT1_2), y: q(nd.y - nd.r * Math.SQRT1_2) });
 
   return {
-    seats, seatR, center: { x: C, y: C },
+    seats, seatR, center: { x: C, y: C }, ringR: RING_R, full,
     nodes: nodes.map((nd) => ({ ...nd, x: q(nd.x), y: q(nd.y), r: q(nd.r), core: q(nd.core), dot: nd.open > 0 ? openDot(nd) : null })),
   };
 }

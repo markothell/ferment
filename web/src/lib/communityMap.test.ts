@@ -40,4 +40,16 @@ describe("layoutCommunity", () => {
     expect(nodes[3].core).toBe(0);
     expect(nodes[0].core).toBeGreaterThan(nodes[1].core);
   });
+
+  it("gathers a young community in an arc at the top, and closes the ring once it's full", () => {
+    const few = layoutCommunity(people.slice(0, 5), [circle("a", [0, 1, 2])]);
+    expect(few.full).toBe(false);
+    const gaps = few.seats.slice(1).map((s, k) => s.a - few.seats[k].a);
+    for (const g of gaps) expect(g).toBeCloseTo((2 * Math.PI) / 36);
+    expect((few.seats[0].a + few.seats[4].a) / 2).toBeCloseTo(-Math.PI / 2);
+
+    const many = layoutCommunity(Array.from({ length: 40 }, (_, i) => ({ id: `u${i}`, name: `P${i}` })), []);
+    expect(many.full).toBe(true);
+    expect(many.seats[1].a - many.seats[0].a).toBeCloseTo((2 * Math.PI) / 40);
+  });
 });

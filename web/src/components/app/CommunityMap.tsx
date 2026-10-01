@@ -10,7 +10,8 @@ const MONO = "var(--font-geist-mono), ui-monospace, monospace";
 
 /**
  * The community as a circle of circles. Everyone sits on the outer ring
- * (hollow if not in a circle yet; you in beet); circles sit inside, cored by
+ * (hollow if not in a circle yet; you in beet), gathered in an arc at the top
+ * over a faint ring until there are enough people to close it; circles sit inside, cored by
  * what they've explored, with a green dot while a round is open; the open
  * questions hold the center. Hover or tap to see who's where.
  */
@@ -25,7 +26,7 @@ export function CommunityMap({
   base: string;
   label: string;
 }) {
-  const { seats, seatR, nodes, center } = useMemo(() => layoutCommunity(people, circles), [people, circles]);
+  const { seats, seatR, nodes, center, ringR, full } = useMemo(() => layoutCommunity(people, circles), [people, circles]);
   const [hover, setHover] = useState<Focus>(null);
   const [pinned, setPinned] = useState<Focus>(null);
   const focus = pinned ?? hover;
@@ -80,6 +81,9 @@ export function CommunityMap({
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${CSIZE} ${CSIZE}`} className="mx-auto block h-auto w-full max-w-[560px]" role="group" aria-label={label}>
+        {!full && (
+          <circle cx={center.x} cy={center.y} r={ringR} fill="none" strokeWidth={1} style={{ stroke: "var(--rule)" }} aria-hidden />
+        )}
         <g>
           {nodes.flatMap((nd, ci) =>
             nd.seats.map((s) => (
