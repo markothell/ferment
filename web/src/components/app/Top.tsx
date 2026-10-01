@@ -6,7 +6,7 @@ import { currentSession } from "@/lib/auth";
 export type Crumb = { label: string; href?: string };
 
 /** The bar at the top of every app screen: ferment / community / circle / here. */
-export async function Top({ trail = [], links = [] }: { trail?: Crumb[]; links?: { label: string; href: string }[] }) {
+export async function Top({ trail = [], links = [], menu }: { trail?: Crumb[]; links?: { label: string; href: string }[]; menu?: string }) {
   const session = await currentSession();
   const unread = session ? await unreadCount(db, session.user.id) : 0;
   return (
@@ -36,6 +36,11 @@ export async function Top({ trail = [], links = [] }: { trail?: Crumb[]; links?:
           <Link href="/inbox" className="inbox-link" aria-label={unread ? `Inbox, ${unread} new` : "Inbox"}>
             Inbox
             {unread > 0 && <span className="inbox-count">{unread > 99 ? "99+" : unread}</span>}
+          </Link>
+        )}
+        {menu && (
+          <Link href={menu} className="text-lg leading-none tracking-widest text-[var(--ink-soft)] hover:text-[var(--ink)]" aria-label="Settings">
+            •••
           </Link>
         )}
       </nav>

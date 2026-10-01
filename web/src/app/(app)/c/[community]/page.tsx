@@ -2,17 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
 import { communityHome, communityMapData } from "@/domain/communities";
-import { feed } from "@/domain/feed";
 import { communityQuestions } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
-import { CircleCard } from "@/components/app/CircleCard";
 import { CommunityMap } from "@/components/app/CommunityMap";
-import { FeedList } from "@/components/app/FeedList";
 import { RoundRow } from "@/components/app/RoundRow";
 import { TurnDot } from "@/components/app/TurnDot";
-import { Form } from "@/components/app/Form";
-import { emailPref } from "./actions";
+import { CommunityHeader } from "@/components/app/CommunityHeader";
 import { Top } from "@/components/app/Top";
 
 export async function generateMetadata({ params }: PageProps<"/c/[community]">): Promise<Metadata> {
@@ -21,13 +17,12 @@ export async function generateMetadata({ params }: PageProps<"/c/[community]">):
 }
 
 export default async function CommunityPage({ params }: PageProps<"/c/[community]">) {
-  const { me, community, isHost, membership } = await loadCommunity((await params).community);
+  const { me, community, isHost } = await loadCommunity((await params).community);
   const [home, questions, map] = await Promise.all([
     communityHome(db, community, me.id),
     communityQuestions(db, community.id, me.id),
     communityMapData(db, community.id),
   ]);
-  const talk = (await feed(db, community.id, me.id)).slice(0, 3);
   const welcome = questions.find((q) => q.welcome);
   const others = questions.filter((q) => !q.welcome);
   const mayAsk = community.membersPostOpenQuestions || isHost;
@@ -36,17 +31,13 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
 
   return (
     <>
-      <Top trail={[{ label: community.name }]} links={[{ label: "Invite", href: `${base}/invite` }]} />
+      <Top trail={[{ label: community.name }]} menu={`${base}/settings`} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
-        <header className="space-y-3">
-          <div>
-            <span className="label">your community</span>
-            <h1 className="display text-4xl">{community.name}</h1>
-          </div>
+        <CommunityHeader name={community.name} slug={community.slug} tab="home">
           {community.welcomeNote && (
             <p className="whitespace-pre-line text-[var(--ink-soft)]">{community.welcomeNote}</p>
           )}
-        </header>
+        </CommunityHeader>
 
         <CommunityMap
           people={home.members.map((m) => ({ id: m.userId, name: displayName(m) }))}
@@ -90,65 +81,6 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
               {others.map((q) => <RoundRow key={q.id} round={q} href={`${base}/r/${q.id}`} />)}
             </ul>
           )}
-        </section>
-
-        {talk.length > 0 && (
-          <section className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <h2 className="display text-2xl">What we&apos;re talking about</h2>
-              <Link href={`${base}/feed`} className="link text-sm">See all</Link>
-            </div>
-            <FeedList items={talk} community={community.slug} openFirst={false} />
-          </section>
-        )}
-
-        <section className="space-y-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="display text-2xl">Circles</h2>
-            <Link href={`${base}/circles/new`} className="link text-sm">Propose a circle</Link>
-          </div>
-          {home.circles.length === 0 ? (
-            <p className="text-[var(--ink-soft)]">No circles yet.</p>
-          ) : (
-            <ul className="space-y-3">
-              {home.circles.map((c) => (
-                <CircleCard key={c.id} circle={c} community={community.slug} />
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="display text-2xl">
-            People <span className="mono text-base text-[var(--ink-faint)]">{home.members.length}</span>
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {home.members.map((m) => (
-              <li key={m.userId} className="rounded-full border border-[var(--rule)] px-3 py-1 text-sm">
-                {displayName(m)}
-                {m.role === "host" && <span className="label ml-2">host</span>}
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section id="email" className="scroll-mt-4 space-y-3 border-t border-[var(--rule)] pt-8">
-          <h2 className="display text-2xl">Email from {community.name}</h2>
-          <Form action={emailPref} submit="Save" quiet className="space-y-3">
-            <input type="hidden" name="community" value={community.slug} />
-            {([
-              ["each", "As things happen", "A round opens, answers are revealed, someone answers your question."],
-              ["digest", "Once a day", "One email with everything from the day before."],
-              ["off", "Never", "Check your inbox here instead."],
-            ] as const).map(([value, label, hint]) => (
-              <label key={value} className="flex gap-3">
-                <input type="radio" name="pref" value={value} defaultChecked={membership.email === value} className="mt-1" />
-                <span>
-                  <span className="block font-medium">{label}</span>
-                  <span className="block text-sm text-[var(--ink-soft)]">{hint}</span>
-                </span>
-              </label>
-            ))}
-          </Form>
         </section>
       </main>
     </>

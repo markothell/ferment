@@ -8,6 +8,7 @@ import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { CircleMap } from "@/components/app/CircleMap";
 import { Form } from "@/components/app/Form";
+import { CircleGlyph } from "@/components/app/Glyph";
 import { PromptFields } from "@/components/app/PromptFields";
 import { RoundRow } from "@/components/app/RoundRow";
 import { Top } from "@/components/app/Top";
@@ -64,9 +65,14 @@ export default async function CirclePage({ params }: Props) {
     <>
       <Top trail={[{ label: community.name, href: `/c/${community.slug}` }, { label: circle.name }]} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
-        <header className="space-y-3">
-          <span className="label">{forming ? "forming" : circle.status}</span>
-          <h1 className="display text-4xl">{circle.name}</h1>
+        <header className="space-y-3 rounded-2xl bg-[color-mix(in_srgb,var(--shared-soft)_40%,transparent)] p-5">
+          <div className="flex items-center gap-4">
+            <CircleGlyph size={44} forming={forming} />
+            <div className="min-w-0">
+              <span className="label">{forming ? "forming" : circle.status === "active" ? "circle" : circle.status}</span>
+              <h1 className="display truncate text-4xl leading-tight">{circle.name}</h1>
+            </div>
+          </div>
           {circle.description && <p className="text-[var(--ink-soft)]">{circle.description}</p>}
           {forming && (
             <p className="text-[var(--ink-soft)]">
