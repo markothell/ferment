@@ -57,7 +57,7 @@ async function deliver(db: DB, send: (mail: Mail) => Promise<void>, now: Date): 
           "",
           ...lines,
           "",
-          `Choose how often you hear from ${community.name}: ${appUrl(`/c/${community.slug}#email`)}`,
+          `Choose how often you hear from ${community.name}: ${appUrl(`/c/${community.slug}/settings`)}`,
         ].join("\n"),
       });
       await markEmailed(db, b.ids, now);
