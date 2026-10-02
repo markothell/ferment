@@ -211,7 +211,7 @@ export async function expireProposals(db: DB, now = new Date()): Promise<string[
   return rows.map((r) => r.id);
 }
 
-/** Everything the circle page shows. Rounds are for members only. */
+/** Everything the circle page shows. Rounds are for members only; how many have closed is for anyone. */
 export async function circleHome(db: DB, circle: Circle, viewerId: string) {
   const members = await db
     .select({ userId: user.id, name: user.name, email: user.email, joinedAt: circleMembers.joinedAt })
@@ -228,5 +228,10 @@ export async function circleHome(db: DB, circle: Circle, viewerId: string) {
         .where(eq(rounds.circleId, circle.id))
         .orderBy(asc(rounds.createdAt))
     : [];
-  return { members, isMember, rounds: roundRows };
+  // A count anyone in the community may see: how many rounds have closed.
+  const [{ explored }] = await db
+    .select({ explored: count() })
+    .from(rounds)
+    .where(and(eq(rounds.circleId, circle.id), eq(rounds.phase, "closed")));
+  return { members, isMember, rounds: roundRows, explored };
 }

@@ -111,6 +111,12 @@ export default async function CirclePage({ params }: Props) {
             {home.members.length} of {CIRCLE_MAX}
             {host ? ` · hosted by ${displayName(host)}` : " · no host"}
           </p>
+          {!forming && (
+            <p className="mono text-center text-sm text-[var(--ink-soft)]">
+              {home.explored} {home.explored === 1 ? "round" : "rounds"} explored
+              {circle.formedAt && ` · since ${circle.formedAt.toLocaleDateString("en", { month: "long", year: "numeric" })}`}
+            </p>
+          )}
           {home.isMember ? null : !room ? (
             <p className="label">full</p>
           ) : !running ? (
