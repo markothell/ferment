@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { responses, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { createCircle, joinCircle, type Circle } from "./circles";
+import { createCircle, seatInCircle, type Circle } from "./circles";
 import { createCommunity, type Community } from "./communities";
 import { acceptInvite, createInvite } from "./invites";
 import { replyContext, repliesTo, suggestReply } from "./replies";
@@ -17,7 +17,7 @@ const t0 = new Date("2026-10-01T12:00:00Z");
 async function member(name: string) {
   const id = `u_${name}`;
   await db.insert(user).values({ id, name, email: `${name}@example.com` });
-  const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 });
+  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -42,7 +42,7 @@ beforeEach(async () => {
   people = ["u_host"];
   for (const n of ["amy", "ben", "cal", "dee"]) {
     const id = await member(n);
-    await joinCircle(db, { circleId: circle.id, userId: id, now: t0 });
+    await seatInCircle(db, { circleId: circle.id, userId: id, now: t0 });
     people.push(id);
   }
 });

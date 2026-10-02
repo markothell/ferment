@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
 import { communityHome, communityMapData } from "@/domain/communities";
+import { invitesWaiting } from "@/domain/invites";
 import { communityQuestions } from "@/domain/rounds";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
@@ -18,10 +19,11 @@ export async function generateMetadata({ params }: PageProps<"/c/[community]">):
 
 export default async function CommunityPage({ params }: PageProps<"/c/[community]">) {
   const { me, community, isHost } = await loadCommunity((await params).community);
-  const [home, questions, map] = await Promise.all([
+  const [home, questions, map, suggestions] = await Promise.all([
     communityHome(db, community, me.id),
     communityQuestions(db, community.id, me.id),
     communityMapData(db, community.id),
+    isHost ? invitesWaiting(db, community.id, me.id) : [],
   ]);
   const welcome = questions.find((q) => q.welcome);
   const others = questions.filter((q) => !q.welcome);
@@ -53,6 +55,15 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
           <Link href={`${base}/setup`} className="card block">
             <span className="label">for the host</span>
             <span className="mt-1 block font-medium">Finish setting up →</span>
+          </Link>
+        )}
+
+        {suggestions.length > 0 && (
+          <Link href={`${base}/people#waiting`} className="card block border-l-2 border-l-[var(--shared)]">
+            <span className="label">for the host</span>
+            <span className="mt-1 block font-medium">
+              {suggestions.length === 1 ? `${suggestions[0].by} suggests inviting ${suggestions[0].name}` : `${suggestions.length} people suggested`} →
+            </span>
           </Link>
         )}
 

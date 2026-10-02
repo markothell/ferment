@@ -1,0 +1,426 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferment Invitations</title>
+<meta name="description" content="Invitations become two steps: a member suggests someone, a host confirms. A seat in a circle, for someone new or someone already here, is the circle's to give.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+  /* Layout: a step-through of the two journeys (left: the steps, right: the screen at that step); the proposal reads below as a plain spec. Culture palette from design/ferment/palette.css. */
+  :root {
+    --ground: #E7EAD6; --raised: #F6F7EE; --ink: #1C2A25; --ink-soft: #4E5F58; --ink-faint: #7C8B83;
+    --live: #1E7F72; --mine: #C94B66; --shared: #D99A1E; --shared-soft: #EDD9A6;
+    --rule: rgba(28, 42, 37, .13); --rule-strong: rgba(28, 42, 37, .30); --shadow: rgba(0, 0, 0, .14);
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+      --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45; --shared-soft: #4A4226;
+      --rule: rgba(227, 232, 213, .12); --rule-strong: rgba(227, 232, 213, .28); --shadow: rgba(0, 0, 0, .45);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+    --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45; --shared-soft: #4A4226;
+    --rule: rgba(227, 232, 213, .12); --rule-strong: rgba(227, 232, 213, .28); --shadow: rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--ground); color: var(--ink); font: 16px/1.55 var(--sans); padding: 0 16px; padding-block: 48px 96px; margin: 0; }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 32px; }
+  .eyebrow, .label { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  h1 { font: 400 clamp(38px, 5.5vw, 56px)/1 var(--serif); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  h1 em { color: var(--shared); }
+  h2 { font: 400 30px/1.1 var(--serif); margin: 0; text-wrap: balance; }
+  h3 { font: 400 24px/1.15 var(--serif); margin: 0; }
+  .head { display: grid; gap: 12px; max-width: 66ch; }
+  .head p { margin: 0; color: var(--ink-soft); }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+
+  /* ── Stage: steps + screen ─────────────────────────── */
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab { border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); padding: 8px 14px; border-radius: 999px; font: 500 14px/1 var(--sans); cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .stage { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .steps button { width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--rule); padding: 14px 16px; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; cursor: pointer; }
+  .steps li:last-child button { border-bottom: 0; }
+  .steps .n { font: 500 12px/1 var(--mono); width: 26px; height: 26px; border-radius: 50%; border: 1.3px solid var(--rule-strong); display: grid; place-items: center; color: var(--ink-soft); }
+  .steps b { display: block; font-weight: 600; font-size: 15px; }
+  .steps .who { font: 400 11px/1.5 var(--mono); color: var(--ink-faint); }
+  .steps .sum { font-size: 13.5px; color: var(--ink-soft); }
+  .steps button[aria-current="step"] { background: var(--raised); }
+  .steps button[aria-current="step"] .n { border-color: var(--shared); background: var(--shared); color: var(--ground); }
+  .steps button.done .n { border-color: var(--shared); }
+
+  .screen { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 20px; display: grid; gap: 16px; min-width: 0; align-content: start; min-height: 520px; }
+  .screen .where { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 400 12px/1.4 var(--mono); color: var(--ink-faint); border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+  .screen .where b { color: var(--ink-soft); font-weight: 500; }
+  .screen p { margin: 0; }
+  .soft { color: var(--ink-soft); }
+  .field { display: grid; gap: 6px; }
+  .field span { font-weight: 500; font-size: 14.5px; }
+  .field .box { font: 15px/1.45 var(--sans); color: var(--ink); background: var(--ground); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 9px 12px; min-height: 40px; }
+  .field .box.tall { min-height: 72px; }
+  .field .box.ph { color: var(--ink-faint); }
+  .card { border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; background: var(--ground); }
+  .card.wait { border-left: 3px solid var(--shared); }
+  .card .t { font-weight: 600; font-size: 15.5px; line-height: 1.35; }
+  .quote { margin: 0; border-left: 2px solid var(--shared); padding: 2px 0 2px 12px; font-size: 14.5px; }
+  .meta { font: 400 11.5px/1.5 var(--mono); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .meta.live { color: var(--live); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { border: 1px solid var(--rule); background: var(--raised); color: var(--ink-soft); padding: 8px 13px; border-radius: 999px; font: 500 13.5px/1 var(--sans); }
+  .btn.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .btn.on { border-color: var(--mine); color: var(--mine); }
+  .pips { display: inline-flex; gap: 4px; vertical-align: middle; }
+  .pips i { width: 9px; height: 9px; border-radius: 50%; border: 1.3px solid var(--shared); }
+  .pips i.f { background: var(--shared); }
+  .mail { border: 1px solid var(--rule); border-radius: 8px; background: var(--ground); overflow: hidden; }
+  .mail .hd { padding: 10px 14px; border-bottom: 1px solid var(--rule); font: 400 12px/1.6 var(--mono); color: var(--ink-soft); }
+  .mail .bd { padding: 14px; display: grid; gap: 10px; font-size: 15px; }
+  .ring { width: 100%; max-width: 220px; height: auto; display: block; margin: 0 auto; }
+  .ring .seat { fill: var(--raised); stroke: var(--rule-strong); stroke-width: 1.2; }
+  .ring .empty { fill: none; stroke: var(--shared); stroke-width: 1.4; stroke-dasharray: 3 3; }
+  .ring .newseat { fill: var(--raised); stroke: var(--mine); stroke-width: 1.4; }
+  .ring .thread { fill: none; stroke: var(--rule); stroke-width: 1; }
+  .ring text { fill: var(--ink-faint); font: 400 9px var(--sans); }
+  .nav { display: flex; justify-content: space-between; gap: 8px; }
+  .nav button { border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); padding: 7px 12px; border-radius: 999px; font: 500 13px/1 var(--sans); cursor: pointer; }
+  .nav button:hover:not([disabled]) { color: var(--ink); border-color: var(--rule-strong); }
+  .nav button[disabled] { opacity: .4; cursor: default; }
+  .fade { animation: fadein .35s ease-out; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } }
+
+  /* Proposal */
+  .spec { display: grid; gap: 40px; border-top: 1px solid var(--rule-strong); padding-top: 40px; }
+  .spec > section { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; }
+  .spec > section > header { display: grid; gap: 8px; align-content: start; }
+  .spec > section > header p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .spec .body { display: grid; gap: 14px; min-width: 0; max-width: 72ch; }
+  .spec p, .spec li { font-size: 15px; }
+  .spec p { margin: 0; }
+  .spec ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .spec b { font-weight: 600; }
+  code { font: 400 13px/1.5 var(--mono); background: var(--raised); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
+  pre { margin: 0; background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 400 12.5px/1.6 var(--mono); color: var(--ink); }
+  pre code { background: none; border: 0; padding: 0; }
+  pre .c { color: var(--ink-faint); }
+  pre .add { color: var(--shared); }
+  .life { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .life > div { padding: 14px; display: grid; gap: 6px; align-content: start; background: var(--raised); border-right: 1px solid var(--rule); }
+  .life > div:last-child { border-right: 0; }
+  .life b { font-size: 14px; }
+  .life code { font-size: 11.5px; width: fit-content; }
+  .life span { font-size: 13px; color: var(--ink-soft); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font: 500 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+  td code { font-size: 12px; }
+  .tablewrap { border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; background: var(--raised); }
+  .files { display: grid; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .files div { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 16px; padding: 10px 14px; border-bottom: 1px solid var(--rule); background: var(--raised); font-size: 14px; }
+  .files div:last-child { border-bottom: 0; }
+  .files code { background: none; border: 0; padding: 0; overflow-wrap: anywhere; }
+  .files .new code::after { content: " new"; color: var(--shared); font-size: 11px; }
+  .qs { display: grid; gap: 10px; }
+  .qs div { border-left: 2px solid var(--mine); padding: 2px 0 2px 14px; display: grid; gap: 2px; }
+  .qs div p { color: var(--ink-soft); font-size: 14px; }
+  .qs.open div { border-left-color: var(--shared); }
+
+  @media (max-width: 880px) {
+    .stage { grid-template-columns: 1fr; }
+    .screen { min-height: 0; }
+    .life { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .life > div { border-bottom: 1px solid var(--rule); }
+    .spec > section { grid-template-columns: 1fr; gap: 12px; }
+    .files div { grid-template-columns: 1fr; gap: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">ferment.earth · review · invitations</div>
+    <h1>Someone <em>suggests</em>, a host says yes</h1>
+    <p>Today any member can invite anyone, and anyone in the community can walk into any running circle. Both become asks. Any member suggests a new person, and a host confirms before any email goes out. A seat in a running circle, for someone new or someone already here, is the circle's to give, with the same support it gives a question.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Journeys">
+    <button class="tab" role="tab" aria-selected="true" data-j="new">Someone new, into a circle</button>
+    <button class="tab" role="tab" aria-selected="false" data-j="grow">A member asks to join a running circle</button>
+  </div>
+
+  <div class="stage">
+    <ol class="steps" id="steps"></ol>
+    <div>
+      <article class="screen" id="screen" aria-live="polite"></article>
+      <div class="nav" style="margin-top:10px"><button id="prev">← Back</button><button id="next">Next →</button></div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <section>
+      <header><span class="label">Shape</span><h2>Two asks, one pattern</h2></header>
+      <div class="body">
+        <p><b>Into the community: a member suggests someone, and a host confirms.</b> The suggestion carries a name, an email and an optional note. Nothing reaches the person until a host says yes. The email then still comes from the member who suggested them ("Kofi invited you to Tables"), because people join people. When a host suggests someone, it counts as confirmed and goes straight out.</p>
+        <p><b>Into a circle: the circle supports the seat, as it supports a question.</b> A seat request needs the same support as a new question in that circle: a third of its members, at least 2. The circle's host can make room at once, the same way they promote a question. The member who suggested someone counts as a supporter. A person asking for themselves doesn't, since they aren't in the circle yet.</p>
+        <p><b>Both asks start together.</b> When Kofi suggests Ana and names Bread, the host's confirmation and Bread's support run side by side. Ana is only invited into the circle in the email if Bread has already agreed. If Bread agrees later, she gets a "you're in Bread" notification when she arrives. If Bread never agrees, she never hears about the circle, so nobody is turned away where they can see it.</p>
+        <p><b>Forming circles don't change.</b> A proposal is already an open invitation, so <em>I'm in</em> stays one tap until the circle forms. After that, joining goes through a seat request.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Lifecycle</span><h2>Four states for each ask</h2></header>
+      <div class="body">
+        <div class="life">
+          <div><b>Waiting</b><code>nominated</code><code>waiting</code><span>The host sees it in <em>Waiting for you</em>, and the circle sees it in <em>Asking to join</em>, with its supports. It lapses after 14 days.</span></div>
+          <div><b>Yes</b><code>pending → accepted</code><code>admitted</code><span>The invitation is sent and the seat is held. The person joins the circle when they arrive, or at once if they're already in the community.</span></div>
+          <div><b>Not now</b><code>declined</code><code>declined</code><span>The suggester is told, with the host's note if they left one. The person suggested hears nothing.</span></div>
+          <div><b>Withdrawn or lapsed</b><code>withdrawn · lapsed</code><span>The suggester can withdraw their ask while it waits. After 14 days the clock lapses it and tells the suggester.</span></div>
+        </div>
+        <p>On the circle map, a seat request that's waiting is drawn as a <b>dashed empty seat</b> on the ring, the same Beet colour as a waiting suggestion's spur. When it's admitted it becomes a seat. People see a seat being made, the same way they see a question being put forward.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Rules</span><h2>What each ask checks</h2><p>domain/invites.ts, domain/seats.ts</p></header>
+      <div class="body">
+        <ul>
+          <li><b>One live ask per person.</b> There's at most one waiting or sent invitation per email per community, and one waiting seat request per person per circle. A second suggestion for the same person shows the first ("Sol already suggested Ana, 2 days ago") instead of creating another.</li>
+          <li><b>Room is checked twice,</b> when the ask is made and again when it's granted: the community against <code>maxMembers</code>, the circle against 12. A circle that's full takes no new seat requests.</li>
+          <li><b>Who can suggest.</b> Any community member can suggest someone new. Any member of a circle can suggest an existing community member for it. Anyone in the community can ask for a seat in a running circle for themselves.</li>
+          <li><b>Who grants.</b> Any community host confirms community invitations. For circle seats, it's the support threshold, or the circle's host making room. A circle with no host can still admit someone by support.</li>
+          <li><b>A seat held for someone new</b> is tied to their invitation. If the invitation is declined, withdrawn or lapses, the seat request goes with it.</li>
+          <li><b>What a newcomer to a running circle sees:</b> everything the circle has shared, with the same reveal rules as anyone else. The request card tells members this before they support ("Ana will see what Bread has shared").</li>
+          <li><b>Leaving and coming back</b> works like joining: someone who left asks for a seat again.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Inbox</span><h2>Who hears what</h2><p>domain/notifications.ts</p></header>
+      <div class="body">
+        <div class="tablewrap">
+          <table>
+            <tr><th>Kind</th><th>To</th><th>Reads</th></tr>
+            <tr><td><code>invite_suggested</code></td><td>Community hosts</td><td>Kofi suggests inviting Ana Reyes.</td></tr>
+            <tr><td><code>invite_confirmed</code></td><td>The suggester</td><td>Your invitation to Ana went out.</td></tr>
+            <tr><td><code>invite_declined</code></td><td>The suggester</td><td>Not this time for Ana. <em>(plus the host's note)</em></td></tr>
+            <tr><td><code>seat_requested</code></td><td>Circle members</td><td>Kofi suggests Ana for Bread. / Ana asks to join Bread.</td></tr>
+            <tr><td><code>seat_admitted</code></td><td>The circle and the newcomer</td><td>Ana joined Bread. / You're in Bread.</td></tr>
+            <tr><td><code>ask_lapsed</code></td><td>The suggester</td><td>Your suggestion for Ana lapsed after 14 days.</td></tr>
+          </table>
+        </div>
+        <p>All of these go through the existing inbox and email settings (as it happens, daily, or never). The person suggested gets an email only once a host confirms.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Data</span><h2>Invitations grow; seats are new</h2><p>Migration 0003_invitation_asks</p></header>
+      <div class="body">
+<pre><code><span class="c">// invite_status gains three states; the token exists only once a host confirms.</span>
+export const inviteStatus = pgEnum("invite_status", [<span class="add">"nominated", "declined", "lapsed",</span> "pending", "accepted", "revoked"]);
+
+export const invites = pgTable("invites", {
+  ...
+  <span class="add">name: text().notNull(),                       // who the suggester says they are</span>
+  tokenHash: text().unique(),                   <span class="c">// was notNull: set on confirm</span>
+  <span class="add">confirmedBy: text().references(() =&gt; user.id, { onDelete: "set null" }),</span>
+  <span class="add">confirmedAt: timestamp(),</span>
+  <span class="add">hostNote: text().notNull().default(""),       // on "not now"</span>
+  <span class="c">// circleId moves to seat_requests.inviteId</span>
+}, (t) =&gt; [
+  <span class="add">check("invites_token_once_sent", sql`${t.status} in ('nominated','declined','lapsed') or ${t.tokenHash} is not null`),</span>
+]);
+
+<span class="add">export const seatRequests = pgTable("seat_requests", {</span>
+<span class="add">  id: text().primaryKey(),</span>
+<span class="add">  circleId: text().notNull().references(() =&gt; circles.id, { onDelete: "cascade" }),</span>
+<span class="add">  userId: text().references(() =&gt; user.id, { onDelete: "cascade" }),     // someone already here</span>
+<span class="add">  inviteId: text().references(() =&gt; invites.id, { onDelete: "cascade" }), // or someone on their way</span>
+<span class="add">  askedBy: userRef().notNull(),</span>
+<span class="add">  note: text().notNull().default(""),</span>
+<span class="add">  status: seatStatus().notNull().default("waiting"), // waiting · admitted · declined · withdrawn · lapsed</span>
+<span class="add">  createdAt, decidedAt, decidedBy,</span>
+<span class="add">}, (t) =&gt; [</span>
+<span class="add">  check("seat_for_someone", sql`num_nonnulls(${t.userId}, ${t.inviteId}) = 1`),</span>
+<span class="add">  uniqueIndex().on(t.circleId, t.userId).where(sql`${t.status} = 'waiting'`),</span>
+<span class="add">]);</span>
+
+<span class="add">export const seatSupports = pgTable("seat_supports", { requestId, userId, createdAt }, pk(requestId, userId));</span></code></pre>
+        <p><b>Existing rows.</b> Pending invitations stay <code>pending</code>, since they were already sent. An invitation with a <code>circleId</code> becomes a seat request that's already <code>admitted</code>, because under the old rule the person who sent it could seat someone.</p>
+        <p><b>Domain.</b> <code>createInvite()</code> becomes <code>suggestInvite()</code>, which a host's own suggestion runs straight through. New: <code>confirmInvite()</code> and <code>declineInvite()</code>. <code>acceptInvite()</code> joins the community, then seats the person in every circle where their seat was admitted. New <code>domain/seats.ts</code>: <code>askForSeat()</code>, <code>toggleSeatSupport()</code>, <code>makeRoom()</code>, <code>declineSeat()</code>, <code>withdrawAsk()</code>, reusing <code>approvalsNeeded()</code> from <code>rounds.ts</code>. <code>joinCircle()</code> refuses an <code>active</code> circle unless it's called from an admitted seat. The clock lapses both kinds of ask after 14 days.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Files</span><h2>What changes</h2></header>
+      <div class="body">
+        <div class="files">
+          <div><code>db/schema/app.ts</code><span><code>invite_status</code> states, invitation columns, <code>seat_requests</code>, <code>seat_supports</code>, <code>seat_status</code></span></div>
+          <div class="new"><code>drizzle/0003_invitation_asks.sql</code><span>Generated, plus the data step for existing rows</span></div>
+          <div><code>domain/invites.ts</code><span>Suggest, confirm, decline, accept into held seats; tests in <code>invites.test.ts</code></span></div>
+          <div class="new"><code>domain/seats.ts</code><span>Seat requests and support, plus <code>seats.test.ts</code></span></div>
+          <div><code>domain/circles.ts</code><span><code>joinCircle()</code> only joins forming circles directly</span></div>
+          <div><code>domain/clock.ts</code><span>Lapse asks after 14 days</span></div>
+          <div><code>domain/notifications.ts</code><span>The six kinds above</span></div>
+          <div><code>app/(app)/c/[community]/invite/page.tsx</code><span>"Suggest someone": name, email, circle, note. For a host, "Invite someone" as today.</span></div>
+          <div><code>app/(app)/c/[community]/page.tsx</code><span>A host's <em>Waiting for you</em> list: confirm or not now</span></div>
+          <div><code>app/(app)/c/[community]/circles/[circle]/page.tsx</code><span><em>Ask to join</em> instead of <em>I'm in</em> on a running circle, and an <em>Asking to join</em> list with support, make room and decline</span></div>
+          <div><code>lib/circleMap.ts</code>, <code>CircleMap.tsx</code><span>Dashed empty seats for waiting seat requests</span></div>
+          <div><code>components/app/CircleCard.tsx</code><span><em>Ask to join</em> on running circles</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Decided</span><h2>Your calls</h2><p>2026-10-01</p></header>
+      <div class="body qs">
+        <div><b>A host confirms community invitations.</b><p>Any host can confirm, and a host's own suggestion goes straight out.</p></div>
+        <div><b>Circles can grow.</b><p>Someone can join a running circle, not only a forming one, through a seat request the circle supports.</p></div>
+        <div><b>A newcomer sees the circle's history.</b><p>Being a member means seeing what the circle has shared, with the same reveal rules as anyone else. Members are told before they support.</p></div>
+        <div><b>Asks lapse after 14 days.</b><p>Both kinds. The suggester is told.</p></div>
+        <div><b>"Not now" carries the host's note if there is one.</b><p>Otherwise it reads "not this time."</p></div>
+        <div><b>A suggestion carries a name.</b><p>Hosts and circles see a person. Only hosts see the email.</p></div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  const ring = (n, opts = {}) => {
+    const R = 70, C = 90;
+    let s = `<svg class="ring" viewBox="0 0 180 180" aria-hidden="true"><circle class="thread" cx="${C}" cy="${C}" r="${R}"/>`;
+    const total = n + (opts.empty ? 1 : 0) + (opts.added ? 1 : 0);
+    for (let k = 0; k < total; k++) {
+      const a = -Math.PI / 2 + (2 * Math.PI * k) / total;
+      const x = (C + R * Math.cos(a)).toFixed(1), y = (C + R * Math.sin(a)).toFixed(1);
+      const cls = k === n && opts.empty ? 'empty' : k === n && opts.added ? 'newseat' : 'seat';
+      s += `<circle class="${cls}" cx="${x}" cy="${y}" r="9"/>`;
+      if (k === n && (opts.empty || opts.added)) s += `<text x="${x}" y="${(+y + 22).toFixed(1)}" text-anchor="middle">Ana</text>`;
+    }
+    return s + '</svg>';
+  };
+  const pips = (have, need) => `<span class="pips">${Array.from({ length: need }, (_, i) => `<i class="${i < have ? 'f' : ''}"></i>`).join('')}</span>`;
+
+  const J = {
+    new: [
+      { who: 'Kofi, a member of Bread', t: 'Kofi suggests Ana', sum: 'Name, email, a circle if he likes, a note.',
+        where: ['Tables', 'Suggest someone'],
+        html: `<h3>Suggest someone</h3>
+          <p class="soft">A host will confirm before anything is sent. The invitation comes from you.</p>
+          <label class="field"><span>Their name</span><div class="box">Ana Reyes</div></label>
+          <label class="field"><span>Their email</span><div class="box">ana@example.com</div></label>
+          <label class="field"><span>Into one of your circles?</span><div class="box">Bread</div></label>
+          <label class="field"><span>A note from you</span><div class="box tall">Ana bakes on Sundays and has been asking what we do. She'd like Bread.</div></label>
+          <p class="meta">Bread will be asked to make room for her too.</p>
+          <div class="row"><span class="btn primary">Suggest Ana</span></div>` },
+      { who: 'Mara, host of Tables', t: 'A host confirms', sum: 'In Waiting for you, with the note. One tap sends it.',
+        where: ['Tables', 'Waiting for you · 1'],
+        html: `<h3>Waiting for you</h3>
+          <div class="card wait">
+            <p class="t">Kofi suggests inviting Ana Reyes</p>
+            <p class="meta">ana@example.com · 2 hours ago · 41 of 100 members</p>
+            <blockquote class="quote">Ana bakes on Sundays and has been asking what we do. She'd like Bread.</blockquote>
+            <p class="meta">Bread is deciding on a seat for her: ${pips(1, 2)} 1 of 2</p>
+            <div class="row"><span class="btn primary">Confirm and send</span><span class="btn">Not now</span></div>
+          </div>
+          <p class="soft">Only hosts see the email address. "Not now" tells Kofi, and adds your note if you leave one. Ana hears nothing.</p>` },
+      { who: 'Bread, at the same time', t: 'Bread makes room', sum: 'A seat request with Kofi\'s support counted. One more, or the host, admits her.',
+        where: ['Tables › Bread', 'Asking to join · 1'],
+        html: `${ring(7, { empty: true })}
+          <p class="meta" style="text-align:center">7 of 12 · a seat is being made</p>
+          <div class="card wait">
+            <p class="t">Kofi suggests Ana Reyes for Bread</p>
+            <blockquote class="quote">Ana bakes on Sundays and has been asking what we do. She'd like Bread.</blockquote>
+            <p class="meta">${pips(1, 2)} 1 of 2 to make room · Ana will see what Bread has shared</p>
+            <div class="row"><span class="btn on">Support</span><span class="btn">Make room <span class="meta">(host)</span></span></div>
+          </div>` },
+      { who: 'Ana', t: 'Ana gets the invitation', sum: 'From Kofi. It names Bread only if Bread has already said yes.',
+        where: ['Email', 'from ferment'],
+        html: `<div class="mail">
+            <div class="hd">From: Kofi via ferment<br>To: ana@example.com<br>Subject: Kofi invited you to Tables</div>
+            <div class="bd">
+              <p>Kofi invited you to join <b>Tables</b>, and to sit in his circle, <b>Bread</b>.</p>
+              <blockquote class="quote">Ana bakes on Sundays and has been asking what we do. She'd like Bread.</blockquote>
+              <p><span class="btn primary">Join Tables</span></p>
+              <p class="meta">If Bread hadn't decided yet, the email would stop at "invited you to join Tables". The circle would follow later as a notification.</p>
+            </div>
+          </div>` },
+      { who: 'Ana, five minutes later', t: 'Ana arrives', sum: 'The welcome note, the welcome question, then her seat in Bread.',
+        where: ['Tables › Bread', 'You\'re in'],
+        html: `${ring(7, { added: true })}
+          <p class="meta" style="text-align:center">8 of 12</p>
+          <div class="card">
+            <p class="t">You're in Bread</p>
+            <p class="soft">Kofi made room for you. Here's what Bread has been talking about, and one round is open now.</p>
+            <p class="meta live">● What did you make with your hands this week? · open</p>
+          </div>
+          <p class="meta">Bread gets "Ana joined Bread". Kofi gets "Ana arrived".</p>` },
+    ],
+    grow: [
+      { who: 'Ana, already in Tables', t: 'Ana asks to join Kiln', sum: 'On a running circle, "I\'m in" becomes "Ask to join".',
+        where: ['Tables › Kiln', '9 of 12 · running'],
+        html: `${ring(9)}
+          <p class="meta" style="text-align:center">9 of 12 · hosted by Ines</p>
+          <h3>Ask to join Kiln</h3>
+          <label class="field"><span>A note to Kiln</span><div class="box tall">I've been reading your open questions about making things. Could I sit in?</div></label>
+          <div class="row"><span class="btn primary">Ask to join</span></div>
+          <p class="meta">A forming circle still takes "I'm in" directly. It's already an open invitation.</p>` },
+      { who: 'Kiln\'s members', t: 'Kiln supports it', sum: 'Same threshold as a question: a third of members, at least 2. Ana\'s own ask doesn\'t count.',
+        where: ['Tables › Kiln', 'Asking to join · 1'],
+        html: `${ring(9, { empty: true })}
+          <div class="card wait">
+            <p class="t">Ana Reyes asks to join Kiln</p>
+            <blockquote class="quote">I've been reading your open questions about making things. Could I sit in?</blockquote>
+            <p class="meta">${pips(2, 3)} 2 of 3 to make room · lapses in 12 days · Ana will see what Kiln has shared</p>
+            <div class="row"><span class="btn">Support</span><span class="btn">Make room <span class="meta">(host)</span></span><span class="btn">Not now <span class="meta">(host)</span></span></div>
+          </div>` },
+      { who: 'Ana and Kiln', t: 'A seat is made', sum: 'The third support admits her. Everyone is told.',
+        where: ['Inbox', ''],
+        html: `${ring(9, { added: true })}
+          <div class="card"><p class="t">You're in Kiln</p><p class="meta">Ines, Rafa and Tom made room · just now</p></div>
+          <div class="card"><p class="t">Ana joined Kiln</p><p class="meta">to Kiln's members · just now</p></div>
+          <p class="soft">If it lapses, or the host says not now, Ana gets one quiet line in her inbox. Nothing is posted to the circle.</p>` },
+    ],
+  };
+
+  let j = 'new', i = 0;
+  const steps = document.getElementById('steps'), screen = document.getElementById('screen');
+  const prev = document.getElementById('prev'), next = document.getElementById('next');
+
+  function render() {
+    const list = J[j];
+    steps.innerHTML = '';
+    list.forEach((s, k) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<button ${k === i ? 'aria-current="step"' : ''} class="${k < i ? 'done' : ''}"><span class="n">${k + 1}</span><span><span class="who">${s.who}</span><b>${s.t}</b><span class="sum">${s.sum}</span></span></button>`;
+      li.querySelector('button').onclick = () => { i = k; render(); };
+      steps.appendChild(li);
+    });
+    const s = list[i];
+    screen.innerHTML = `<div class="where"><b>${s.where[0]}</b><span>${s.where[1]}</span></div><div class="fade" style="display:grid;gap:16px">${s.html}</div>`;
+    prev.disabled = i === 0;
+    next.disabled = i === list.length - 1;
+  }
+  prev.onclick = () => { if (i > 0) { i--; render(); } };
+  next.onclick = () => { if (i < J[j].length - 1) { i++; render(); } };
+  document.querySelectorAll('.tab').forEach((t) => t.onclick = () => {
+    document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', x === t));
+    j = t.dataset.j; i = 0; render();
+  });
+  render();
+})();
+</script>

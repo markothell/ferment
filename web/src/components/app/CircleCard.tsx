@@ -35,13 +35,15 @@ export function CircleCard({ circle, community }: { circle: CircleRow; community
         </span>
         {circle.isMember ? (
           <span className="label shrink-0 whitespace-nowrap">you&apos;re in</span>
-        ) : circle.members < CIRCLE_MAX ? (
+        ) : circle.members >= CIRCLE_MAX ? (
+          <span className="label shrink-0">full</span>
+        ) : !forming ? (
+          <Link href={`/c/${community}/circles/${circle.slug}`} className="link shrink-0 text-sm">Ask to join</Link>
+        ) : (
           <Form action={join} submit="I'm in" pending="Joining…" quiet className="flex items-center gap-3">
             <input type="hidden" name="community" value={community} />
             <input type="hidden" name="circle" value={circle.id} />
           </Form>
-        ) : (
-          <span className="label shrink-0">full</span>
         )}
       </div>
     </li>

@@ -16,12 +16,11 @@ import { PlacementInput } from "@/components/app/PlacementInput";
 import { PlacementResult } from "@/components/app/PlacementResult";
 import { WordsInput } from "@/components/app/WordsInput";
 import { WordsPortrait } from "@/components/app/WordsPortrait";
-import { Mark } from "@/components/app/Mark";
 import { Top } from "@/components/app/Top";
 import { TurnDot } from "@/components/app/TurnDot";
 import Link from "next/link";
 import { PromptFields } from "@/components/app/PromptFields";
-import { mark, reply, reveal, share } from "../../actions";
+import { reply, reveal, share } from "../../actions";
 
 type Props = PageProps<"/c/[community]/r/[round]">;
 
@@ -169,7 +168,6 @@ export default async function RoundPage({ params }: Props) {
             <ul className="space-y-3">
               {view.responses.map((r) => {
                 const isMine = r.userId === me.id;
-                const reacted = r.reactedBy.includes(me.id);
                 return (
                   <li key={r.id} id={`answer-${r.id}`} className="card space-y-2">
                     <p className={isMine ? "font-medium text-[var(--mine)]" : "font-medium"}>
@@ -179,6 +177,9 @@ export default async function RoundPage({ params }: Props) {
                       <div className="space-y-1">
                         <audio controls preload="none" src={r.audioUrl} className="w-full" />
                         {r.audioSeconds ? <p className="mono text-xs text-[var(--ink-faint)]">{formatDuration(r.audioSeconds * 1000)}</p> : null}
+                        {r.transcriptStatus === "ready" && r.transcript && (
+                          <p className="whitespace-pre-line text-[var(--ink-soft)]">{r.transcript}</p>
+                        )}
                       </div>
                     )}
                     {r.text && <p className="whitespace-pre-line">{r.text}</p>}
@@ -194,16 +195,6 @@ export default async function RoundPage({ params }: Props) {
                           : `${Math.round(r.x * 100)}% of the way to ${prompt.axes[0].poleB}`}
                       </p>
                     )}
-                    {round.reactions && !isMine ? (
-                      <Mark
-                        on={reacted}
-                        count={r.reactedBy.length}
-                        action={mark}
-                        fields={{ community: community.slug, round: round.id, response: r.id }}
-                      />
-                    ) : r.reactedBy.length > 0 ? (
-                      <span className="mono text-xs text-[var(--ink-faint)]">○ {r.reactedBy.length}</span>
-                    ) : null}
                   </li>
                 );
               })}

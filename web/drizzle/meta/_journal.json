@@ -15,6 +15,27 @@
       "when": 1790787866409,
       "tag": "0001_round_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790876289003,
+      "tag": "0002_no_reactions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790878160017,
+      "tag": "0003_invitation_asks",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790878167420,
+      "tag": "0004_invites_circle_moved",
+      "breakpoints": true
     }
   ]
 }

@@ -3,14 +3,14 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { createCircle, joinCircle, leaveCircle, type Circle } from "./circles";
+import { createCircle, seatInCircle, leaveCircle, type Circle } from "./circles";
 import { createCommunity, setWelcomeQuestion, updateWelcomeNote, type Community } from "./communities";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite } from "./invites";
 import { normalizePrompt } from "./prompts";
 import {
   approvalsNeeded, postOpenQuestion, promoteRound, respond, revealNow, roundById, roundView,
-  suggestRound, toggleReaction, toggleSupport, visibility,
+  suggestRound, toggleSupport, visibility,
 } from "./rounds";
 
 let db: DB;
@@ -23,7 +23,7 @@ const hours = (n: number) => new Date(t0.getTime() + n * 3_600_000);
 async function member(name: string) {
   const id = `u_${name}`;
   await db.insert(user).values({ id, name, email: `${name}@example.com` });
-  const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 });
+  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -39,7 +39,7 @@ beforeEach(async () => {
   people = ["u_host"];
   for (const n of ["amy", "ben", "cal", "dee"]) {
     const id = await member(n);
-    await joinCircle(db, { circleId: circle.id, userId: id, now: t0 });
+    await seatInCircle(db, { circleId: circle.id, userId: id, now: t0 });
     people.push(id);
   }
 });
@@ -102,7 +102,7 @@ describe("the circle machine", () => {
     const forming = await createCircle(db, { communityId: community.id, userId: people[1], name: "New", firstQuestion: "First?", now: t0 });
     const [first] = await db.select().from(rounds).where(eq(rounds.circleId, forming.id));
     expect(first.phase).toBe("queued");
-    for (const p of people.slice(2)) await joinCircle(db, { circleId: forming.id, userId: p, now: t0 });
+    for (const p of people.slice(2)) await seatInCircle(db, { circleId: forming.id, userId: p, now: t0 });
     expect(await phase(first.id)).toBe("open"); // formed at 4 → opened
 
     await leaveCircle(db, { circleId: circle.id, userId: "u_host" });
@@ -129,7 +129,7 @@ describe("responding and closing", () => {
     expect(closed.closedVia).toBe("complete");
 
     const late = await member("eve");
-    await joinCircle(db, { circleId: circle.id, userId: late, now: t0 });
+    await seatInCircle(db, { circleId: circle.id, userId: late, now: t0 });
     await respond(db, { roundId: id, userId: late, input: { text: "late" }, now: t0 });
     expect((await roundView(db, id, late, t0)).responses).toHaveLength(6);
   });
@@ -211,15 +211,6 @@ describe("reveal", () => {
     expect((await roundView(db, r.id, people[2], t0)).responses).toHaveLength(2);
   });
 
-  it("lets people react to what they can see, never their own", async () => {
-    const r = await suggestRound(db, { circleId: circle.id, userId: people[1], prompt: { question: "Open", reveal: "open" }, now: t0 });
-    await toggleSupport(db, { roundId: r.id, userId: people[2], now: t0 });
-    await respond(db, { roundId: r.id, userId: people[1], input: { text: "one" }, now: t0 });
-    const [resp] = (await roundView(db, r.id, people[2], t0)).responses;
-    expect(await toggleReaction(db, { responseId: resp.id, userId: people[2] })).toBe(true);
-    await expect(toggleReaction(db, { responseId: resp.id, userId: people[1] })).rejects.toThrow(/own/);
-    expect((await roundView(db, r.id, people[1], t0)).responses[0].reactedBy).toEqual([people[2]]);
-  });
 });
 
 describe("words", () => {

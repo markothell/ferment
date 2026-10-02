@@ -92,6 +92,7 @@ export default async function SetupPage({ params }: PageProps<"/c/[community]/se
         <Step n={4} title="Invite people" done={home.members.length > 1}>
           <Form action={invite} submit="Send invitation" quiet>
             {hidden}
+            <Field label="Their name" name="name" maxLength={60} autoComplete="off" />
             <Field label="Their email" name="email" type="email" required autoComplete="off" />
             {home.circles.length > 0 && (
               <label className="block space-y-2">

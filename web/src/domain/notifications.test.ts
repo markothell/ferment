@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { communityMembers, notifications, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { createCircle, joinCircle, type Circle } from "./circles";
+import { createCircle, seatInCircle, type Circle } from "./circles";
 import { createCommunity, type Community } from "./communities";
 import { acceptInvite, createInvite } from "./invites";
 import { dueEmails, listNotifications, markAllRead, markEmailed, setEmailPref, unreadCount } from "./notifications";
@@ -18,7 +18,7 @@ const hours = (n: number) => new Date(t0.getTime() + n * 3_600_000);
 async function member(name: string) {
   const id = `u_${name}`;
   await db.insert(user).values({ id, name, email: `${name}@example.com` });
-  const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 });
+  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -30,7 +30,7 @@ beforeEach(async () => {
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
   community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
   circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
-  for (const n of ["amy", "ben", "cal"]) await joinCircle(db, { circleId: circle.id, userId: await member(n), now: t0 });
+  for (const n of ["amy", "ben", "cal"]) await seatInCircle(db, { circleId: circle.id, userId: await member(n), now: t0 });
 });
 
 describe("notifications", () => {

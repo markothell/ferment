@@ -19,14 +19,17 @@ function when(r: MapRound, now: Date): string {
  * The circle map (design/ferment/previews/circle.html). Participation lines
  * always show faintly; focusing a round brings its own lines to full strength
  * and eases the others back. Seats never dim. Tap to pin a round and follow
- * it; empty seats show how many more a forming circle needs.
+ * it; empty seats show how many more a forming circle needs, and a dashed
+ * seat in Beet is someone asking to join, a seat being made, like a spur.
  */
 export function CircleMap({
-  seats, rounds, emptySeats = 0, roundBase, label,
+  seats, rounds, emptySeats = 0, asking = [], roundBase, label,
 }: {
   seats: MapSeat[];
   rounds: MapRound[];
   emptySeats?: number;
+  /** waiting seat requests (domain/seats.ts) */
+  asking?: MapSeat[];
   /** rounds link to `${roundBase}/${id}` */
   roundBase: string;
   label: string;
@@ -34,8 +37,12 @@ export function CircleMap({
   const roundHref = (id: string) => `${roundBase}/${id}`;
   const router = useRouter();
   const all = useMemo(
-    () => [...seats, ...Array.from({ length: emptySeats }, (_, i) => ({ id: `empty-${i}`, name: "" }))],
-    [seats, emptySeats],
+    () => [
+      ...seats,
+      ...asking.map((a) => ({ id: `asking-${a.id}`, name: a.name })),
+      ...Array.from({ length: emptySeats }, (_, i) => ({ id: `empty-${i}`, name: "" })),
+    ],
+    [seats, asking, emptySeats],
   );
   const { seats: placed, thread: spiral, nodes, spurs, links } = useMemo(() => layoutCircle(all, rounds), [all, rounds]);
   const [focus, setFocus] = useState<number | null>(null);
@@ -137,15 +144,25 @@ export function CircleMap({
 
         {placed.map((p) => {
           const empty = p.id.startsWith("empty-");
+          const waiting = p.id.startsWith("asking-");
           return (
             <g key={p.id}>
+              {waiting && <title>{`${p.name} is asking to join`}</title>}
               <circle
                 cx={p.x} cy={p.y} r={SEAT_R}
-                style={{ fill: empty ? "none" : "var(--raised)", stroke: "var(--rule-strong)" }}
-                strokeWidth={1.2}
-                strokeDasharray={empty ? "3 4" : undefined}
+                style={{ fill: empty || waiting ? "none" : "var(--raised)", stroke: waiting ? "var(--mine)" : "var(--rule-strong)" }}
+                strokeWidth={waiting ? 1.4 : 1.2}
+                strokeDasharray={empty || waiting ? "3 4" : undefined}
               />
-              {!empty && (
+              {waiting && (
+                <text
+                  x={p.x} y={p.labelAbove ? p.y - SEAT_R - 8 : p.y + SEAT_R + 15}
+                  textAnchor="middle" fontFamily={SANS} fontSize={11.5} style={{ fill: "var(--ink-faint)" }}
+                >
+                  {p.name}
+                </text>
+              )}
+              {!empty && !waiting && (
                 <>
                   <text x={p.x} y={p.y + 5} textAnchor="middle" fontFamily={SANS} fontWeight={500} fontSize={14.5} style={{ fill: "var(--ink-soft)" }}>
                     {p.initials}

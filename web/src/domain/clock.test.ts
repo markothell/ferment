@@ -3,7 +3,7 @@ import type { DB } from "@/db";
 import { user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import type { Mail } from "@/lib/email";
-import { createCircle, joinCircle } from "./circles";
+import { createCircle, seatInCircle } from "./circles";
 import { runClock } from "./clock";
 import { createCommunity } from "./communities";
 import { acceptInvite, createInvite } from "./invites";
@@ -27,9 +27,9 @@ async function setup() {
   const circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
   for (const n of ["amy", "ben", "cal"]) {
     await db.insert(user).values({ id: `u_${n}`, name: n, email: `${n}@example.com` });
-    const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${n}@example.com`, now: t0 });
+    const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${n}@example.com`, now: t0 })).token!;
     await acceptInvite(db, { token, userId: `u_${n}`, userEmail: `${n}@example.com`, now: t0 });
-    await joinCircle(db, { circleId: circle.id, userId: `u_${n}`, now: t0 });
+    await seatInCircle(db, { circleId: circle.id, userId: `u_${n}`, now: t0 });
   }
   return { community, circle };
 }

@@ -3,8 +3,11 @@
 // member's choice for that community: each event, a daily digest, or never.
 
 import { and, asc, desc, eq, inArray, isNull, lte, ne } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { DB } from "@/db";
-import { circleMembers, circles, communities, communityMembers, notifications, prompts, rounds, user } from "@/db/schema";
+import {
+  circleMembers, circles, communities, communityMembers, invites, notifications, prompts, rounds, seatRequests, user,
+} from "@/db/schema";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
 
@@ -15,10 +18,21 @@ export const KINDS = {
   suggested: "suggested",
   answered: "answered",
   asked_everyone: "asked everyone",
+  invite_suggested: "suggested someone",
+  invite_confirmed: "invitation sent",
+  invite_declined: "not this time",
+  arrived: "arrived",
+  seat_requested: "asking to join",
+  seat_admitted: "joined",
+  seat_declined: "not this time",
+  ask_lapsed: "lapsed",
 } as const;
 export type Kind = keyof typeof KINDS;
 
-type Moment = { kind: Kind; communityId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null; now?: Date };
+type Moment = {
+  kind: Kind; communityId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null;
+  inviteId?: string | null; seatRequestId?: string | null; now?: Date;
+};
 
 async function insertFor(db: DB, userIds: string[], m: Moment) {
   const to = [...new Set(userIds)].filter((id) => id !== m.actorId);
@@ -26,7 +40,8 @@ async function insertFor(db: DB, userIds: string[], m: Moment) {
   await db.insert(notifications).values(
     to.map((userId) => ({
       id: newId(), userId, communityId: m.communityId, kind: m.kind,
-      actorId: m.actorId ?? null, circleId: m.circleId ?? null, roundId: m.roundId ?? null, createdAt: m.now ?? new Date(),
+      actorId: m.actorId ?? null, circleId: m.circleId ?? null, roundId: m.roundId ?? null,
+      inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, createdAt: m.now ?? new Date(),
     })),
   );
 }
@@ -46,6 +61,15 @@ export async function notifyCommunity(db: DB, m: Moment) {
   await insertFor(db, members.map((r) => r.userId), m);
 }
 
+/** The community's hosts, minus whoever caused the moment. */
+export async function notifyHosts(db: DB, m: Moment) {
+  const hosts = await db
+    .select({ userId: communityMembers.userId })
+    .from(communityMembers)
+    .where(and(eq(communityMembers.communityId, m.communityId), eq(communityMembers.role, "host")));
+  await insertFor(db, hosts.map((r) => r.userId), m);
+}
+
 /** One person. Skipped if they already have the same unread, unsent moment waiting. */
 export async function notifyOne(db: DB, userId: string, m: Moment) {
   if (userId === m.actorId) return;
@@ -55,6 +79,8 @@ export async function notifyOne(db: DB, userId: string, m: Moment) {
     .where(and(
       eq(notifications.userId, userId), eq(notifications.kind, m.kind),
       m.roundId ? eq(notifications.roundId, m.roundId) : isNull(notifications.roundId),
+      m.inviteId ? eq(notifications.inviteId, m.inviteId) : isNull(notifications.inviteId),
+      m.seatRequestId ? eq(notifications.seatRequestId, m.seatRequestId) : isNull(notifications.seatRequestId),
       isNull(notifications.readAt), isNull(notifications.emailedAt),
     ))
     .limit(1);
@@ -70,10 +96,24 @@ export type NotificationView = {
 
 function describe(r: {
   kind: string; actorName: string | null; actorEmail: string | null; circleName: string | null; question: string | null;
+  /** invitations and seats: who it's for, whether that's the reader, and a host's note */
+  subject: string | null; forReader: boolean; selfAsked: boolean; hostNote: string | null;
 }): string {
   const who = r.actorEmail ? displayName({ name: r.actorName, email: r.actorEmail }) : "Someone";
   const q = r.question ? `“${r.question}”` : "a question";
+  const them = r.subject || "them";
   switch (r.kind as Kind) {
+    case "invite_suggested": return `${who} suggests inviting ${them}.`;
+    case "invite_confirmed": return `Your invitation to ${them} went out.`;
+    case "invite_declined": return r.hostNote ? `Not this time for ${them}: “${r.hostNote}”` : `Not this time for ${them}.`;
+    case "arrived": return `${who} arrived. You invited them.`;
+    case "seat_requested": return r.selfAsked ? `${them} asks to join ${r.circleName}.` : `${who} suggests ${them} for ${r.circleName}.`;
+    case "seat_admitted": return r.forReader ? `You're in ${r.circleName}.` : `${them} joined ${r.circleName}.`;
+    case "seat_declined": return r.forReader ? `${r.circleName} couldn't make room this time.` : `Not this time for ${them} in ${r.circleName}.`;
+    case "ask_lapsed":
+      return r.circleName
+        ? (r.selfAsked ? `Your ask to join ${r.circleName} lapsed after 14 days.` : `Your suggestion of ${them} for ${r.circleName} lapsed after 14 days.`)
+        : `Your suggestion of ${them} lapsed after 14 days.`;
     case "round_opened": return `${q} is open in ${r.circleName}.`;
     case "round_revealed": return `Everyone's answers to ${q} are in, in ${r.circleName}.`;
     case "circle_formed": return `${r.circleName} has four people and has begun.`;
@@ -84,9 +124,15 @@ function describe(r: {
   }
 }
 
+const candidate = alias(user, "candidate");
+const seatInvite = alias(invites, "seat_invite");
+
 export async function listNotifications(db: DB, where: { userId: string; ids?: string[]; limit?: number }): Promise<NotificationView[]> {
   const rows = await db
     .select({
+      inviteName: invites.name, hostNote: invites.hostNote,
+      seatUserId: seatRequests.userId, seatAskedBy: seatRequests.askedBy,
+      candidateName: candidate.name, candidateEmail: candidate.email, seatInviteName: seatInvite.name,
       id: notifications.id, kind: notifications.kind, createdAt: notifications.createdAt, readAt: notifications.readAt,
       emailedAt: notifications.emailedAt, communityId: notifications.communityId,
       communityName: communities.name, communitySlug: communities.slug,
@@ -99,14 +145,28 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
     .leftJoin(circles, eq(circles.id, notifications.circleId))
     .leftJoin(rounds, eq(rounds.id, notifications.roundId))
     .leftJoin(prompts, eq(prompts.id, rounds.promptId))
+    .leftJoin(invites, eq(invites.id, notifications.inviteId))
+    .leftJoin(seatRequests, eq(seatRequests.id, notifications.seatRequestId))
+    .leftJoin(candidate, eq(candidate.id, seatRequests.userId))
+    .leftJoin(seatInvite, eq(seatInvite.id, seatRequests.inviteId))
     .where(and(eq(notifications.userId, where.userId), where.ids ? inArray(notifications.id, where.ids) : undefined))
     .orderBy(desc(notifications.createdAt))
     .limit(where.limit ?? 100);
   return rows.map((r) => ({
     id: r.id, kind: r.kind as Kind, createdAt: r.createdAt, readAt: r.readAt, emailedAt: r.emailedAt,
     communityId: r.communityId, communityName: r.communityName,
-    text: describe(r),
-    href: r.roundId ? `/c/${r.communitySlug}/r/${r.roundId}` : r.circleSlug ? `/c/${r.communitySlug}/circles/${r.circleSlug}` : `/c/${r.communitySlug}`,
+    text: describe({
+      ...r,
+      subject: r.inviteName
+        || (r.candidateEmail ? displayName({ name: r.candidateName, email: r.candidateEmail }) : null)
+        || r.seatInviteName,
+      forReader: r.seatUserId === where.userId,
+      selfAsked: r.seatUserId !== null && r.seatUserId === r.seatAskedBy,
+    }),
+    href: r.roundId ? `/c/${r.communitySlug}/r/${r.roundId}`
+      : r.circleSlug ? `/c/${r.communitySlug}/circles/${r.circleSlug}`
+      : r.kind === "invite_suggested" ? `/c/${r.communitySlug}/people#waiting`
+      : `/c/${r.communitySlug}`,
   }));
 }
 

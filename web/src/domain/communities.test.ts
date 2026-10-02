@@ -4,7 +4,7 @@ import type { DB } from "@/db";
 import { circles, invites, prompts, responses, rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { newId } from "@/lib/id";
-import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle } from "./circles";
+import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle, seatInCircle } from "./circles";
 import { communityHome, createCommunity, setWelcomeQuestion, type Community } from "./communities";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite, findInvite } from "./invites";
@@ -23,7 +23,7 @@ async function person(name: string) {
 /** Invite and accept in one go: a new member of the community. */
 async function member(name: string, circleId: string | null = null) {
   const id = await person(name);
-  const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, circleId, now: t0 });
+  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, circleId, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -68,9 +68,8 @@ describe("communities", () => {
 });
 
 describe("invitations", () => {
-  it("lets any member invite, and only the invited email accept", async () => {
-    const amy = await member("amy");
-    const { token } = await createInvite(db, { communityId: community.id, invitedBy: amy, email: " Ben@Example.com ", now: t0 });
+  it("lets a host invite directly, and only the invited email accept", async () => {
+    const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: " Ben@Example.com ", now: t0 })).token!;
     const ben = await person("ben");
     await person("eve");
     await expect(acceptInvite(db, { token, userId: "u_eve", userEmail: "eve@example.com", now: t0 })).rejects.toThrow(/ben@example.com/);
@@ -81,9 +80,9 @@ describe("invitations", () => {
 
   it("expires after 30 days, and a new invitation replaces the old", async () => {
     const first = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: "ben@example.com", now: t0 });
-    expect((await findInvite(db, first.token, days(31)))?.state).toBe("expired");
+    expect((await findInvite(db, first.token!, days(31)))?.state).toBe("expired");
     await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: "ben@example.com", now: t0 });
-    expect((await findInvite(db, first.token, t0))?.state).toBe("revoked");
+    expect((await findInvite(db, first.token!, t0))?.state).toBe("revoked");
   });
 
   it("refuses someone already in the community, and a stranger inviting", async () => {
@@ -94,7 +93,7 @@ describe("invitations", () => {
   });
 
   it("stores only a hash of the token", async () => {
-    const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: "ben@example.com" });
+    const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: "ben@example.com" })).token!;
     const [row] = await db.select().from(invites);
     expect(row.tokenHash).not.toContain(token);
   });
@@ -128,9 +127,9 @@ describe("circles", () => {
 
   it("stops at twelve", async () => {
     const circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Big", now: t0 });
-    for (let i = 1; i < CIRCLE_MAX; i++) await joinCircle(db, { circleId: circle.id, userId: await member(`m${i}`), now: t0 });
+    for (let i = 1; i < CIRCLE_MAX; i++) await seatInCircle(db, { circleId: circle.id, userId: await member(`m${i}`), now: t0 });
     const late = await member("late");
-    await expect(joinCircle(db, { circleId: circle.id, userId: late, now: t0 })).rejects.toThrow(/full/);
+    await expect(seatInCircle(db, { circleId: circle.id, userId: late, now: t0 })).rejects.toThrow(/full/);
   });
 
   it("expires an unformed proposal after the community's window", async () => {

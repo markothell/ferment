@@ -14,7 +14,7 @@
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import {
-  circleMembers, circles, communities, communityMembers, prompts, reactions, responseWords, responses,
+  circleMembers, circles, communities, communityMembers, prompts, responseWords, responses,
   roundSupports, rounds, user, words,
 } from "@/db/schema";
 import { isOurAudio } from "@/lib/audioStore";
@@ -62,13 +62,12 @@ function cleanTimer(hours: unknown): number | null {
   return Math.min(h, 24 * 365);
 }
 
-type RoundSettings = { timerHours?: number | string | null; editAfterClose?: boolean; reactions?: boolean };
+type RoundSettings = { timerHours?: number | string | null; editAfterClose?: boolean };
 
 function settings(s: RoundSettings) {
   return {
     timerHours: cleanTimer(s.timerHours),
     editAfterClose: s.editAfterClose ?? true,
-    reactions: s.reactions ?? true,
   };
 }
 
@@ -284,10 +283,11 @@ export type ResponseInput = {
 const TEXT_MAX = 5000;
 const unit = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1;
 
+/** Share or update an answer. Returns the answer's id. */
 export async function respond(
   db: DB,
   { roundId, userId, input, now = new Date() }: { roundId: string; userId: string; input: ResponseInput; now?: Date },
-): Promise<void> {
+): Promise<string> {
   const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
   if (round.phase !== "open" && round.phase !== "closed") refuse("This question hasn't opened yet.");
   if (!(await mayTakePart(db, round, userId))) refuse("You're not part of this one.");
@@ -307,7 +307,7 @@ export async function respond(
     // After the close: text only, and only if the round allows it.
     if (!round.editAfterClose) refuse("Responses to this question can't be changed now.");
     await db.update(responses).set({ text, updatedAt: now }).where(eq(responses.id, existing.id));
-    return;
+    return existing.id;
   }
 
   const tells = prompt.shape === "story" || prompt.shape === "story_placement";
@@ -331,13 +331,15 @@ export async function respond(
   }
 
   const responseId = existing?.id ?? newId();
+  // A new recording waits for its transcript (domain/transcripts.ts).
+  const transcriptStatus = audioUrl && !existing?.audioUrl ? ("pending" as const) : (existing?.transcriptStatus ?? "none");
   await db.transaction(async (tx) => {
     if (existing) {
-      await tx.update(responses).set({ text, audioUrl, audioSeconds, x, y, updatedAt: now }).where(eq(responses.id, existing.id));
+      await tx.update(responses).set({ text, audioUrl, audioSeconds, x, y, transcriptStatus, updatedAt: now }).where(eq(responses.id, existing.id));
     } else {
       await tx.insert(responses).values({
         id: responseId, roundId, userId, text, audioUrl, audioSeconds, x, y,
-        transcriptStatus: "none", createdAt: now, updatedAt: now, // transcription: to do
+        transcriptStatus, createdAt: now, updatedAt: now,
       });
     }
 
@@ -384,6 +386,7 @@ export async function respond(
     if (m >= members) await closeRound(db, roundId, "complete", now);
     await settleCircle(db, round.circleId, now);
   }
+  return responseId;
 }
 
 /** Reveal now: the author or host closes it by hand. */
@@ -394,24 +397,6 @@ export async function revealNow(db: DB, { roundId, userId, now = new Date() }: {
   if (!(await mayConduct(db, round, userId))) refuse("Only its author or the host can reveal it early.");
   await closeRound(db, roundId, "manual", now);
   if (round.circleId) await settleCircle(db, round.circleId, now);
-}
-
-export async function toggleReaction(db: DB, { responseId, userId }: { responseId: string; userId: string }): Promise<boolean> {
-  const [r] = await db.select().from(responses).where(eq(responses.id, responseId)).limit(1);
-  if (!r) refuse("That response doesn't exist.");
-  if (r.userId === userId) refuse("You can't react to your own.");
-  const round = (await roundById(db, r.roundId))!;
-  if (!round.reactions) refuse("Reactions are off for this question.");
-  const view = await roundView(db, round.id, userId);
-  if (!view.responses.some((x) => x.id === responseId)) refuse("You can't see that one yet.");
-
-  const removed = await db
-    .delete(reactions)
-    .where(and(eq(reactions.responseId, responseId), eq(reactions.userId, userId)))
-    .returning();
-  if (removed.length) return false;
-  await db.insert(reactions).values({ responseId, userId });
-  return true;
 }
 
 // ── What a person sees ────────────────────────────────────────────────────
@@ -451,7 +436,7 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
     .select({
       id: responses.id, userId: responses.userId, name: user.name, email: user.email,
       text: responses.text, audioUrl: responses.audioUrl, audioSeconds: responses.audioSeconds,
-      transcript: responses.transcript, x: responses.x, y: responses.y,
+      transcript: responses.transcript, transcriptStatus: responses.transcriptStatus, x: responses.x, y: responses.y,
       createdAt: responses.createdAt, updatedAt: responses.updatedAt,
     })
     .from(responses)
@@ -465,8 +450,7 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
   const visible = !canTakePart ? [] : vis === "all" ? all : vis === "own" && mine ? [mine] : [];
 
   const ids = visible.map((r) => r.id);
-  const [reactionRows, wordRows, roundWords] = await Promise.all([
-    ids.length ? db.select().from(reactions).where(inArray(reactions.responseId, ids)) : [],
+  const [wordRows, roundWords] = await Promise.all([
     ids.length && prompt.shape === "words"
       ? db.select().from(responseWords).where(inArray(responseWords.responseId, ids))
       : [],
@@ -478,7 +462,6 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
 
   const shown = visible.map((r) => ({
     ...r,
-    reactedBy: reactionRows.filter((x) => x.responseId === r.id).map((x) => x.userId),
     words: wordRows.filter((x) => x.responseId === r.id).map((x) => wordLabel.get(x.wordId)).filter((w): w is string => Boolean(w)),
   }));
 
@@ -501,7 +484,7 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
   return {
     round, prompt, canTakePart, visibility: vis,
     mayConduct: await mayConduct(db, round, viewerId),
-    mine: mine ? shown.find((r) => r.id === mine.id) ?? { ...mine, reactedBy: [], words: [] } : null,
+    mine: mine ? shown.find((r) => r.id === mine.id) ?? { ...mine, words: [] } : null,
     responses: shown,
     responders: all.map((r) => r.userId),
     expected,

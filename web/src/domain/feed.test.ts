@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { createCircle, joinCircle, type Circle } from "./circles";
+import { createCircle, seatInCircle, type Circle } from "./circles";
 import { createCommunity, type Community } from "./communities";
 import { Refusal } from "./errors";
 import { feed } from "./feed";
@@ -19,7 +19,7 @@ const at = (h: number) => new Date(t0.getTime() + h * 3_600_000);
 async function member(name: string) {
   const id = `u_${name}`;
   await db.insert(user).values({ id, name, email: `${name}@example.com` });
-  const { token } = await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 });
+  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -27,7 +27,7 @@ async function member(name: string) {
 /** A formed circle of the host plus three. */
 async function formed(name: string, people: string[]) {
   const c = await createCircle(db, { communityId: community.id, userId: "u_host", name, now: t0 });
-  for (const p of people) await joinCircle(db, { circleId: c.id, userId: p, now: t0 });
+  for (const p of people) await seatInCircle(db, { circleId: c.id, userId: p, now: t0 });
   return c;
 }
 

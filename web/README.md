@@ -12,9 +12,10 @@ npm test                     # vitest, against an in-memory Postgres
 Nothing else to install. With no `DATABASE_URL`, the app runs on an embedded Postgres (PGlite)
 in `.data/`, migrated at startup. With no `RESEND_API_KEY`, sign-in links and other mail print
 to the dev server console and are appended to `.data/outbox.log`. With no `BLOB_READ_WRITE_TOKEN`,
-voice recordings are saved to `.data/audio`.
+voice recordings are saved to `.data/audio`. With no `DEEPGRAM_API_KEY`, recordings play without
+a transcript.
 
-The clock (`lib/tick.ts`: timers, lapsed proposals, notification email) runs every minute in
+The clock (`lib/tick.ts`: timers, lapsed proposals, notification email, pending transcripts) runs every minute in
 `npm run dev` and every 15 minutes on Vercel via `vercel.json` (needs `CRON_SECRET`).
 
 Sample pages that need no sign-in: `/demo/circle`, `/demo/community`, `/demo/feed`.

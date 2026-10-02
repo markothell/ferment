@@ -109,8 +109,28 @@ export async function createCircle(
   });
 }
 
-/** "I'm in." Forms the circle when it reaches its minimum. */
+/**
+ * "I'm in." Only while a circle is forming: a proposal is an open invitation.
+ * Once it runs, a seat is the circle's to give (domain/seats.ts).
+ */
 export async function joinCircle(
+  db: DB,
+  { circleId, userId, now = new Date() }: { circleId: string; userId: string; now?: Date },
+): Promise<{ formed: boolean }> {
+  const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
+  if (circle.status === "active" || circle.status === "idle") {
+    if (await isCircleMember(db, circleId, userId)) return { formed: false };
+    refuse("This circle is already running. Ask to join instead.");
+  }
+  return seatInCircle(db, { circleId, userId, now });
+}
+
+/**
+ * Put someone in a circle. Forms it when it reaches its minimum. Called by
+ * "I'm in" on a forming circle and by an admitted seat (domain/seats.ts);
+ * nothing else should, since it asks no one.
+ */
+export async function seatInCircle(
   db: DB,
   { circleId, userId, now = new Date() }: { circleId: string; userId: string; now?: Date },
 ): Promise<{ formed: boolean }> {

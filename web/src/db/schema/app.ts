@@ -27,7 +27,9 @@ import { user } from "./auth";
 
 export const memberRole = pgEnum("member_role", ["host", "member"]);
 export const emailPref = pgEnum("email_pref", ["each", "digest", "off"]);
-export const inviteStatus = pgEnum("invite_status", ["pending", "accepted", "revoked"]);
+// nominated → (a host confirms) pending → accepted. A host's own suggestion starts at pending.
+export const inviteStatus = pgEnum("invite_status", ["pending", "accepted", "revoked", "nominated", "declined", "lapsed"]);
+export const seatStatus = pgEnum("seat_status", ["waiting", "admitted", "declined", "withdrawn", "lapsed"]);
 export const circleStatus = pgEnum("circle_status", ["forming", "active", "idle", "closed", "expired"]);
 export const shape = pgEnum("shape", ["story", "placement", "story_placement", "words"]);
 export const reveal = pgEnum("reveal", ["open", "after_share", "sealed"]);
@@ -71,8 +73,10 @@ export const communityMembers = pgTable(
   (t) => [primaryKey({ columns: [t.communityId, t.userId] })],
 );
 
-// An invitation comes from a person and can name a circle (PLAN §4). Only the
-// hash of the token is stored; the token itself exists in the email alone.
+// An invitation comes from a person (PLAN §4, §11): a member suggests someone
+// and a host confirms before anything is sent. Only the hash of the token is
+// stored, and only once confirmed; the token itself exists in the email alone.
+// A circle it names is a seat request (seat_requests.invite_id).
 export const invites = pgTable(
   "invites",
   {
@@ -80,18 +84,28 @@ export const invites = pgTable(
     communityId: text()
       .notNull()
       .references(() => communities.id, { onDelete: "cascade" }),
+    // Who the suggester says they are; hosts alone see the email.
+    name: text().notNull().default(""),
     email: text().notNull(),
     invitedBy: userRef().notNull(),
-    circleId: text().references(() => circles.id, { onDelete: "set null" }),
     note: text().notNull().default(""),
-    tokenHash: text().notNull().unique(),
+    tokenHash: text().unique(),
     status: inviteStatus().notNull().default("pending"),
+    // While nominated: when the suggestion lapses. Once sent: when the link stops working.
     expiresAt: timestamp().notNull(),
     createdAt: timestamp().notNull().defaultNow(),
+    confirmedBy: text().references(() => user.id, { onDelete: "set null" }),
+    confirmedAt: timestamp(),
+    // A host's word on "not now", passed to the suggester.
+    hostNote: text().notNull().default(""),
     acceptedAt: timestamp(),
     acceptedBy: text().references(() => user.id, { onDelete: "set null" }),
   },
-  (t) => [index().on(t.communityId, t.email)],
+  (t) => [
+    index().on(t.communityId, t.email),
+    index().on(t.communityId, t.status),
+    check("invites_token_once_sent", sql`${t.status}::text not in ('pending', 'accepted') or ${t.tokenHash} is not null`),
+  ],
 );
 
 // ── Circle ─────────────────────────────────────────────────────────────────
@@ -146,6 +160,49 @@ export const circleMembers = pgTable(
 
 export type Axis = { poleA: string; poleB: string };
 
+// A seat in a running circle is the circle's to give (PLAN §11): someone asks,
+// for themselves or for someone else, and the circle supports it as it
+// supports a question, or its host makes room. The seat is for a member
+// already here (user_id) or for someone whose invitation is on its way
+// (invite_id), who takes it when they arrive.
+export const seatRequests = pgTable(
+  "seat_requests",
+  {
+    id: text().primaryKey(),
+    circleId: text()
+      .notNull()
+      .references(() => circles.id, { onDelete: "cascade" }),
+    userId: text().references(() => user.id, { onDelete: "cascade" }),
+    inviteId: text().references(() => invites.id, { onDelete: "cascade" }),
+    askedBy: userRef().notNull(),
+    note: text().notNull().default(""),
+    status: seatStatus().notNull().default("waiting"),
+    createdAt: timestamp().notNull().defaultNow(),
+    expiresAt: timestamp().notNull(),
+    decidedAt: timestamp(),
+    decidedBy: text().references(() => user.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    index().on(t.circleId, t.status),
+    index().on(t.inviteId),
+    check("seat_for_someone", sql`num_nonnulls(${t.userId}, ${t.inviteId}) = 1`),
+    uniqueIndex("seat_one_waiting_per_person").on(t.circleId, t.userId).where(sql`${t.status} = 'waiting'`),
+    uniqueIndex("seat_one_per_invite").on(t.circleId, t.inviteId).where(sql`${t.status} in ('waiting', 'admitted')`),
+  ],
+);
+
+export const seatSupports = pgTable(
+  "seat_supports",
+  {
+    requestId: text()
+      .notNull()
+      .references(() => seatRequests.id, { onDelete: "cascade" }),
+    userId: userRef().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.requestId, t.userId] })],
+);
+
 export const prompts = pgTable(
   "prompts",
   {
@@ -198,7 +255,6 @@ export const rounds = pgTable(
     timerHours: integer(),
     closesAt: timestamp(),
     editAfterClose: boolean().notNull().default(true),
-    reactions: boolean().notNull().default(true),
     createdAt: timestamp().notNull().defaultNow(),
     promotedAt: timestamp(),
     queuedAt: timestamp(),
@@ -259,18 +315,6 @@ export const responses = pgTable(
   ],
 );
 
-export const reactions = pgTable(
-  "reactions",
-  {
-    responseId: text()
-      .notNull()
-      .references(() => responses.id, { onDelete: "cascade" }),
-    userId: userRef().notNull(),
-    createdAt: timestamp().notNull().defaultNow(),
-  },
-  (t) => [primaryKey({ columns: [t.responseId, t.userId] })],
-);
-
 // The words shape: each round has its own vocabulary, seeded from the prompt's
 // list when it opens and grown by what members coin.
 export const words = pgTable(
@@ -316,6 +360,8 @@ export const notifications = pgTable(
     actorId: text().references(() => user.id, { onDelete: "set null" }),
     circleId: text().references(() => circles.id, { onDelete: "cascade" }),
     roundId: text().references(() => rounds.id, { onDelete: "cascade" }),
+    inviteId: text().references(() => invites.id, { onDelete: "cascade" }),
+    seatRequestId: text().references(() => seatRequests.id, { onDelete: "cascade" }),
     createdAt: timestamp().notNull().defaultNow(),
     readAt: timestamp(),
     emailedAt: timestamp(),
