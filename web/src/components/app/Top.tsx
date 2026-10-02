@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/db";
 import { unreadCount } from "@/domain/notifications";
 import { currentSession } from "@/lib/auth";
+import { RisingMark } from "./Logo";
 
 export type Crumb = { label: string; href?: string };
 
@@ -14,7 +15,10 @@ export async function Top({ trail = [], links = [], menu }: { trail?: Crumb[]; l
       <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
         <ol className="flex min-w-0 items-center gap-2">
           <li className="shrink-0">
-            <Link href="/home" className="text-lg font-medium tracking-tight">ferment</Link>
+            <Link href="/home" className="flex items-center gap-2 text-lg font-medium tracking-tight">
+              <RisingMark size={30} />
+              ferment
+            </Link>
           </li>
           {trail.map((c, i) => (
             <li key={i} className="flex min-w-0 items-center gap-2">
