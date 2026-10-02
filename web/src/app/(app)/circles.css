@@ -1,0 +1,30 @@
+/* Circle colours (lib/circleColors.ts). Anything inside .tint-<name> can use
+   --tint (stroke, text) and --tint-soft (fill, header wash). Saffron borrows
+   --shared, so it follows the theme on its own; the rest switch below. */
+
+.ferment .tint-saffron { --tint: var(--shared); --tint-soft: var(--shared-soft); }
+.ferment .tint-clay    { --tint: #B4623C; --tint-soft: #EBD3C3; }
+.ferment .tint-moss    { --tint: #6F8A35; --tint-soft: #DCE3C0; }
+.ferment .tint-slate   { --tint: #4D6E8C; --tint-soft: #CFDAE4; }
+.ferment .tint-plum    { --tint: #82577F; --tint-soft: #E3D2E0; }
+
+@media (prefers-color-scheme: dark) {
+  .ferment:not([data-theme="light"]) .tint-clay  { --tint: #D88B62; --tint-soft: #4A3125; }
+  .ferment:not([data-theme="light"]) .tint-moss  { --tint: #9DB862; --tint-soft: #34401F; }
+  .ferment:not([data-theme="light"]) .tint-slate { --tint: #8AAAC8; --tint-soft: #263340; }
+  .ferment:not([data-theme="light"]) .tint-plum  { --tint: #B98DB5; --tint-soft: #3D2B3B; }
+}
+.ferment[data-theme="dark"] .tint-clay  { --tint: #D88B62; --tint-soft: #4A3125; }
+.ferment[data-theme="dark"] .tint-moss  { --tint: #9DB862; --tint-soft: #34401F; }
+.ferment[data-theme="dark"] .tint-slate { --tint: #8AAAC8; --tint-soft: #263340; }
+.ferment[data-theme="dark"] .tint-plum  { --tint: #B98DB5; --tint-soft: #3D2B3B; }
+
+/* The picker: a row of swatches over radio buttons. */
+.ferment .swatch input { position: absolute; opacity: 0; pointer-events: none; }
+.ferment .swatch span {
+  display: block; width: 32px; height: 32px; border-radius: 999px;
+  background: var(--tint-soft); border: 2px solid var(--tint);
+  outline: 2px solid transparent; outline-offset: 3px;
+}
+.ferment .swatch input:checked + span { outline-color: var(--ink); }
+.ferment .swatch input:focus-visible + span { outline-color: var(--live); }

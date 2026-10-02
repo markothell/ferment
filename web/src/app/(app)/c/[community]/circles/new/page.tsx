@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { db } from "@/db";
 import { promptById } from "@/domain/prompts";
 import { loadCommunity } from "@/lib/community";
+import { ColorPicker } from "@/components/app/ColorPicker";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
 import { Top } from "@/components/app/Top";
@@ -37,6 +38,7 @@ export default async function NewCirclePage({ params, searchParams }: PageProps<
           ) : (
             <Field label="Its first question" name="question" maxLength={200} placeholder="Optional" />
           )}
+          <ColorPicker />
         </Form>
       </main>
     </>

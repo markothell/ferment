@@ -4,6 +4,7 @@ import { ThemeSwitch } from "@/components/app/ThemeSwitch";
 import { THEME_COOKIE, type Theme } from "@/lib/theme";
 import "./app.css";
 import "./theme.css";
+import "./circles.css";
 
 const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-hanken" });
 const instrument = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument" });

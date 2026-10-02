@@ -1,3 +1,5 @@
+import type { CircleColor } from "@/lib/circleColors";
+
 // Page icons drawn from the community map's own shapes, so moving between
 // pages teaches the map: the community is a ring of people round a center;
 // a circle is a circle with its core.
@@ -17,15 +19,15 @@ export function CommunityGlyph({ size = 40 }: { size?: number }) {
   );
 }
 
-export function CircleGlyph({ size = 40, forming = false }: { size?: number; forming?: boolean }) {
+export function CircleGlyph({ size = 40, forming = false, color = "saffron" }: { size?: number; forming?: boolean; color?: CircleColor }) {
   return (
-    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden className="shrink-0">
+    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden className={`tint-${color} shrink-0`}>
       {forming ? (
         <circle cx={20} cy={20} r={17} fill="none" strokeWidth={1.4} strokeDasharray="3 4" style={{ stroke: "var(--ink-faint)" }} />
       ) : (
         <>
           <circle cx={20} cy={20} r={17} strokeWidth={1.4} style={{ fill: "var(--raised)", stroke: "var(--rule-strong)" }} />
-          <circle cx={20} cy={20} r={10} strokeWidth={1.4} style={{ fill: "var(--shared-soft)", stroke: "var(--shared)" }} />
+          <circle cx={20} cy={20} r={10} strokeWidth={1.4} style={{ fill: "var(--tint-soft)", stroke: "var(--tint)" }} />
         </>
       )}
     </svg>

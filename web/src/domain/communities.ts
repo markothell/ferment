@@ -153,7 +153,7 @@ export async function communityHome(db: DB, community: Community, viewerId: stri
     db
       .select({
         id: circles.id, slug: circles.slug, name: circles.name, description: circles.description,
-        status: circles.status, hostId: circles.hostId, formingExpiresAt: circles.formingExpiresAt,
+        status: circles.status, color: circles.color, hostId: circles.hostId, formingExpiresAt: circles.formingExpiresAt,
         members: count(circleMembers.userId),
       })
       .from(circles)
@@ -180,7 +180,7 @@ export async function communityHome(db: DB, community: Community, viewerId: stri
 export async function communityMapData(db: DB, communityId: string) {
   const [circleRows, memberRows, roundRows, answerRows] = await Promise.all([
     db
-      .select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status })
+      .select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status, color: circles.color })
       .from(circles)
       .where(and(eq(circles.communityId, communityId), notInArray(circles.status, ["closed", "expired"])))
       .orderBy(asc(circles.createdAt)),
@@ -207,7 +207,7 @@ export async function communityMapData(db: DB, communityId: string) {
 
   return {
     circles: circleRows.map((c) => ({
-      id: c.id, slug: c.slug, name: c.name, forming: c.status === "forming",
+      id: c.id, slug: c.slug, name: c.name, color: c.color, forming: c.status === "forming",
       members: memberRows.filter((m) => m.circleId === c.id).map((m) => m.userId),
       explored: tally(c.id, "closed"), open: tally(c.id, "open"),
     })),

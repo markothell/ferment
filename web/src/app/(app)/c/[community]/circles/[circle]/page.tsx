@@ -77,11 +77,14 @@ export default async function CirclePage({ params }: Props) {
 
   return (
     <>
-      <Top trail={[{ label: community.name, href: `/c/${community.slug}` }, { label: circle.name }]} />
+      <Top
+        trail={[{ label: community.name, href: `/c/${community.slug}` }, { label: circle.name }]}
+        menu={isHost ? `/c/${community.slug}/circles/${circle.slug}/settings` : undefined}
+      />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
-        <header className="space-y-3 rounded-2xl bg-[color-mix(in_srgb,var(--shared-soft)_40%,transparent)] p-5">
+        <header className={`tint-${circle.color} space-y-3 rounded-2xl bg-[color-mix(in_srgb,var(--tint-soft)_40%,transparent)] p-5`}>
           <div className="flex items-center gap-4">
-            <CircleGlyph size={44} forming={forming} />
+            <CircleGlyph size={44} forming={forming} color={circle.color} />
             <div className="min-w-0">
               <span className="label">{forming ? "forming" : circle.status === "active" ? "circle" : circle.status}</span>
               <h1 className="display truncate text-4xl leading-tight">{circle.name}</h1>

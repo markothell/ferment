@@ -36,6 +36,13 @@
       "when": 1790878167420,
       "tag": "0004_invites_circle_moved",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790938138566,
+      "tag": "0005_circle_color",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,8 @@
 // chosen 2026-09-29): everyone on an outer ring; each circle inside, pulled
 // toward its members; the community's open questions at the center. Pure.
 
+import type { CircleColor } from "./circleColors";
+
 export const CSIZE = 560;
 const C = CSIZE / 2;
 export const RING_R = 232;
@@ -18,7 +20,7 @@ const q = (v: number) => Math.round(v * 100) / 100;
 
 export type CommunityPerson = { id: string; name: string };
 export type CommunityCircle = {
-  id: string; slug: string; name: string; members: string[];
+  id: string; slug: string; name: string; members: string[]; color?: CircleColor;
   forming: boolean; explored: number; open: number;
 };
 

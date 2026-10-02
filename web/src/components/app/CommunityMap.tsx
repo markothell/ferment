@@ -123,7 +123,7 @@ export function CommunityMap({
         {nodes.map((nd, ci) => (
           <g
             key={nd.id}
-            className="cm-act cm-fade"
+            className={`cm-act cm-fade tint-${nd.color ?? "saffron"}`}
             style={{ opacity: circleDim(ci) }}
             aria-label={`${nd.name}: ${nd.members.length} people${nd.forming ? ", forming" : `, ${nd.explored} rounds`}${nd.open ? ", something open now" : ""}.`}
             {...handlers({ kind: "circle", i: ci })}
@@ -133,7 +133,7 @@ export function CommunityMap({
             ) : (
               <>
                 <circle cx={nd.x} cy={nd.y} r={nd.r} strokeWidth={1.2} style={{ fill: "var(--raised)", stroke: "var(--rule-strong)" }} />
-                {nd.core > 0 && <circle cx={nd.x} cy={nd.y} r={nd.core} strokeWidth={1.2} style={{ fill: "var(--shared-soft)", stroke: "var(--shared)" }} />}
+                {nd.core > 0 && <circle cx={nd.x} cy={nd.y} r={nd.core} strokeWidth={1.2} style={{ fill: "var(--tint-soft)", stroke: "var(--tint)" }} />}
               </>
             )}
             {nd.dot && <circle cx={nd.dot.x} cy={nd.dot.y} r={4.5} strokeWidth={2} style={{ fill: "var(--live)", stroke: "var(--raised)" }} />}

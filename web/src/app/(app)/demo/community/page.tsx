@@ -9,11 +9,11 @@ const NAMES = ["Ama","Bo","Cleo","Dev","Esi","Finn","Gus","Hana","Ines","Jo","Ko
   "Uma","Vic","Wren","Xan","Yara","Zed","Ada","Ben","Cal","Dina","Eli","Fay","Gil","Hal","Ivy","Jun","Kit","Lou","May","Ned"];
 const id = (i: number) => `p${i}`;
 const CIRCLES = [
-  { id: "bread", name: "Bread", members: [0, 1, 2, 3, 4, 5, 6, 7], explored: 9, open: 1 },
-  { id: "walkers", name: "Walkers", members: [2, 12, 25, 26, 27], explored: 3, open: 0 },
-  { id: "tables", name: "Tuesday Tables", members: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14], explored: 14, open: 1 },
-  { id: "parents", name: "New Parents", members: [15, 16, 17, 18, 19, 20], explored: 5, open: 0 },
-  { id: "reading", name: "Reading", members: [18, 19, 20, 21, 22, 23, 24], explored: 7, open: 1 },
+  { id: "bread", name: "Bread", color: "saffron" as const, members: [0, 1, 2, 3, 4, 5, 6, 7], explored: 9, open: 1 },
+  { id: "walkers", name: "Walkers", color: "moss" as const, members: [2, 12, 25, 26, 27], explored: 3, open: 0 },
+  { id: "tables", name: "Tuesday Tables", color: "clay" as const, members: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14], explored: 14, open: 1 },
+  { id: "parents", name: "New Parents", color: "plum" as const, members: [15, 16, 17, 18, 19, 20], explored: 5, open: 0 },
+  { id: "reading", name: "Reading", color: "slate" as const, members: [18, 19, 20, 21, 22, 23, 24], explored: 7, open: 1 },
   { id: "grief", name: "Grief", members: [28, 29], explored: 0, open: 0, forming: true },
 ].map((c) => ({ ...c, slug: c.id, forming: Boolean(c.forming), members: c.members.map(id) }));
 

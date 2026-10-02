@@ -48,7 +48,7 @@ export async function proposeCircle(_prev: ActionState, form: FormData): Promise
     circle = await createCircle(db, {
       communityId: community.id, userId: me.id,
       name: str(form, "name"), description: str(form, "description"), firstQuestion: str(form, "question"),
-      promptId: str(form, "prompt") || null,
+      promptId: str(form, "prompt") || null, color: str(form, "color") || "saffron",
     });
   });
   if (failed) return failed;

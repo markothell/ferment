@@ -4,7 +4,7 @@ import type { DB } from "@/db";
 import { circles, invites, prompts, responses, rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { newId } from "@/lib/id";
-import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle, seatInCircle } from "./circles";
+import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle, seatInCircle, setCircleColor } from "./circles";
 import { communityHome, createCommunity, setWelcomeQuestion, type Community } from "./communities";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite, findInvite } from "./invites";
@@ -107,6 +107,20 @@ describe("invitations", () => {
 });
 
 describe("circles", () => {
+  it("takes a colour, saffron by default, that only the host can change", async () => {
+    const plain = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", now: t0 });
+    expect(plain.color).toBe("saffron");
+    await expect(createCircle(db, { communityId: community.id, userId: "u_host", name: "Walks", color: "beet" })).rejects.toThrow(Refusal);
+    const moss = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Walks", color: "moss" });
+    expect(moss.color).toBe("moss");
+
+    const amy = await member("amy", plain.id);
+    await expect(setCircleColor(db, { circleId: plain.id, userId: amy, color: "plum" })).rejects.toThrow(Refusal);
+    await setCircleColor(db, { circleId: plain.id, userId: "u_host", color: "plum" });
+    const [after] = await db.select().from(circles).where(eq(circles.id, plain.id));
+    expect(after.color).toBe("plum");
+  });
+
   it("forms when the fourth person joins, with the first question queued", async () => {
     const circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
     expect(circle.status).toBe("forming");

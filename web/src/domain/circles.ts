@@ -7,6 +7,7 @@
 import { and, asc, count, eq, isNull, lt } from "drizzle-orm";
 import type { DB } from "@/db";
 import { circleMembers, circles, communities, prompts, rounds, user } from "@/db/schema";
+import { isCircleColor, type CircleColor } from "@/lib/circleColors";
 import { newId } from "@/lib/id";
 import { requireMember } from "./communities";
 import { normalizePrompt } from "./prompts";
@@ -60,9 +61,9 @@ export async function isCircleMember(db: DB, circleId: string, userId: string): 
 export async function createCircle(
   db: DB,
   {
-    communityId, userId, name, description = "", firstQuestion = "", promptId = null, now = new Date(),
+    communityId, userId, name, description = "", firstQuestion = "", promptId = null, color = "saffron", now = new Date(),
   }: {
-    communityId: string; userId: string; name: string; description?: string; now?: Date;
+    communityId: string; userId: string; name: string; description?: string; now?: Date; color?: string;
     /** A new first question, or an existing prompt: "start a circle around this". */
     firstQuestion?: string; promptId?: string | null;
   },
@@ -73,6 +74,7 @@ export async function createCircle(
   if (clean.length > 60) refuse("Circle names are 60 characters at most.");
   const desc = description.trim();
   if (desc.length > DESCRIPTION_MAX) refuse("That description is too long.");
+  if (!isCircleColor(color)) refuse("Pick one of the colours.");
   const first = !promptId && firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
   if (promptId) {
     const [existing] = await db.select({ communityId: prompts.communityId }).from(prompts).where(eq(prompts.id, promptId)).limit(1);
@@ -93,7 +95,7 @@ export async function createCircle(
       .insert(circles)
       .values({
         id: newId(), communityId, slug, name: clean, description: desc,
-        hostId: userId, proposedBy: userId, status: "forming", originPromptId,
+        hostId: userId, proposedBy: userId, status: "forming", originPromptId, color: color as CircleColor,
         formingExpiresAt: new Date(now.getTime() + community.proposalExpiryDays * DAY_MS),
       })
       .returning();
@@ -113,6 +115,15 @@ export async function createCircle(
  * "I'm in." Only while a circle is forming: a proposal is an open invitation.
  * Once it runs, a seat is the circle's to give (domain/seats.ts).
  */
+/** The host picks the circle's colour (lib/circleColors.ts). */
+export async function setCircleColor(db: DB, { circleId, userId, color }: { circleId: string; userId: string; color: string }) {
+  const circle = await circleById(db, circleId);
+  if (!circle) refuse("That circle isn't here.");
+  if (circle.hostId !== userId) refuse("Only the circle's host can change its colour.");
+  if (!isCircleColor(color)) refuse("Pick one of the colours.");
+  await db.update(circles).set({ color }).where(eq(circles.id, circleId));
+}
+
 export async function joinCircle(
   db: DB,
   { circleId, userId, now = new Date() }: { circleId: string; userId: string; now?: Date },

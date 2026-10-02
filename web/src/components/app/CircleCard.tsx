@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { CIRCLE_MAX, CIRCLE_MIN } from "@/domain/circles";
 import { join } from "@/app/(app)/c/[community]/actions";
+import type { CircleColor } from "@/lib/circleColors";
 import { Form } from "./Form";
+import { CircleGlyph } from "./Glyph";
 
 type CircleRow = {
   id: string; slug: string; name: string; description: string;
-  status: string; members: number; isMember: boolean; formingExpiresAt: Date | null;
+  status: string; color?: CircleColor; members: number; isMember: boolean; formingExpiresAt: Date | null;
 };
 
 function daysLeft(until: Date | null): string {
@@ -20,7 +22,8 @@ export function CircleCard({ circle, community }: { circle: CircleRow; community
   return (
     <li className="card space-y-3">
       <div className="flex items-baseline justify-between gap-3">
-        <Link href={`/c/${community}/circles/${circle.slug}`} className="text-lg font-medium hover:underline">
+        <Link href={`/c/${community}/circles/${circle.slug}`} className="flex items-center gap-3 text-lg font-medium hover:underline">
+          <CircleGlyph size={24} forming={forming} color={circle.color} />
           {circle.name}
         </Link>
         <span className="label shrink-0">

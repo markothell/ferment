@@ -31,6 +31,8 @@ export const emailPref = pgEnum("email_pref", ["each", "digest", "off"]);
 export const inviteStatus = pgEnum("invite_status", ["pending", "accepted", "revoked", "nominated", "declined", "lapsed"]);
 export const seatStatus = pgEnum("seat_status", ["waiting", "admitted", "declined", "withdrawn", "lapsed"]);
 export const circleStatus = pgEnum("circle_status", ["forming", "active", "idle", "closed", "expired"]);
+// lib/circleColors.ts; saffron is "shared", the default.
+export const circleColor = pgEnum("circle_color", ["saffron", "clay", "moss", "slate", "plum"]);
 export const shape = pgEnum("shape", ["story", "placement", "story_placement", "words"]);
 export const reveal = pgEnum("reveal", ["open", "after_share", "sealed"]);
 export const telling = pgEnum("telling", ["voice", "text"]);
@@ -124,6 +126,8 @@ export const circles = pgTable(
     hostId: text().references(() => user.id, { onDelete: "set null" }),
     proposedBy: userRef().notNull(),
     status: circleStatus().notNull().default("forming"),
+    // Picked by the host: the header tint and the core on the community map.
+    color: circleColor().notNull().default("saffron"),
     // A forming circle that hasn't reached its minimum by this time expires.
     formingExpiresAt: timestamp(),
     // "Start a circle around this" — the prompt it was proposed with.
