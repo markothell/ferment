@@ -1,0 +1,491 @@
+<title>Ferment Harvests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+  /* Layout: a step-through of three journeys (left: the steps, right: the screen at that step); the proposal reads below as a plain spec. Culture palette from design/ferment/palette.css. */
+  :root {
+    --ground: #E7EAD6; --raised: #F6F7EE; --ink: #1C2A25; --ink-soft: #4E5F58; --ink-faint: #7C8B83;
+    --live: #1E7F72; --mine: #C94B66; --shared: #D99A1E; --shared-soft: #EDD9A6;
+    --rule: rgba(28, 42, 37, .13); --rule-strong: rgba(28, 42, 37, .30); --shadow: rgba(0, 0, 0, .14);
+    --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+      --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45; --shared-soft: #4A4226;
+      --rule: rgba(227, 232, 213, .12); --rule-strong: rgba(227, 232, 213, .28); --shadow: rgba(0, 0, 0, .45);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #111A17; --raised: #182420; --ink: #E3E8D5; --ink-soft: #9FAEA5; --ink-faint: #6F7F77;
+    --live: #43B8A5; --mine: #EC7E93; --shared: #E6AE45; --shared-soft: #4A4226;
+    --rule: rgba(227, 232, 213, .12); --rule-strong: rgba(227, 232, 213, .28); --shadow: rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--ground); color: var(--ink); font: 16px/1.55 var(--sans); padding: 0 16px; padding-block: 48px 96px; margin: 0; }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 32px; }
+  .eyebrow, .label { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); }
+  h1 { font: 400 clamp(38px, 5.5vw, 56px)/1 var(--serif); margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+  h1 em { color: var(--shared); }
+  h2 { font: 400 30px/1.1 var(--serif); margin: 0; text-wrap: balance; }
+  h3 { font: 400 24px/1.15 var(--serif); margin: 0; }
+  .head { display: grid; gap: 12px; max-width: 66ch; }
+  .head p { margin: 0; color: var(--ink-soft); }
+  button { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+
+  /* ── Stage: steps + screen ─────────────────────────── */
+  .tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab { border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); padding: 8px 14px; border-radius: 999px; font: 500 14px/1 var(--sans); cursor: pointer; }
+  .tab[aria-selected="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .stage { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .steps button { width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--rule); padding: 14px 16px; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; cursor: pointer; }
+  .steps li:last-child button { border-bottom: 0; }
+  .steps .n { font: 500 12px/1 var(--mono); width: 26px; height: 26px; border-radius: 50%; border: 1.3px solid var(--rule-strong); display: grid; place-items: center; color: var(--ink-soft); }
+  .steps b { display: block; font-weight: 600; font-size: 15px; }
+  .steps .who { font: 400 11px/1.5 var(--mono); color: var(--ink-faint); }
+  .steps .sum { font-size: 13.5px; color: var(--ink-soft); }
+  .steps button[aria-current="step"] { background: var(--raised); }
+  .steps button[aria-current="step"] .n { border-color: var(--shared); background: var(--shared); color: var(--ground); }
+  .steps button.done .n { border-color: var(--shared); }
+
+  .screen { background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 20px; display: grid; gap: 16px; min-width: 0; align-content: start; min-height: 520px; }
+  .screen .where { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 400 12px/1.4 var(--mono); color: var(--ink-faint); border-bottom: 1px solid var(--rule); padding-bottom: 10px; }
+  .screen .where b { color: var(--ink-soft); font-weight: 500; }
+  .screen p { margin: 0; }
+  .soft { color: var(--ink-soft); }
+  .field { display: grid; gap: 6px; }
+  .field span { font-weight: 500; font-size: 14.5px; }
+  .field .box { font: 15px/1.45 var(--sans); color: var(--ink); background: var(--ground); border: 1px solid var(--rule-strong); border-radius: 6px; padding: 9px 12px; min-height: 40px; }
+  .field .box.tall { min-height: 72px; }
+  .field .box.ph { color: var(--ink-faint); }
+  .card { border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; background: var(--ground); }
+  .card.wait { border-left: 3px solid var(--shared); }
+  .card .t { font-weight: 600; font-size: 15.5px; line-height: 1.35; }
+  .quote { margin: 0; border-left: 2px solid var(--shared); padding: 2px 0 2px 12px; font-size: 14.5px; }
+  .meta { font: 400 11.5px/1.5 var(--mono); color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .meta.live { color: var(--live); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .btn { border: 1px solid var(--rule); background: var(--raised); color: var(--ink-soft); padding: 8px 13px; border-radius: 999px; font: 500 13.5px/1 var(--sans); }
+  .btn.primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .btn.on { border-color: var(--mine); color: var(--mine); }
+  .pips { display: inline-flex; gap: 4px; vertical-align: middle; }
+  .pips i { width: 9px; height: 9px; border-radius: 50%; border: 1.3px solid var(--shared); }
+  .pips i.f { background: var(--shared); }
+  .mail { border: 1px solid var(--rule); border-radius: 8px; background: var(--ground); overflow: hidden; }
+  .mail .hd { padding: 10px 14px; border-bottom: 1px solid var(--rule); font: 400 12px/1.6 var(--mono); color: var(--ink-soft); }
+  .mail .bd { padding: 14px; display: grid; gap: 10px; font-size: 15px; }
+  .ring { width: 100%; max-width: 220px; height: auto; display: block; margin: 0 auto; }
+  .ring .seat { fill: var(--raised); stroke: var(--rule-strong); stroke-width: 1.2; }
+  .ring .empty { fill: none; stroke: var(--shared); stroke-width: 1.4; stroke-dasharray: 3 3; }
+  .ring .newseat { fill: var(--raised); stroke: var(--mine); stroke-width: 1.4; }
+  .ring .thread { fill: none; stroke: var(--rule); stroke-width: 1; }
+  .ring text { fill: var(--ink-faint); font: 400 9px var(--sans); }
+  .nav { display: flex; justify-content: space-between; gap: 8px; }
+  .nav button { border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); padding: 7px 12px; border-radius: 999px; font: 500 13px/1 var(--sans); cursor: pointer; }
+  .nav button:hover:not([disabled]) { color: var(--ink); border-color: var(--rule-strong); }
+  .nav button[disabled] { opacity: .4; cursor: default; }
+  .fade { animation: fadein .35s ease-out; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } }
+
+  /* Proposal */
+  .spec { display: grid; gap: 40px; border-top: 1px solid var(--rule-strong); padding-top: 40px; }
+  .spec > section { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; }
+  .spec > section > header { display: grid; gap: 8px; align-content: start; }
+  .spec > section > header p { margin: 0; font-size: 13.5px; color: var(--ink-soft); }
+  .spec .body { display: grid; gap: 14px; min-width: 0; max-width: 72ch; }
+  .spec p, .spec li { font-size: 15px; }
+  .spec p { margin: 0; }
+  .spec ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  .spec b { font-weight: 600; }
+  code { font: 400 13px/1.5 var(--mono); background: var(--raised); border: 1px solid var(--rule); border-radius: 4px; padding: 0 4px; }
+  pre { margin: 0; background: var(--raised); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 400 12.5px/1.6 var(--mono); color: var(--ink); }
+  pre code { background: none; border: 0; padding: 0; }
+  pre .c { color: var(--ink-faint); }
+  pre .add { color: var(--shared); }
+  .life { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .life > div { padding: 14px; display: grid; gap: 6px; align-content: start; background: var(--raised); border-right: 1px solid var(--rule); }
+  .life > div:last-child { border-right: 0; }
+  .life b { font-size: 14px; }
+  .life code { font-size: 11.5px; width: fit-content; }
+  .life span { font-size: 13px; color: var(--ink-soft); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font: 500 11px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+  td code { font-size: 12px; }
+  .tablewrap { border: 1px solid var(--rule); border-radius: 8px; overflow-x: auto; background: var(--raised); }
+  .files { display: grid; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .files div { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 16px; padding: 10px 14px; border-bottom: 1px solid var(--rule); background: var(--raised); font-size: 14px; }
+  .files div:last-child { border-bottom: 0; }
+  .files code { background: none; border: 0; padding: 0; overflow-wrap: anywhere; }
+  .files .new code::after { content: " new"; color: var(--shared); font-size: 11px; }
+  .qs { display: grid; gap: 10px; }
+  .qs div { border-left: 2px solid var(--mine); padding: 2px 0 2px 14px; display: grid; gap: 2px; }
+  .qs div p { color: var(--ink-soft); font-size: 14px; }
+  .qs.open div { border-left-color: var(--shared); }
+
+  @media (max-width: 880px) {
+    .stage { grid-template-columns: 1fr; }
+    .screen { min-height: 0; }
+    .life { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .life > div { border-bottom: 1px solid var(--rule); }
+    .spec > section { grid-template-columns: 1fr; gap: 12px; }
+    .files div { grid-template-columns: 1fr; gap: 2px; }
+  }
+
+  /* Harvest pieces */
+  .harvest { border: 1px solid var(--rule); border-radius: 8px; background: var(--ground); padding: 16px; display: grid; gap: 14px; }
+  .harvest .from { display: flex; align-items: center; gap: 10px; }
+  .harvest .q { font: 400 22px/1.2 var(--serif); margin: 0; text-wrap: balance; }
+  .glyph { width: 22px; height: 22px; flex: none; }
+  .glyph .o { fill: var(--raised); stroke: var(--rule-strong); stroke-width: 1.4; }
+  .glyph .c { fill: var(--shared-soft); stroke: var(--shared); stroke-width: 1.4; }
+  .entry { display: grid; gap: 4px; padding-left: 12px; border-left: 2px solid var(--shared); }
+  .entry .nm { font-weight: 600; font-size: 14px; }
+  .entry p { font-size: 14.5px; }
+  .player { display: flex; align-items: center; gap: 10px; font: 400 11.5px/1 var(--mono); color: var(--ink-faint); }
+  .player i { width: 22px; height: 22px; border-radius: 50%; border: 1.3px solid var(--rule-strong); display: grid; place-items: center; font-style: normal; font-size: 9px; color: var(--ink-soft); }
+  .player b { flex: 1; height: 2px; background: var(--rule-strong); border-radius: 2px; font-weight: 400; }
+  .mine { border: 1px dashed var(--shared); border-radius: 8px; padding: 12px 14px; display: grid; gap: 8px; background: var(--raised); }
+  .gone { font: 400 11.5px/1.5 var(--mono); color: var(--ink-faint); border-left: 2px solid var(--rule); padding-left: 12px; }
+  .strike { text-decoration: line-through; color: var(--ink-faint); }
+  .quad { width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto; }
+  .quad .ax { stroke: var(--rule-strong); stroke-width: 1; }
+  .quad .frame { fill: none; stroke: var(--rule); }
+  .quad .dot { fill: var(--shared); stroke: var(--raised); stroke-width: 1.5; }
+  .quad text { fill: var(--ink-faint); font: 400 9px var(--mono); }
+  .quad .who { fill: var(--ink-soft); font: 500 10px var(--sans); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span { border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px; font-size: 13px; background: var(--raised); }
+  .chips span b { font: 500 11px var(--mono); color: var(--shared); margin-left: 4px; }
+  .feeditem { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: 12px 0; display: grid; gap: 10px; }
+  .feeditem .top { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: center; }
+  .ripple { width: 34px; height: 34px; }
+  .ripple .r1 { fill: none; stroke: var(--shared); stroke-width: 2; }
+  .ripple .r2 { fill: none; stroke: var(--rule-strong); stroke-dasharray: 1.5 2.5; }
+  .ripple .ctr { fill: var(--shared); }
+  .tag { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--rule); border-radius: 999px; padding: 4px 10px 4px 6px; font-size: 13px; background: var(--raised); width: fit-content; }
+  .tabs2 { display: flex; gap: 18px; border-bottom: 1px solid var(--rule); font-size: 13.5px; color: var(--ink-soft); }
+  .tabs2 span { padding-bottom: 6px; }
+  .tabs2 .on { color: var(--ink); border-bottom: 2px solid var(--ink); margin-bottom: -1px; }
+  .rule3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+  .rule3 > div { padding: 14px; display: grid; gap: 6px; align-content: start; background: var(--raised); border-right: 1px solid var(--rule); }
+  .rule3 > div:last-child { border-right: 0; }
+  .rule3 b { font-size: 14px; }
+  .rule3 span { font-size: 13px; color: var(--ink-soft); }
+  @media (max-width: 880px) { .rule3 { grid-template-columns: 1fr; } .rule3 > div { border-right: 0; border-bottom: 1px solid var(--rule); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">ferment.earth · review · harvests</div>
+    <h1>A circle <em>opens</em> a round to its community</h1>
+    <p>When a round closes, anyone in the circle can propose opening it to the community. Everyone who answered gets a yes or no on their own answer. Only the yeses go in. It goes up once three people have said yes, and anyone can take their answer back out at any time.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Journeys">
+    <button class="tab" role="tab" aria-selected="true" data-j="open">Opening a round</button>
+    <button class="tab" role="tab" aria-selected="false" data-j="see">What Tables sees</button>
+    <button class="tab" role="tab" aria-selected="false" data-j="out">Taking yours out</button>
+  </div>
+  <div class="stage">
+    <ol class="steps" id="steps"></ol>
+    <div>
+      <article class="screen" id="screen" aria-live="polite"></article>
+      <div class="nav" style="margin-top:10px"><button id="prev">← Back</button><button id="next">Next →</button></div>
+    </div>
+  </div>
+
+  <div class="spec">
+    <section>
+      <header><span class="label">Shape</span><h2>How far it goes, and what goes in</h2></header>
+      <div class="body">
+        <div class="rule3">
+          <div><b>Level 1: the community</b><span>Everyone in Tables can see a harvest. It shows on the circle's page from outside, and under its question in the feed. This is all that's built for now.</span></div>
+          <div><b>Level 2: outside</b><span>Other communities, later, when sharing between communities is designed. Anonymity can be looked at then. Nothing here assumes it.</span></div>
+          <div><b>The unit: one closed round</b><span>Opening a round isn't offered until the round has closed, so everyone sees exactly what they'd share, and next to whose answers.</span></div>
+        </div>
+        <p><b>What's in it:</b> the question, and the round's result for the people who said yes: their stories, their dots on a slider or a 2×2, or their words. Names stay on. Voice is shared like any other answer: one yes or no, whatever the type, and the author decides.</p>
+        <p><b>What isn't:</b> anyone who didn't say yes. Their answer isn't hidden in the harvest, it was never copied into it. The harvest says "4 of 6 shared" without naming the other two.</p>
+        <p><b>No replies, no reactions.</b> A harvest is something to read and listen to. If it sparks something, people can adapt the question or start a circle around it, as they already can in the feed.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Consent</span><h2>Support is consent</h2></header>
+      <div class="body">
+        <p><b>Anyone in the circle proposes.</b> Proposing counts as the proposer's own yes, if they answered. A member who didn't answer the round can still propose; they just have nothing to share.</p>
+        <p><b>Each person who answered decides about their own answer.</b> They see it exactly as it would appear, and choose <em>Share mine</em> or <em>Keep mine in the circle</em>. Saying nothing is no. Choosing "keep mine" only stops the reminders; nobody is told who kept theirs.</p>
+        <p><b>Three yeses puts it up.</b> It goes up the moment the third person says yes, and stays open to more yeses until the week ends. After that, the list of sharers is fixed: people can still take theirs out, but no one new joins.</p>
+        <p><b>If it never reaches three,</b> it lapses quietly at the end of the week. The circle can propose again later.</p>
+        <p><b>One harvest per round.</b> A second proposal on the same round shows the first one instead.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Lifecycle</span><h2>Four states</h2></header>
+      <div class="body">
+        <div class="life">
+          <div><b>Gathering</b><code>gathering</code><span>Proposed, fewer than 3 yeses. Only the circle sees it, on the round page and in their inbox. The week starts now.</span></div>
+          <div><b>Up</b><code>up</code><span>3 or more yeses. Tables can see it. Until the week ends, more people can say yes.</span></div>
+          <div><b>Down</b><code>down</code><span>Withdrawals took it below 3. It disappears from outside. The people still in it are told.</span></div>
+          <div><b>Lapsed</b><code>lapsed</code><span>The week ended with fewer than 3. Nothing was ever shown outside the circle.</span></div>
+        </div>
+        <p>A harvest lasts until its sharers take it down. Whether a community can choose to let harvests fade is on hold.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Withdrawing</span><h2>Always individual</h2></header>
+      <div class="body">
+        <ul>
+          <li><b>Anyone can take their own answer out, any time.</b> From outside it's simply gone: no gap, no "withdrawn" note. The count drops ("3 of 6 shared").</li>
+          <li><b>Below three, the harvest comes down.</b> The same rule as going up. The remaining sharers get a notification.</li>
+          <li><b>There's no circle-wide takedown.</b> Each answer belongs to the person who gave it.</li>
+          <li><b>The original answer is never touched.</b> Taking yours out of a harvest removes the copy. Inside the circle the round reads exactly as before.</li>
+          <li><b>Leaving the circle doesn't take anything out.</b> Your yes stands until you withdraw it, which you can still do from your inbox or the harvest itself.</li>
+          <li><b>Closing your account takes you out of every harvest.</b> Inside circles, your answers show as "account closed".</li>
+          <li><b>Questions stay, answers can go.</b> The prompt, its adaptations and where it spread are the community's and stay. Lineage keeps its links when content goes: "adapted from a question in Bread", "asked by an account since closed".</li>
+        </ul>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Inbox</span><h2>Who hears what</h2><p>domain/notifications.ts</p></header>
+      <div class="body">
+        <div class="tablewrap">
+          <table>
+            <tr><th>Kind</th><th>To</th><th>Reads</th></tr>
+            <tr><td><code>harvest_proposed</code></td><td>Everyone in the circle who answered</td><td>Kofi wants to open "What's a meal you remember?" to Tables. Share yours?</td></tr>
+            <tr><td><code>harvest_reminder</code></td><td>Answerers who haven't chosen, 2 days before the end</td><td>2 days left to share yours.</td></tr>
+            <tr><td><code>harvest_up</code></td><td>The whole circle</td><td>Bread's harvest is up: 3 shared.</td></tr>
+            <tr><td><code>harvest_down</code></td><td>The remaining sharers</td><td>Bread's harvest came down; fewer than 3 are sharing now.</td></tr>
+            <tr><td><code>harvest_lapsed</code></td><td>The proposer</td><td>Not enough yeses this time. Nothing was shared.</td></tr>
+          </table>
+        </div>
+        <p>No notification or email carries an answer. They link to the round or the harvest, so a withdrawn answer can't live on in someone's mailbox.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Data</span><h2>A copy in its own tables</h2><p>Migration 0006_harvests</p></header>
+      <div class="body">
+<pre><code><span class="c">// The harvest itself. The question is copied too, so the public side never reads prompts.</span>
+<span class="add">export const harvestStatus = pgEnum("harvest_status", ["gathering", "up", "down", "lapsed"]);</span>
+<span class="add">export const harvests = pgTable("harvests", {</span>
+<span class="add">  id, communityId, circleId, roundId,                 // roundId unique: one per round</span>
+<span class="add">  proposedBy: userRef(),</span>
+<span class="add">  status: harvestStatus().notNull().default("gathering"),</span>
+<span class="add">  question: text().notNull(), shape: shape().notNull(), // snapshot</span>
+<span class="add">  answered: integer().notNull(),                       // "of 6"</span>
+<span class="add">  closesAt: timestamp().notNull(),                     // the week</span>
+<span class="add">  createdAt, upAt, downAt,</span>
+<span class="add">});</span>
+<span class="c">// Who said yes or "keep mine". Private: only the circle's pages read it.</span>
+<span class="add">export const harvestChoices = pgTable("harvest_choices", { harvestId, userId, share: boolean(), at }, pk(harvestId, userId));</span>
+<span class="c">// The copy: one row per shared answer, written at "Share mine", deleted at "take mine out".</span>
+<span class="add">export const harvestItems = pgTable("harvest_items", {</span>
+<span class="add">  harvestId, userId, name: text().notNull(),           // name as it was</span>
+<span class="add">  text: text(), transcript: text(), audioUrl: text(), audioSeconds: integer(),</span>
+<span class="add">  x: real(), y: real(), words: text().array(),</span>
+<span class="add">}, pk(harvestId, userId));</span></code></pre>
+        <p><b>The rules from 08 PROTOCOLS §5, carried over.</b> Publishing writes a copy; nothing on <code>responses</code> ever becomes "public". The read side (<code>domain/harvests.read.ts</code>) imports only <code>harvests</code> and <code>harvestItems</code>, so it can't reach a private answer even by mistake. Leaving something out means it's never copied in. Withdrawal deletes the item row, not a flag on it.</p>
+        <p><b>Voice.</b> A shared voice answer points at the same recording as the original. The audio route serves it to anyone in the community only through a live <code>harvest_items</code> row. Taking it out removes that row, so the link stops working outside the circle while the original plays on inside.</p>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Files</span><h2>What changes</h2></header>
+      <div class="body">
+        <div class="files">
+          <div><code>db/schema/app.ts</code><span><code>harvests</code>, <code>harvest_choices</code>, <code>harvest_items</code>, <code>harvest_status</code></span></div>
+          <div class="new"><code>drizzle/0006_harvests.sql</code><span>Generated</span></div>
+          <div class="new"><code>domain/harvests.ts</code><span>Propose, choose, withdraw, the 3 rule, lapsing; tests in <code>harvests.test.ts</code></span></div>
+          <div class="new"><code>domain/harvests.read.ts</code><span>The community's read side: harvests that are up, for a circle or a question. No import path to responses.</span></div>
+          <div><code>domain/clock.ts</code><span>Lapse or close the window after a week; the 2-day reminder</span></div>
+          <div><code>domain/notifications.ts</code><span>The five kinds above</span></div>
+          <div class="new"><code>domain/account.ts</code><span>Closing an account isn't built yet. When it is, it withdraws every harvest item and leaves "account closed" in circles.</span></div>
+          <div><code>app/(app)/c/[community]/r/[round]/page.tsx</code><span><em>Open this round to Tables</em> once closed; the gathering card with your own answer and Share mine / Keep mine</span></div>
+          <div><code>app/(app)/c/[community]/circles/[circle]/page.tsx</code><span>From outside: the circle's harvests under its counts</span></div>
+          <div class="new"><code>app/(app)/c/[community]/h/[harvest]/page.tsx</code><span>One harvest, readable by anyone in the community</span></div>
+          <div><code>components/app/FeedList.tsx</code><span>Harvests under their question</span></div>
+          <div><code>app/api/audio/…</code><span>Serve harvested voice through its item</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <header><span class="label">Open</span><h2>Still to decide</h2></header>
+      <div class="body">
+        <div class="qs open">
+          <div><b>Can someone change "keep mine" to "share mine" during the week?</b><p>Proposed: yes. Until the week ends, either choice can be changed.</p></div>
+          <div><b>After a lapse, how soon can the round be proposed again?</b><p>Proposed: any time, but the proposer sees that it lapsed before ("Last tried 3 weeks ago, 2 said yes").</p></div>
+          <div><b>Does a harvest count toward the feed's ranking?</b><p>Proposed: no. The feed ranks by how many circles took a question up; a harvest shows alongside but doesn't move it.</p></div>
+          <div><b>The "account closed" wording</b> inside circles.<p>Proposed: "account closed", in the faint ink, where the name was.</p></div>
+          <div><b>Open questions to the whole community</b> are already visible to everyone, so they don't need harvests. At level 2 they might.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  const pips = (have, need) => `<span class="pips">${Array.from({ length: need }, (_, i) => `<i class="${i < have ? 'f' : ''}"></i>`).join('')}</span>`;
+  const glyph = `<svg class="glyph" viewBox="0 0 40 40" aria-hidden="true"><circle class="o" cx="20" cy="20" r="17"/><circle class="c" cx="20" cy="20" r="10"/></svg>`;
+  const player = (secs) => `<div class="player"><i>▶</i><b></b>${secs}</div>`;
+  const A = {
+    kofi: { nm: 'Kofi', html: `<p>My grandmother's groundnut soup, the week I moved out. She sent it home in a jar and I made it last four days.</p>` },
+    mara: { nm: 'Mara', html: `${player('0:48')}<p class="soft">"The first loaf that actually rose. Nobody else was home, so I ate half of it standing at the counter…"</p>` },
+    sol: { nm: 'Sol', html: `<p>Breakfast at a truck stop in Nevada at 4am, with a stranger who paid for it and wouldn't say why.</p>` },
+    esi: { nm: 'Esi', html: `<p>Every Sunday dinner the year my dad was sick. Same chicken, same rice. Nobody complained.</p>` },
+  };
+  const entry = (k) => `<div class="entry"><span class="nm">${A[k].nm}</span>${A[k].html}</div>`;
+  const harvestCard = (keys, of, extra = '', shared = keys.length) => `<div class="harvest">
+      <div class="from">${glyph}<span class="label">harvest · from Bread</span></div>
+      <p class="q">What's a meal you remember?</p>
+      ${keys.map(entry).join('')}
+      <p class="meta">${shared} of ${of} shared · opened 2 October</p>${extra}
+    </div>`;
+  const quad = () => {
+    const pts = [['Jo', 62, 48], ['Ana', 150, 70], ['Ines', 110, 150]];
+    let s = `<svg class="quad" viewBox="0 0 220 220" aria-hidden="true"><rect class="frame" x="20" y="20" width="180" height="180"/><line class="ax" x1="110" y1="20" x2="110" y2="200"/><line class="ax" x1="20" y1="110" x2="200" y2="110"/>`;
+    s += `<text x="110" y="14" text-anchor="middle">together</text><text x="110" y="214" text-anchor="middle">alone</text><text x="16" y="113" text-anchor="end" transform="rotate(-90 16 113)">rushed</text><text x="208" y="113" text-anchor="middle" transform="rotate(90 208 113)">slow</text>`;
+    for (const [n, x, y] of pts) s += `<circle class="dot" cx="${x + 20}" cy="${y + 20}" r="6"/><text class="who" x="${x + 30}" y="${y + 24}">${n}</text>`;
+    return s + '</svg>';
+  };
+
+  const J = {
+    open: [
+      { who: 'Bread, 7 members', t: 'The round closes', sum: 'Six of seven answered. Now, and only now, it can be opened.',
+        where: ['Tables › Bread › round', 'closed'],
+        html: `<span class="label">closed · 6 of 7 shared</span>
+          <h3>What's a meal you remember?</h3>
+          ${entry('kofi')}${entry('mara')}
+          <p class="meta">+ 4 more answers</p>
+          <div class="card"><p class="t">Open this round to Tables</p>
+            <p class="soft">Anyone in Bread can propose it. Each person who answered decides about their own answer, and only the yeses go in.</p>
+            <div class="row"><span class="btn">Propose…</span></div></div>` },
+      { who: 'Kofi', t: 'Kofi proposes', sum: 'His own answer counts as his yes. The week starts.',
+        where: ['Tables › Bread › round', 'Open to Tables'],
+        html: `<h3>Open this round to Tables?</h3>
+          <p class="soft">Everyone who answered will be asked about their own answer. It goes up once 3 say yes, and stays open to more until 9 October.</p>
+          <div class="mine"><span class="label">yours, as Tables would see it</span>${entry('kofi')}</div>
+          <p class="meta">Proposing shares yours. You can take it out later.</p>
+          <div class="row"><span class="btn primary">Propose</span><span class="btn">Cancel</span></div>` },
+      { who: 'Mara, and each person who answered', t: 'Each person decides', sum: 'They see their own answer as it would appear. Silence is no.',
+        where: ['Tables › Bread › round', 'Inbox · 1'],
+        html: `<div class="card wait">
+            <p class="t">Kofi wants to open this round to Tables</p>
+            <p class="meta">${pips(1, 3)} 1 of 3 to go up · until 9 October</p>
+            <div class="mine"><span class="label">yours, as Tables would see it</span>${entry('mara')}</div>
+            <div class="row"><span class="btn primary">Share mine</span><span class="btn">Keep mine in the circle</span></div>
+          </div>
+          <p class="soft">Nobody is told who keeps theirs. Saying nothing is the same as keeping it. You can change your mind until the week ends.</p>` },
+      { who: 'Sol', t: 'Three say yes: it\'s up', sum: 'It goes up the moment the third yes lands. More can still join.',
+        where: ['Tables › Bread › round', 'harvest up'],
+        html: `<div class="card">
+            <p class="t">This round is open to Tables</p>
+            <p class="meta live">${pips(3, 3)} up · 3 of 6 shared</p>
+            <p class="soft">Esi, Jo and Dev can still add theirs until 9 October.</p>
+            <div class="row"><span class="btn">See the harvest</span><span class="btn">Take mine out</span></div>
+          </div>
+          <div class="mail"><div class="hd">Inbox · Bread</div><div class="bd"><p>Bread's harvest is up: 3 shared.</p><p class="meta">Links to the harvest. Never carries the answers.</p></div></div>` },
+      { who: 'The clock, 9 October', t: 'The week ends', sum: 'Esi said yes in time. The list of sharers is now fixed.',
+        where: ['Tables › Bread › round', 'harvest up'],
+        html: `<div class="card">
+            <p class="t">This round is open to Tables</p>
+            <p class="meta live">up · 4 of 6 shared · since 2 October</p>
+            <p class="soft">No one new can join now. Anyone in it can still take theirs out.</p>
+          </div>
+          <p class="soft">Had it ended with fewer than 3, it would have lapsed quietly, with nothing shown outside Bread. Kofi would be told, and the circle could propose again later.</p>` },
+    ],
+    see: [
+      { who: 'Ana, in Tables but not in Bread', t: 'On Bread\'s page', sum: 'The outside view gets its first content: what Bread chose to share.',
+        where: ['Tables › Bread', 'from outside'],
+        html: `<p class="meta" style="text-align:center">7 of 12 · hosted by Mara<br>9 rounds explored · since September 2026</p>
+          <h3>Harvests</h3>
+          ${harvestCard(['kofi', 'mara'], 6, `<p class="meta">+ 2 more · <u>open the harvest</u></p>`, 4)}
+          <div class="row"><span class="btn">Ask to join Bread</span></div>` },
+      { who: 'Anyone in Tables', t: 'In the feed', sum: 'Under the question, one tag per circle that opened it.',
+        where: ['Tables', 'Feed'],
+        html: `<div class="tabs2"><span>Home</span><span class="on">Feed</span><span>Circles</span><span>People</span></div>
+          <div class="feeditem">
+            <div class="top"><svg class="ripple" viewBox="0 0 34 34" aria-hidden="true"><circle class="r2" cx="17" cy="17" r="15"/><circle class="r1" cx="17" cy="17" r="10"/><circle class="ctr" cx="17" cy="17" r="4"/></svg>
+              <div><p class="t">What's a meal you remember?</p><p class="meta">3 of 5 circles here</p></div></div>
+            <div class="row"><span class="tag">${glyph} Bread · 4 shared</span><span class="tag">${glyph} Reading · 3 shared</span></div>
+          </div>
+          <p class="soft">Harvests sit beside the ranking; they don't move it. The feed still ranks by how many circles took a question up.</p>` },
+      { who: 'From the Walkers circle', t: 'A 2×2 round', sum: 'Only the dots of those who said yes, each with its name.',
+        where: ['Tables › harvest', 'Walkers'],
+        html: `<div class="harvest">
+            <div class="from">${glyph}<span class="label">harvest · from Walkers</span></div>
+            <p class="q">Where does your week sit?</p>
+            ${quad()}
+            <p class="meta">3 of 5 shared · opened 28 September</p>
+          </div>` },
+      { who: 'From the Reading circle', t: 'A words round', sum: 'The words, counted from the sharers\' answers only.',
+        where: ['Tables › harvest', 'Reading'],
+        html: `<div class="harvest">
+            <div class="from">${glyph}<span class="label">harvest · from Reading</span></div>
+            <p class="q">This month in a word or two?</p>
+            <div class="chips"><span>tired<b>2</b></span><span>hopeful<b>2</b></span><span>busy</span><span>slow</span><span>unfinished</span><span>lighter</span></div>
+            <p class="meta">from Lena, Milo and Nia · 3 of 7 shared</p>
+          </div>
+          <p class="soft">The two people who kept theirs in the circle add nothing here, not even to the counts.</p>` },
+    ],
+    out: [
+      { who: 'Esi', t: 'Esi takes hers out', sum: 'From the harvest, the round page or her inbox. One step, confirmed in place.',
+        where: ['Tables › harvest', 'Bread'],
+        html: `${entry('esi')}
+          <div class="card wait">
+            <p class="t">Take yours out of the harvest?</p>
+            <p class="soft">It leaves the harvest now. Inside Bread, nothing changes: the round reads as before.</p>
+            <div class="row"><span class="btn primary">Take it out</span><span class="btn">Keep it in</span></div>
+          </div>` },
+      { who: 'Ana, from outside', t: 'It\'s simply gone', sum: 'No gap, no "withdrawn" note. The count drops.',
+        where: ['Tables › Bread', 'from outside'],
+        html: harvestCard(['kofi', 'mara', 'sol'], 6) + `<p class="soft">Ana never learns that Esi's answer was there.</p>` },
+      { who: 'Sol takes his out too', t: 'Below three, it comes down', sum: 'The same rule as going up. The others are told.',
+        where: ['Tables › Bread', 'from outside'],
+        html: `<p class="meta" style="text-align:center">7 of 12 · hosted by Mara<br>9 rounds explored · since September 2026</p>
+          <p class="soft">No harvests section: Bread has nothing open to Tables now.</p>
+          <div class="mail"><div class="hd">Inbox · Kofi, Mara</div><div class="bd"><p>Bread's harvest came down; fewer than 3 are sharing now.</p><p class="meta">Kofi or anyone in Bread can propose it again.</p></div></div>` },
+      { who: 'If Esi closed her account', t: 'A closed account', sum: 'Out of every harvest. Inside circles, her answers carry no name.',
+        where: ['Tables › Bread › round', 'inside'],
+        html: `<span class="label">closed · 6 of 7 shared</span>
+          <h3>What's a meal you remember?</h3>
+          <div class="entry"><span class="nm" style="color:var(--ink-faint);font-weight:400">account closed</span>${A.esi.html}</div>
+          <p class="soft">The question stays, and so does where it spread: the feed still says "3 of 5 circles here". Lineage keeps its links ("adapted from a question in Bread") with nothing personal attached.</p>` },
+    ],
+  };
+
+  let j = 'open', i = 0;
+  const steps = document.getElementById('steps'), screen = document.getElementById('screen');
+  const prev = document.getElementById('prev'), next = document.getElementById('next');
+  function render() {
+    const list = J[j];
+    steps.innerHTML = list.map((s, k) => `<li><button class="${k < i ? 'done' : ''}" ${k === i ? 'aria-current="step"' : ''} data-k="${k}"><span class="n">${k + 1}</span><span><span class="who">${s.who}</span><b>${s.t}</b><span class="sum">${s.sum}</span></span></button></li>`).join('');
+    const s = list[i];
+    screen.innerHTML = `<div class="where"><b>${s.where[0]}</b><span>${s.where[1]}</span></div><div class="fade" style="display:grid;gap:16px">${s.html}</div>`;
+    prev.disabled = i === 0; next.disabled = i === list.length - 1;
+  }
+  steps.addEventListener('click', (e) => { const b = e.target.closest('button[data-k]'); if (b) { i = +b.dataset.k; render(); } });
+  prev.addEventListener('click', () => { if (i > 0) { i--; render(); } });
+  next.addEventListener('click', () => { if (i < J[j].length - 1) { i++; render(); } });
+  document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((x) => x.setAttribute('aria-selected', String(x === t)));
+    j = t.dataset.j; i = 0; render();
+  }));
+  render();
+})();
+</script>
