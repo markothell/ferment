@@ -224,9 +224,9 @@
       <header><span class="label">Consent</span><h2>Support is consent</h2></header>
       <div class="body">
         <p><b>Anyone in the circle proposes.</b> Proposing counts as the proposer's own yes, if they answered. A member who didn't answer the round can still propose; they just have nothing to share.</p>
-        <p><b>Each person who answered decides about their own answer.</b> They see it exactly as it would appear, and choose <em>Share mine</em> or <em>Keep mine in the circle</em>. Saying nothing is no. Choosing "keep mine" only stops the reminders; nobody is told who kept theirs.</p>
+        <p><b>Each person who answered decides about their own answer.</b> They see it exactly as it would appear, and choose <em>Share mine</em> or <em>Keep mine in the circle</em>. Saying nothing is no. Either choice can be changed until the week ends. Choosing "keep mine" only stops the reminders; nobody is told who kept theirs.</p>
         <p><b>Three yeses puts it up.</b> It goes up the moment the third person says yes, and stays open to more yeses until the week ends. After that, the list of sharers is fixed: people can still take theirs out, but no one new joins.</p>
-        <p><b>If it never reaches three,</b> it lapses quietly at the end of the week. The circle can propose again later.</p>
+        <p><b>If it never reaches three,</b> it lapses quietly at the end of the week. Anyone in the circle can propose it again, any time. There's no cooldown: we assume trust.</p>
         <p><b>One harvest per round.</b> A second proposal on the same round shows the first one instead.</p>
       </div>
     </section>
@@ -253,8 +253,8 @@
           <li><b>There's no circle-wide takedown.</b> Each answer belongs to the person who gave it.</li>
           <li><b>The original answer is never touched.</b> Taking yours out of a harvest removes the copy. Inside the circle the round reads exactly as before.</li>
           <li><b>Leaving the circle doesn't take anything out.</b> Your yes stands until you withdraw it, which you can still do from your inbox or the harvest itself.</li>
-          <li><b>Closing your account takes you out of every harvest.</b> Inside circles, your answers show as "account closed".</li>
-          <li><b>Questions stay, answers can go.</b> The prompt, its adaptations and where it spread are the community's and stay. Lineage keeps its links when content goes: "adapted from a question in Bread", "asked by an account since closed".</li>
+          <li><b>Leaving the community takes you out of every harvest,</b> and so does closing your account. Inside circles your answers show as "this member left", whichever it was.</li>
+          <li><b>Questions stay, answers can go.</b> The prompt, its adaptations and where it spread are the community's and stay. Lineage keeps its links when content goes: "adapted from a question in Bread", "asked by a member who left".</li>
         </ul>
       </div>
     </section>
@@ -313,7 +313,7 @@
           <div class="new"><code>domain/harvests.read.ts</code><span>The community's read side: harvests that are up, for a circle or a question. No import path to responses.</span></div>
           <div><code>domain/clock.ts</code><span>Lapse or close the window after a week; the 2-day reminder</span></div>
           <div><code>domain/notifications.ts</code><span>The five kinds above</span></div>
-          <div class="new"><code>domain/account.ts</code><span>Closing an account isn't built yet. When it is, it withdraws every harvest item and leaves "account closed" in circles.</span></div>
+          <div><code>domain/communities.ts</code><span>Leaving a community and closing an account aren't built yet. When they are, both withdraw every harvest item and show "this member left" in circles.</span></div>
           <div><code>app/(app)/c/[community]/r/[round]/page.tsx</code><span><em>Open this round to Tables</em> once closed; the gathering card with your own answer and Share mine / Keep mine</span></div>
           <div><code>app/(app)/c/[community]/circles/[circle]/page.tsx</code><span>From outside: the circle's harvests under its counts</span></div>
           <div class="new"><code>app/(app)/c/[community]/h/[harvest]/page.tsx</code><span>One harvest, readable by anyone in the community</span></div>
@@ -324,15 +324,15 @@
     </section>
 
     <section>
-      <header><span class="label">Open</span><h2>Still to decide</h2></header>
+      <header><span class="label">Decided</span><h2>Settled on 5 October</h2></header>
       <div class="body">
-        <div class="qs open">
-          <div><b>Can someone change "keep mine" to "share mine" during the week?</b><p>Proposed: yes. Until the week ends, either choice can be changed.</p></div>
-          <div><b>After a lapse, how soon can the round be proposed again?</b><p>Proposed: any time, but the proposer sees that it lapsed before ("Last tried 3 weeks ago, 2 said yes").</p></div>
-          <div><b>Does a harvest count toward the feed's ranking?</b><p>Proposed: no. The feed ranks by how many circles took a question up; a harvest shows alongside but doesn't move it.</p></div>
-          <div><b>The "account closed" wording</b> inside circles.<p>Proposed: "account closed", in the faint ink, where the name was.</p></div>
-          <div><b>Open questions to the whole community</b> are already visible to everyone, so they don't need harvests. At level 2 they might.</div>
-        </div>
+        <ul>
+          <li><b>Changing your mind:</b> yes. Until the week ends, "share mine" and "keep mine" can each be switched.</li>
+          <li><b>Proposing again:</b> any time, with no cooldown. We assume trust.</li>
+          <li><b>The feed's ranking:</b> harvests stay out of it. We'll use it and see where things belong.</li>
+          <li><b>Wording:</b> "this member left", for leaving the community or closing an account alike. Which one it was isn't shown.</li>
+          <li><b>Open questions to the whole community</b> are already visible to everyone, so they don't need harvests. At level 2 they might.</li>
+        </ul>
       </div>
     </section>
   </div>
@@ -460,11 +460,11 @@
         html: `<p class="meta" style="text-align:center">7 of 12 · hosted by Mara<br>9 rounds explored · since September 2026</p>
           <p class="soft">No harvests section: Bread has nothing open to Tables now.</p>
           <div class="mail"><div class="hd">Inbox · Kofi, Mara</div><div class="bd"><p>Bread's harvest came down; fewer than 3 are sharing now.</p><p class="meta">Kofi or anyone in Bread can propose it again.</p></div></div>` },
-      { who: 'If Esi closed her account', t: 'A closed account', sum: 'Out of every harvest. Inside circles, her answers carry no name.',
+      { who: 'If Esi left Tables', t: 'A member who left', sum: 'Leaving the community or closing an account: out of every harvest, and no name in circles.',
         where: ['Tables › Bread › round', 'inside'],
         html: `<span class="label">closed · 6 of 7 shared</span>
           <h3>What's a meal you remember?</h3>
-          <div class="entry"><span class="nm" style="color:var(--ink-faint);font-weight:400">account closed</span>${A.esi.html}</div>
+          <div class="entry"><span class="nm" style="color:var(--ink-faint);font-weight:400">this member left</span>${A.esi.html}</div>
           <p class="soft">The question stays, and so does where it spread: the feed still says "3 of 5 circles here". Lineage keeps its links ("adapted from a question in Bread") with nothing personal attached.</p>` },
     ],
   };
