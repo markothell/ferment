@@ -175,6 +175,13 @@
   .tabs2 { display: flex; gap: 18px; border-bottom: 1px solid var(--rule); font-size: 13.5px; color: var(--ink-soft); }
   .tabs2 span { padding-bottom: 6px; }
   .tabs2 .on { color: var(--ink); border-bottom: 2px solid var(--ink); margin-bottom: -1px; }
+  .fchips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .fchips span { border: 1px solid var(--rule); border-radius: 999px; padding: 5px 11px; font: 500 12.5px/1 var(--sans); color: var(--ink-soft); }
+  .fchips .on { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .hmark { display: inline-flex; align-items: center; gap: 5px; color: var(--shared); }
+  .hmark .glyph { width: 13px; height: 13px; }
+  .feedlist { display: grid; }
+  .feedlist .feeditem + .feeditem { border-top: 0; }
   .rule3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
   .rule3 > div { padding: 14px; display: grid; gap: 6px; align-content: start; background: var(--raised); border-right: 1px solid var(--rule); }
   .rule3 > div:last-child { border-right: 0; }
@@ -210,7 +217,7 @@
       <header><span class="label">Shape</span><h2>How far it goes, and what goes in</h2></header>
       <div class="body">
         <div class="rule3">
-          <div><b>Level 1: the community</b><span>Everyone in Tables can see a harvest. It shows on the circle's page from outside, and under its question in the feed. This is all that's built for now.</span></div>
+          <div><b>Level 1: the community</b><span>Everyone in Tables can see a harvest. It shows on the circle's page from outside, and on its question in the feed. This is all that's built for now.</span></div>
           <div><b>Level 2: outside</b><span>Other communities, later, when sharing between communities is designed. Anonymity can be looked at then. Nothing here assumes it.</span></div>
           <div><b>The unit: one closed round</b><span>Opening a round isn't offered until the round has closed, so everyone sees exactly what they'd share, and next to whose answers.</span></div>
         </div>
@@ -317,7 +324,7 @@
           <div><code>app/(app)/c/[community]/r/[round]/page.tsx</code><span><em>Open this round to Tables</em> once closed; the gathering card with your own answer and Share mine / Keep mine</span></div>
           <div><code>app/(app)/c/[community]/circles/[circle]/page.tsx</code><span>From outside: the circle's harvests under its counts</span></div>
           <div class="new"><code>app/(app)/c/[community]/h/[harvest]/page.tsx</code><span>One harvest, readable by anyone in the community</span></div>
-          <div><code>components/app/FeedList.tsx</code><span>Harvests under their question</span></div>
+          <div><code>components/app/FeedList.tsx</code><span>A harvest mark in the row, harvest tags when a question is opened, and a "With harvests" filter</span></div>
           <div><code>app/api/audio/…</code><span>Serve harvested voice through its item</span></div>
         </div>
       </div>
@@ -329,7 +336,7 @@
         <ul>
           <li><b>Changing your mind:</b> yes. Until the week ends, "share mine" and "keep mine" can each be switched.</li>
           <li><b>Proposing again:</b> any time, with no cooldown. We assume trust.</li>
-          <li><b>The feed's ranking:</b> harvests stay out of it. We'll use it and see where things belong.</li>
+          <li><b>The feed:</b> harvests never move the ranking. A question with a harvest shows a mark in its row ("2 harvests"), and the feed can be filtered to "With harvests". Opening the question lists each circle's harvest next to Suggest to my circle, so what was shared helps decide whether to take the question home.</li>
           <li><b>Wording:</b> "this member left", for leaving the community or closing an account alike. Which one it was isn't shown.</li>
           <li><b>Open questions to the whole community</b> are already visible to everyone, so they don't need harvests. At level 2 they might.</li>
         </ul>
@@ -356,6 +363,9 @@
       ${keys.map(entry).join('')}
       <p class="meta">${shared} of ${of} shared · opened 2 October</p>${extra}
     </div>`;
+  const ripple = `<svg class="ripple" viewBox="0 0 34 34" aria-hidden="true"><circle class="r2" cx="17" cy="17" r="15"/><circle class="r1" cx="17" cy="17" r="10"/><circle class="ctr" cx="17" cy="17" r="4"/></svg>`;
+  const hmark = (n) => `<span class="hmark">${glyph}${n} harvest${n === 1 ? '' : 's'}</span>`;
+  const fitem = (q, meta, more = '') => `<div class="feeditem"><div class="top">${ripple}<div><p class="t">${q}</p><p class="meta">${meta}</p></div></div>${more}</div>`;
   const quad = () => {
     const pts = [['Jo', 62, 48], ['Ana', 150, 70], ['Ines', 110, 150]];
     let s = `<svg class="quad" viewBox="0 0 220 220" aria-hidden="true"><rect class="frame" x="20" y="20" width="180" height="180"/><line class="ax" x1="110" y1="20" x2="110" y2="200"/><line class="ax" x1="20" y1="110" x2="200" y2="110"/>`;
@@ -416,15 +426,28 @@
           <h3>Harvests</h3>
           ${harvestCard(['kofi', 'mara'], 6, `<p class="meta">+ 2 more · <u>open the harvest</u></p>`, 4)}
           <div class="row"><span class="btn">Ask to join Bread</span></div>` },
-      { who: 'Anyone in Tables', t: 'In the feed', sum: 'Under the question, one tag per circle that opened it.',
+      { who: 'Ana, looking through the feed', t: 'In the feed', sum: 'Ranked as always. A question with a harvest says so in its row.',
         where: ['Tables', 'Feed'],
         html: `<div class="tabs2"><span>Home</span><span class="on">Feed</span><span>Circles</span><span>People</span></div>
-          <div class="feeditem">
-            <div class="top"><svg class="ripple" viewBox="0 0 34 34" aria-hidden="true"><circle class="r2" cx="17" cy="17" r="15"/><circle class="r1" cx="17" cy="17" r="10"/><circle class="ctr" cx="17" cy="17" r="4"/></svg>
-              <div><p class="t">What's a meal you remember?</p><p class="meta">3 of 5 circles here</p></div></div>
-            <div class="row"><span class="tag">${glyph} Bread · 4 shared</span><span class="tag">${glyph} Reading · 3 shared</span></div>
+          <div class="fchips"><span class="on">All</span><span>With harvests</span></div>
+          <div class="feedlist">
+            ${fitem('What are you looking forward to?', '4 of 5 circles here')}
+            ${fitem("What's a meal you remember?", `3 of 5 circles here · ${hmark(2)}`)}
+            ${fitem('Where does your week sit?', `2 of 5 circles here · ${hmark(1)}`)}
+            ${fitem('Who taught you something without meaning to?', '1 of 5 circles here')}
           </div>
-          <p class="soft">Harvests sit beside the ranking; they don't move it. The feed still ranks by how many circles took a question up.</p>` },
+          <p class="soft">Harvests don't move the ranking. It's still how many circles took a question up, then what happened most recently.</p>` },
+      { who: 'Ana', t: 'Filter, then look', sum: 'Only questions with something shared. Open one to read it, then take it to her circle.',
+        where: ['Tables', 'Feed · with harvests'],
+        html: `<div class="fchips"><span>All</span><span class="on">With harvests</span></div>
+          <div class="feedlist">
+            ${fitem("What's a meal you remember?", `3 of 5 circles here · ${hmark(2)}`, `
+              <div class="row"><span class="tag">${glyph} Bread · 4 shared</span><span class="tag">${glyph} Reading · 3 shared</span></div>
+              <p class="soft">Tap a circle to read what it shared.</p>
+              <div class="row"><span class="btn primary">Suggest to my circle</span><span class="btn">Start a circle around this</span><span class="btn">Adapt</span></div>`)}
+            ${fitem('Where does your week sit?', `2 of 5 circles here · ${hmark(1)}`)}
+          </div>
+          <p class="soft">Seeing what Bread and Reading said gives Ana something to point to when she suggests it to Walkers.</p>` },
       { who: 'From the Walkers circle', t: 'A 2×2 round', sum: 'Only the dots of those who said yes, each with its name.',
         where: ['Tables › harvest', 'Walkers'],
         html: `<div class="harvest">
