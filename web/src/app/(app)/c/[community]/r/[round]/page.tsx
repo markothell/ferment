@@ -212,10 +212,12 @@ export default async function RoundPage({ params }: Props) {
               communityName={community.name}
               roundId={round.id}
               answered={view.responders.length}
+              axes={prompt.axes}
               view={harvest}
               mine={view.mine ? {
                 name: displayName(view.mine), text: view.mine.text, audioUrl: view.mine.audioUrl, audioSeconds: view.mine.audioSeconds,
                 transcript: view.mine.transcriptStatus === "ready" ? view.mine.transcript : null, words: view.mine.words,
+                x: view.mine.x, y: view.mine.y,
               } : null}
             />
           </div>

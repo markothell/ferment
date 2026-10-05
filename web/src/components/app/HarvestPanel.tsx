@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Axis } from "@/db/schema";
 import type { harvestForRound } from "@/domain/harvests";
 import { HARVEST_MIN } from "@/domain/harvests";
 import { chooseHarvestAction, proposeHarvestAction, withdrawHarvestAction } from "@/app/(app)/c/[community]/h/actions";
@@ -16,9 +17,9 @@ const day = (d: Date) => d.toLocaleDateString("en", { day: "numeric", month: "lo
  * about their own answer; only the yeses go in.
  */
 export function HarvestPanel({
-  community, communityName, roundId, answered, view, mine,
+  community, communityName, roundId, answered, view, mine, axes,
 }: {
-  community: string; communityName: string; roundId: string; answered: number; view: View | null;
+  community: string; communityName: string; roundId: string; answered: number; view: View | null; axes: Axis[];
   /** The viewer's own answer, as the community would see it; null if they didn't answer. */
   mine: Shared | null;
 }) {
@@ -62,7 +63,7 @@ export function HarvestPanel({
     <section className="card space-y-4">
       <div className="space-y-1">
         <h2 className="font-medium">{up ? `Open to ${communityName}` : `${view.proposer} proposed opening this to ${communityName}`}</h2>
-        <p className={up ? "label live" : "label"}>
+        <p className="mono text-xs text-[var(--ink-soft)]">
           {up ? `${view.shared} of ${h.answered} shared` : `${view.shared} of ${HARVEST_MIN} to go up`}
           {view.open ? ` · yeses until ${day(h.closesAt)}` : ""}
         </p>
@@ -77,8 +78,8 @@ export function HarvestPanel({
         </Form>
       ) : view.open ? (
         <div className="space-y-3">
-          <p className="label">yours, as {communityName} would see it</p>
-          <SharedAnswer a={mine} />
+          <p className="mono text-xs text-[var(--ink-faint)]">Yours, as {communityName} would see it</p>
+          <SharedAnswer a={mine} axes={axes} />
           {view.myChoice === "keep" && <p className="text-sm text-[var(--ink-soft)]">You&apos;re keeping yours in the circle. You can change that until {day(h.closesAt)}.</p>}
           <div className="flex flex-wrap gap-2">
             <Form action={chooseHarvestAction} submit="Share mine" pending="Sharing…" className="" buttonClass="button !w-auto px-6">

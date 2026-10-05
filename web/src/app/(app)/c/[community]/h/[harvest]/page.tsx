@@ -64,7 +64,7 @@ export default async function HarvestPage({ params }: Props) {
 
         <section className="space-y-6">
           {harvest.items.map((i) => (
-            <SharedAnswer key={i.userId} id={`answer-${i.userId}`} a={i}>
+            <SharedAnswer key={i.userId} id={`answer-${i.userId}`} a={i} axes={harvest.axes}>
               {i.userId === me.id && (
                 <details className="pt-1">
                   <summary className="link cursor-pointer text-sm">Take mine out</summary>
