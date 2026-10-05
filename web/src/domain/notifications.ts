@@ -26,12 +26,17 @@ export const KINDS = {
   seat_admitted: "joined",
   seat_declined: "not this time",
   ask_lapsed: "lapsed",
+  harvest_proposed: "share yours?",
+  harvest_reminder: "two days left",
+  harvest_up: "harvest up",
+  harvest_down: "harvest down",
+  harvest_lapsed: "not enough yeses",
 } as const;
 export type Kind = keyof typeof KINDS;
 
 type Moment = {
   kind: Kind; communityId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null;
-  inviteId?: string | null; seatRequestId?: string | null; now?: Date;
+  inviteId?: string | null; seatRequestId?: string | null; harvestId?: string | null; now?: Date;
 };
 
 async function insertFor(db: DB, userIds: string[], m: Moment) {
@@ -41,7 +46,7 @@ async function insertFor(db: DB, userIds: string[], m: Moment) {
     to.map((userId) => ({
       id: newId(), userId, communityId: m.communityId, kind: m.kind,
       actorId: m.actorId ?? null, circleId: m.circleId ?? null, roundId: m.roundId ?? null,
-      inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, createdAt: m.now ?? new Date(),
+      inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, harvestId: m.harvestId ?? null, createdAt: m.now ?? new Date(),
     })),
   );
 }
@@ -81,6 +86,7 @@ export async function notifyOne(db: DB, userId: string, m: Moment) {
       m.roundId ? eq(notifications.roundId, m.roundId) : isNull(notifications.roundId),
       m.inviteId ? eq(notifications.inviteId, m.inviteId) : isNull(notifications.inviteId),
       m.seatRequestId ? eq(notifications.seatRequestId, m.seatRequestId) : isNull(notifications.seatRequestId),
+      m.harvestId ? eq(notifications.harvestId, m.harvestId) : isNull(notifications.harvestId),
       isNull(notifications.readAt), isNull(notifications.emailedAt),
     ))
     .limit(1);
@@ -95,7 +101,7 @@ export type NotificationView = {
 };
 
 function describe(r: {
-  kind: string; actorName: string | null; actorEmail: string | null; circleName: string | null; question: string | null;
+  kind: string; actorName: string | null; actorEmail: string | null; circleName: string | null; question: string | null; communityName: string;
   /** invitations and seats: who it's for, whether that's the reader, and a host's note */
   subject: string | null; forReader: boolean; selfAsked: boolean; hostNote: string | null;
 }): string {
@@ -120,6 +126,11 @@ function describe(r: {
     case "suggested": return `${who} suggested ${q} to ${r.circleName}. It needs support to open.`;
     case "answered": return `${who} answered your question ${q}.`;
     case "asked_everyone": return `${who} asked everyone ${q}.`;
+    case "harvest_proposed": return `${who} wants to open ${q} to ${r.communityName}. Share yours?`;
+    case "harvest_reminder": return `Two days left to share yours from ${q}.`;
+    case "harvest_up": return `${r.circleName}'s answers to ${q} are open to ${r.communityName}.`;
+    case "harvest_down": return `${r.circleName}'s harvest of ${q} came down: fewer than 3 are sharing now.`;
+    case "harvest_lapsed": return `Not enough yeses to open ${q}. Nothing was shared.`;
     default: return "Something happened.";
   }
 }
@@ -138,6 +149,7 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
       communityName: communities.name, communitySlug: communities.slug,
       actorName: user.name, actorEmail: user.email,
       circleName: circles.name, circleSlug: circles.slug, roundId: notifications.roundId, question: prompts.question,
+      harvestId: notifications.harvestId,
     })
     .from(notifications)
     .innerJoin(communities, eq(communities.id, notifications.communityId))
@@ -163,7 +175,8 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
       forReader: r.seatUserId === where.userId,
       selfAsked: r.seatUserId !== null && r.seatUserId === r.seatAskedBy,
     }),
-    href: r.roundId ? `/c/${r.communitySlug}/r/${r.roundId}`
+    href: r.kind === "harvest_up" && r.harvestId ? `/c/${r.communitySlug}/h/${r.harvestId}`
+      : r.roundId ? `/c/${r.communitySlug}/r/${r.roundId}`
       : r.circleSlug ? `/c/${r.communitySlug}/circles/${r.circleSlug}`
       : r.kind === "invite_suggested" ? `/c/${r.communitySlug}/people#waiting`
       : `/c/${r.communitySlug}`,

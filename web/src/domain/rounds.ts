@@ -22,6 +22,7 @@ import { newId } from "@/lib/id";
 import { activeMemberCount, isCircleMember } from "./circles";
 import { membershipOf, requireMember } from "./communities";
 import { refuse } from "./errors";
+import { refreshHarvestItem } from "./harvests";
 import { notifyCircle, notifyCommunity, notifyOne } from "./notifications";
 import { cleanWord, createPrompt, promptById, wordKey, type Prompt, type PromptInput } from "./prompts";
 
@@ -307,6 +308,8 @@ export async function respond(
     // After the close: text only, and only if the round allows it.
     if (!round.editAfterClose) refuse("Responses to this question can't be changed now.");
     await db.update(responses).set({ text, updatedAt: now }).where(eq(responses.id, existing.id));
+    // Shared into a harvest already? It shows the answer as it is now.
+    await refreshHarvestItem(db, { roundId, userId, now });
     return existing.id;
   }
 

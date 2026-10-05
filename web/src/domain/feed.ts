@@ -15,6 +15,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { DB } from "@/db";
 import { circleMembers, circles, prompts, responses, rounds, user } from "@/db/schema";
 import { displayName } from "@/lib/names";
+import { harvestsByPrompt } from "./harvests.read";
 
 export type FeedItem = Awaited<ReturnType<typeof feed>>[number];
 
@@ -48,6 +49,8 @@ export async function feed(db: DB, communityId: string, viewerId: string) {
       .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId))),
   ]);
 
+  // Harvests show on their question and filter the feed; they never move the ranking.
+  const harvested = await harvestsByPrompt(db, communityId);
   const circleById = new Map(circleRows.map((c) => [c.id, c]));
   const total = Math.max(1, circleRows.filter((c) => c.status === "active" || c.status === "idle").length);
   const runById = new Map(runRows.map((r) => [r.id, r]));
@@ -130,6 +133,7 @@ export async function feed(db: DB, communityId: string, viewerId: string) {
         lastActivity: new Date(Math.max(...runs.map((r) => (r.closedAt ?? r.openedAt ?? p.createdAt).getTime()))),
         beyond: 0,
         arrived: false,
+        harvests: (harvested.get(p.id) ?? []).map((h) => ({ id: h.id, circleName: h.circleName, circleColor: h.circleColor, shared: h.shared })),
         suggestable: myCircles
           .filter((id) => !waitingOrOpen.has(id))
           .map((id) => ({ id, name: circleById.get(id)!.name })),

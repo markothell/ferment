@@ -366,9 +366,88 @@ export const notifications = pgTable(
     roundId: text().references(() => rounds.id, { onDelete: "cascade" }),
     inviteId: text().references(() => invites.id, { onDelete: "cascade" }),
     seatRequestId: text().references(() => seatRequests.id, { onDelete: "cascade" }),
+    harvestId: text().references((): AnyPgColumn => harvests.id, { onDelete: "cascade" }),
     createdAt: timestamp().notNull().defaultNow(),
     readAt: timestamp(),
     emailedAt: timestamp(),
   },
   (t) => [index().on(t.userId, t.readAt), index().on(t.emailedAt)],
+);
+
+// ── Harvests: a circle opens a closed round to its community (PLAN §11) ─────
+//
+// Publishing is a copy, never a flag (08 PROTOCOLS §5): a harvest holds its own
+// snapshot of the question, and each shared answer is copied into
+// harvest_items when its author says yes and deleted when they take it out.
+// The community's read side (domain/harvests.read.ts) reads only these two
+// tables. harvest_choices is the circle's private record of who said what.
+
+export const harvestStatus = pgEnum("harvest_status", ["gathering", "up", "down", "lapsed"]);
+
+export const harvests = pgTable(
+  "harvests",
+  {
+    id: text().primaryKey(),
+    communityId: text()
+      .notNull()
+      .references(() => communities.id, { onDelete: "cascade" }),
+    circleId: text()
+      .notNull()
+      .references(() => circles.id, { onDelete: "cascade" }),
+    // One harvest per round; proposing again after a lapse replaces it.
+    roundId: text()
+      .notNull()
+      .unique()
+      .references(() => rounds.id, { onDelete: "cascade" }),
+    // For the feed: which question it hangs under.
+    promptId: text().references(() => prompts.id, { onDelete: "set null" }),
+    proposedBy: text().references(() => user.id, { onDelete: "set null" }),
+    status: harvestStatus().notNull().default("gathering"),
+    // The snapshot the community reads.
+    question: text().notNull(),
+    shape: shape().notNull(),
+    axes: jsonb().$type<Axis[]>().notNull().default([]),
+    // How many had answered when it was proposed: "4 of 6 shared".
+    answered: integer().notNull(),
+    // The week: yeses are taken until then; taking yours out works any time.
+    closesAt: timestamp().notNull(),
+    remindedAt: timestamp(),
+    createdAt: timestamp().notNull().defaultNow(),
+    upAt: timestamp(),
+    downAt: timestamp(),
+  },
+  (t) => [index().on(t.communityId, t.status), index().on(t.circleId, t.status), index().on(t.promptId)],
+);
+
+export const harvestChoices = pgTable(
+  "harvest_choices",
+  {
+    harvestId: text()
+      .notNull()
+      .references(() => harvests.id, { onDelete: "cascade" }),
+    userId: userRef().notNull(),
+    share: boolean().notNull(),
+    at: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.harvestId, t.userId] })],
+);
+
+export const harvestItems = pgTable(
+  "harvest_items",
+  {
+    harvestId: text()
+      .notNull()
+      .references(() => harvests.id, { onDelete: "cascade" }),
+    userId: userRef().notNull(),
+    name: text().notNull(),
+    text: text().notNull().default(""),
+    transcript: text(),
+    audioUrl: text(),
+    audioSeconds: real(),
+    x: real(),
+    y: real(),
+    words: text().array().notNull().default(sql`'{}'::text[]`),
+    sharedAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.harvestId, t.userId] })],
 );

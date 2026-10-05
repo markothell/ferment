@@ -9,6 +9,7 @@
 import { and, asc, eq, lte } from "drizzle-orm";
 import type { DB } from "@/db";
 import { responses } from "@/db/schema";
+import { refreshHarvestItem } from "./harvests";
 
 export type Transcriber = (audioUrl: string) => Promise<string>;
 
@@ -23,7 +24,7 @@ const CLOCK_BATCH = 10;
 /** Transcribe one pending answer. Never throws: the answer is saved either way. */
 export async function transcribeResponse(db: DB, transcribe: Transcriber, responseId: string): Promise<"ready" | "failed" | "later" | "skipped"> {
   const [r] = await db
-    .select({ audioUrl: responses.audioUrl, status: responses.transcriptStatus })
+    .select({ audioUrl: responses.audioUrl, status: responses.transcriptStatus, roundId: responses.roundId, userId: responses.userId })
     .from(responses)
     .where(eq(responses.id, responseId))
     .limit(1);
@@ -35,6 +36,8 @@ export async function transcribeResponse(db: DB, transcribe: Transcriber, respon
       .update(responses)
       .set({ transcript, transcriptStatus: "ready" })
       .where(and(eq(responses.id, responseId), eq(responses.transcriptStatus, "pending")));
+    // Already shared into a harvest? It gets the transcript too.
+    await refreshHarvestItem(db, { roundId: r.roundId, userId: r.userId });
     return "ready";
   } catch (e) {
     console.error(`[transcripts] ${responseId}:`, e instanceof Error ? e.message : e);

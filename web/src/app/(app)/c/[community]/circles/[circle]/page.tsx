@@ -12,6 +12,7 @@ import { relative } from "@/lib/time";
 import { CircleMap } from "@/components/app/CircleMap";
 import { Form } from "@/components/app/Form";
 import { CircleGlyph } from "@/components/app/Glyph";
+import { circleHarvests } from "@/domain/harvests.read";
 import { PromptFields } from "@/components/app/PromptFields";
 import { RoundRow } from "@/components/app/RoundRow";
 import { Top } from "@/components/app/Top";
@@ -37,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CirclePage({ params }: Props) {
   const { me, community, circle } = await load(params);
-  const home = await circleHome(db, circle, me.id);
+  const [home, harvested] = await Promise.all([circleHome(db, circle, me.id), circleHarvests(db, community.id, circle.id)]);
   const [all, responders] = home.isMember
     ? await Promise.all([circleRounds(db, circle.id, me.id), circleResponders(db, circle.id)])
     : [[], {} as Record<string, string[]>];
@@ -146,6 +147,25 @@ export default async function CirclePage({ params }: Props) {
             </details>
           )}
         </section>
+
+        {harvested.length > 0 && (
+          <section className={`tint-${circle.color} space-y-3`}>
+            <h2 className="display text-2xl">Harvests</h2>
+            <p className="text-sm text-[var(--ink-soft)]">Rounds {circle.name} opened to {community.name}.</p>
+            <ul className="space-y-3">
+              {harvested.map((h) => (
+                <li key={h.id}>
+                  <Link href={`/c/${community.slug}/h/${h.id}`} className="card block space-y-1 border-l-2 border-l-[var(--tint)]">
+                    <p className="text-lg leading-snug">{h.question}</p>
+                    <p className="mono text-xs text-[var(--ink-faint)]">
+                      {h.shared} of {h.answered} shared{h.upAt && ` · opened ${h.upAt.toLocaleDateString("en", { day: "numeric", month: "long" })}`}
+                    </p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {asking.length > 0 && (
           <section className="space-y-3">

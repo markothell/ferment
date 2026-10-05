@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { circleById } from "@/domain/circles";
 import { Refusal } from "@/domain/errors";
+import { harvestForRound } from "@/domain/harvests";
 import { replyContext, repliesTo } from "@/domain/replies";
 import { roundView } from "@/domain/rounds";
 import { formatDuration } from "@/lib/audio/recorder";
@@ -12,6 +13,7 @@ import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
 import { Composer } from "@/components/app/Composer";
 import { Form } from "@/components/app/Form";
+import { HarvestPanel } from "@/components/app/HarvestPanel";
 import { PlacementInput } from "@/components/app/PlacementInput";
 import { PlacementResult } from "@/components/app/PlacementResult";
 import { WordsInput } from "@/components/app/WordsInput";
@@ -36,7 +38,8 @@ async function load(params: Props["params"]) {
   const [replies, context] = circle && view.canTakePart
     ? await Promise.all([repliesTo(db, view.round.id, ctx.me.id), replyContext(db, view.round, ctx.me.id)])
     : [[], null];
-  return { ...ctx, view, circle, replies, context };
+  const harvest = circle && view.canTakePart && view.round.phase === "closed" ? await harvestForRound(db, view.round.id, ctx.me.id) : undefined;
+  return { ...ctx, view, circle, replies, context, harvest };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -51,7 +54,7 @@ const REVEAL_NOTE = {
 } as const;
 
 export default async function RoundPage({ params }: Props) {
-  const { me, community, view, circle, replies, context } = await load(params);
+  const { me, community, view, circle, replies, context, harvest } = await load(params);
   const { round, prompt } = view;
   const base = `/c/${community.slug}`;
   const open = round.phase === "open";
@@ -201,6 +204,22 @@ export default async function RoundPage({ params }: Props) {
             </ul>
           )}
         </section>
+
+        {harvest !== undefined && (
+          <div className={`tint-${circle!.color}`}>
+            <HarvestPanel
+              community={community.slug}
+              communityName={community.name}
+              roundId={round.id}
+              answered={view.responders.length}
+              view={harvest}
+              mine={view.mine ? {
+                name: displayName(view.mine), text: view.mine.text, audioUrl: view.mine.audioUrl, audioSeconds: view.mine.audioSeconds,
+                transcript: view.mine.transcriptStatus === "ready" ? view.mine.transcript : null, words: view.mine.words,
+              } : null}
+            />
+          </div>
+        )}
 
         {replyable && (
           <section className="space-y-4 border-t border-[var(--rule)] pt-6">

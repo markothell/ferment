@@ -1,6 +1,7 @@
 // The clock (PLAN §7): the only work that happens because time passed.
 // Rounds whose timer ran out close, unfilled proposals lapse, invitations and
-// seat requests nobody decided in 14 days lapse, waiting notifications go out
+// seat requests nobody decided in 14 days lapse, harvests get their reminder
+// and lapse at the end of their week, waiting notifications go out
 // by email, and recordings still without a transcript
 // get one. Idempotent; run every 15 minutes. Takes the database, the mail
 // sender and the transcriber so tests can pass their own.
@@ -11,6 +12,7 @@ import { communities, rounds } from "@/db/schema";
 import type { Mail } from "@/lib/email";
 import { appUrl } from "@/lib/urls";
 import { expireProposals } from "./circles";
+import { tickHarvests } from "./harvests";
 import { lapseInvites } from "./invites";
 import { dueEmails, listNotifications, markEmailed } from "./notifications";
 import { settleCircle } from "./rounds";
@@ -31,7 +33,8 @@ export async function runClock(db: DB, send: (mail: Mail) => Promise<void>, now 
     .set({ phase: "closed", closedAt: now, closedVia: "timer" })
     .where(and(eq(rounds.phase, "open"), isNull(rounds.circleId), lte(rounds.closesAt, now)));
 
-  const lapsed = (await lapseInvites(db, now)) + (await lapseSeats(db, now));
+  const harvested = await tickHarvests(db, now);
+  const lapsed = (await lapseInvites(db, now)) + (await lapseSeats(db, now)) + harvested.lapsed;
   const sent = await deliver(db, send, now);
   const transcribed = transcribe ? await transcribePending(db, transcribe, now) : 0;
   return { expired: expired.length, settled: due.length, lapsed, emails: sent, transcribed };

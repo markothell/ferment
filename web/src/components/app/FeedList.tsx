@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { FeedItem } from "@/domain/feed";
 import { suggestFromFeed } from "@/app/(app)/c/[community]/actions";
 import { Form } from "./Form";
+import { CircleGlyph } from "./Glyph";
 import { Ripple } from "./Ripple";
 
 function meta(item: FeedItem) {
@@ -33,6 +34,13 @@ export function FeedList({
                   <span className="mono text-[11px] text-[var(--ink-faint)]">
                     {meta(item)}
                     {open && <span className="live">{item.everyone?.open ? " · ● open" : ` · ● open in ${item.openIn}`}</span>}
+                    {item.harvests.length > 0 && (
+                      <span className="text-[var(--shared)]">
+                        {" · "}
+                        <span className="inline-flex translate-y-[2px]"><CircleGlyph size={12} /></span>
+                        {` ${item.harvests.length} ${item.harvests.length === 1 ? "harvest" : "harvests"}`}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <span className="feed-chev" aria-hidden>›</span>
@@ -67,6 +75,22 @@ export function FeedList({
 
                 {item.everyone && (
                   <p><Link className="link" href={`${base}/r/${item.everyone.roundId}`}>See the answers from everyone →</Link></p>
+                )}
+
+                {item.harvests.length > 0 && (
+                  <div className="space-y-1.5">
+                    <p className="mono text-[11px] text-[var(--ink-faint)]">Opened to the community by</p>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {item.harvests.map((h) => (
+                        <li key={h.id}>
+                          <Link href={`${base}/h/${h.id}`} className="chip">
+                            <CircleGlyph size={14} color={h.circleColor} />
+                            {h.circleName} · {h.shared} shared
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
                 {item.replies.length > 0 && (

@@ -43,6 +43,13 @@
       "when": 1790938138566,
       "tag": "0005_circle_color",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791197518999,
+      "tag": "0006_harvests",
+      "breakpoints": true
     }
   ]
 }
