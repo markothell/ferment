@@ -4,7 +4,7 @@ import { Top } from "@/components/app/Top";
 
 export const metadata: Metadata = { title: "A community · ferment" };
 
-// The review fixture from design/ferment/previews/community.html. Read-only; no sign-in.
+// The review fixture from design/ferment/archive/community.html. Read-only; no sign-in.
 const NAMES = ["Ama","Bo","Cleo","Dev","Esi","Finn","Gus","Hana","Ines","Jo","Kofi","Lena","Milo","Nia","Oren","Pia","Quin","Rae","Sol","Tam",
   "Uma","Vic","Wren","Xan","Yara","Zed","Ada","Ben","Cal","Dina","Eli","Fay","Gil","Hal","Ivy","Jun","Kit","Lou","May","Ned"];
 const id = (i: number) => `p${i}`;

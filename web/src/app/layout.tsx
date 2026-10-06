@@ -1,18 +1,24 @@
 import type { Metadata } from "next";
+import { Fraunces, Geist_Mono, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
+import "./ferment.css";
 import { PROJECT_NAME } from "@/lib/brand";
 
-// Type is system-resident, as in the circles app: Iowan Old Style for display,
-// Seravek for everything else. Nothing fetched.
+// Fraunces for headlines (soft and wonky, so it carries those two axes), Hanken
+// Grotesk for everything else, Geist Mono for counts and states.
+const fraunces = Fraunces({ subsets: ["latin"], style: ["normal", "italic"], axes: ["SOFT", "WONK", "opsz"], variable: "--font-fraunces" });
+const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-hanken" });
+const geistMono = Geist_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-geist-mono" });
+
 export const metadata: Metadata = {
-  title: `${PROJECT_NAME} — tools for becoming community`,
+  title: `${PROJECT_NAME} — how people become community`,
   description:
-    "A circle is a small group that thinks together, each on their own time. Propose a question, see who joins, and share what you find with the wider community.",
+    "Invite your people, pick what matters, and gather in small circles to talk it through. What a circle finds is shared with the community, and good conversations travel on.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" className={`${fraunces.variable} ${hanken.variable} ${geistMono.variable}`}>
       <body>{children}</body>
     </html>
   );

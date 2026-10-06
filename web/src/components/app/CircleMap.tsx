@@ -16,7 +16,7 @@ function when(r: MapRound, now: Date): string {
 }
 
 /**
- * The circle map (design/ferment/previews/circle.html). Participation lines
+ * The circle map (design/ferment/archive/circle.html). Participation lines
  * always show faintly; focusing a round brings its own lines to full strength
  * and eases the others back. Seats never dim. Tap to pin a round and follow
  * it; empty seats show how many more a forming circle needs, and a dashed

@@ -1,4 +1,4 @@
-// Seats: how a running circle grows (PLAN §11; design/ferment/previews/invitations.html).
+// Seats: how a running circle grows (PLAN §11; design/ferment/archive/invitations.html).
 //
 //   waiting ─(a third of members support, at least 2 · or the host makes room)→ admitted
 //   waiting ─(the host: not now)→ declined · (the asker or the person: withdraw)→ withdrawn

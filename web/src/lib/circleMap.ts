@@ -1,8 +1,8 @@
-// The circle map's geometry (design/ferment/previews/circle.html, approved
+// The circle map's geometry (design/ferment/archive/circle.html, approved
 // 2026-09-28): seats on a ring; rounds threaded in the order they happened,
 // in a loose spiral of straight segments from the oldest outside to the open
 // question at the center; one person's waiting suggestions as short spurs off
-// their seat. Replies (design/ferment/previews/replies.html) branch off the
+// their seat. Replies (design/ferment/archive/replies.html) branch off the
 // round they answer: a spur while they wait, a smaller node once they open,
 // and a chain deeper than three folds to ●─●··●. Pure, so it can be tested
 // and drawn anywhere.

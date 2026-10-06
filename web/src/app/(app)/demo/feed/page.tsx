@@ -5,7 +5,7 @@ import { Top } from "@/components/app/Top";
 
 export const metadata: Metadata = { title: "What we're talking about · ferment" };
 
-// The review fixture from design/ferment/previews/community.html. Read-only.
+// The review fixture from design/ferment/archive/community.html. Read-only.
 // `beyond` and `arrived` are the unbuilt platform-level spread, shown here as the concept.
 const c = (id: string, name: string, open = false, viaAdaptation = false) => ({ id, slug: id, name, open, first: null, viaAdaptation });
 const base = {

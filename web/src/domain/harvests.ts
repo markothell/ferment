@@ -1,4 +1,4 @@
-// Harvests (PLAN §11; design/ferment/previews/harvests.html): a circle opens a
+// Harvests (PLAN §11; design/ferment/archive/harvests.html): a circle opens a
 // closed round to its community.
 //
 //   anyone in the circle proposes ─→ gathering (a week)

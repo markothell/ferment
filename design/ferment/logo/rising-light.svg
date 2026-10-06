@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="ferment">
-  <path d="M8,52 A15,15 0 0 1 38,52" fill="none" stroke="#1C2A25" stroke-width="5" stroke-linecap="round"/>
-  <path d="M26,52 A15,15 0 0 1 56,52" fill="none" stroke="#1C2A25" stroke-width="5" stroke-linecap="round"/>
-  <circle cx="32" cy="26" r="4.6" fill="#D99A1E"/>
-  <circle cx="24" cy="14.5" r="3.3" fill="#D99A1E"/>
-  <circle cx="39" cy="7.5" r="3.8" fill="#D99A1E"/>
+  <path d="M8,52 A15,15 0 0 1 38,52" fill="none" stroke="#2A1D22" stroke-width="5" stroke-linecap="round"/>
+  <path d="M26,52 A15,15 0 0 1 56,52" fill="none" stroke="#2A1D22" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="32" cy="26" r="4.6" fill="#D99414"/>
+  <circle cx="24" cy="14.5" r="3.3" fill="#D99414"/>
+  <circle cx="39" cy="7.5" r="3.8" fill="#D99414"/>
 </svg>

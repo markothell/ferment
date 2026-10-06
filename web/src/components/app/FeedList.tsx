@@ -35,7 +35,7 @@ export function FeedList({
                     {meta(item)}
                     {open && <span className="live">{item.everyone?.open ? " · ● open" : ` · ● open in ${item.openIn}`}</span>}
                     {item.harvests.length > 0 && (
-                      <span className="text-[var(--shared)]">
+                      <span>
                         {" · "}
                         <span className="inline-flex translate-y-[2px]"><CircleGlyph size={12} /></span>
                         {` ${item.harvests.length} ${item.harvests.length === 1 ? "harvest" : "harvests"}`}

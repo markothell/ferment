@@ -13,7 +13,7 @@ const day = (d: Date) => d.toLocaleDateString("en", { day: "numeric", month: "lo
 
 /**
  * On a closed round, for people in its circle: open it to the community
- * (design/ferment/previews/harvests.html). Each person who answered decides
+ * (design/ferment/archive/harvests.html). Each person who answered decides
  * about their own answer; only the yeses go in.
  */
 export function HarvestPanel({

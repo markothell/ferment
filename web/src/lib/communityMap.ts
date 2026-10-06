@@ -1,4 +1,4 @@
-// The community map, "a circle of circles" (design/ferment/previews/community.html,
+// The community map, "a circle of circles" (design/ferment/archive/community.html,
 // chosen 2026-09-29): everyone on an outer ring; each circle inside, pulled
 // toward its members; the community's open questions at the center. Pure.
 

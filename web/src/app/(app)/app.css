@@ -1,46 +1,6 @@
-/* Ferment — the Culture palette (09_community/design/ferment/palette.css),
-   scoped to the app so the draft lander keeps its own tokens for now.
-   --live marks what is open right now and nothing else. */
-
-.ferment {
-  --ground:    #E7EAD6;
-  --raised:    #F6F7EE;
-  --ink:       #1C2A25;
-  --ink-soft:  #4E5F58;
-  --ink-faint: #7C8B83;
-  --live:      #1E7F72;
-  --mine:      #C94B66;
-  --shared:    #D99A1E;
-  --shared-soft: #EDD9A6;
-  --rule:        rgba(28, 42, 37, 0.13);
-  --rule-strong: rgba(28, 42, 37, 0.30);
-  color-scheme: light;
-
-  min-height: 100dvh;
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--font-hanken), system-ui, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  .ferment {
-    --ground:    #111A17;
-    --raised:    #182420;
-    --ink:       #E3E8D5;
-    --ink-soft:  #9FAEA5;
-    --ink-faint: #6F7F77;
-    --live:      #43B8A5;
-    --mine:      #EC7E93;
-    --shared:    #E6AE45;
-    --shared-soft: #4A4226;
-    --rule:        rgba(227, 232, 213, 0.12);
-    --rule-strong: rgba(227, 232, 213, 0.28);
-    color-scheme: dark;
-  }
-}
-
-.ferment .display { font-family: var(--font-instrument), Georgia, serif; font-weight: 400; }
-.ferment .mono    { font-family: var(--font-geist-mono), ui-monospace, monospace; }
+/* The app's components. The palette, the grain and the type classes are in
+   ../ferment.css, shared with the homepage. --live marks what is open right now
+   and nothing else. */
 
 .ferment .field {
   width: 100%;

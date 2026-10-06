@@ -1,4 +1,4 @@
-// "What we're talking about" (PLAN §2; design/ferment/previews/community.html):
+// "What we're talking about" (PLAN §2; design/ferment/archive/community.html):
 // the questions this community has actually asked, each with how far it has
 // spread. Adoption by independent circles is the only ranking: a question
 // counts every distinct circle that ran it or an adaptation of it.

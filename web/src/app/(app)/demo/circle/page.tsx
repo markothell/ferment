@@ -5,8 +5,8 @@ import type { MapRound } from "@/lib/circleMap";
 
 export const metadata: Metadata = { title: "A circle · ferment" };
 
-// The review fixture from design/ferment/previews/circle.html: nine people,
-// ten months in, with the replies from previews/replies.html branching off.
+// The review fixture from design/ferment/archive/circle.html: nine people,
+// ten months in, with the replies from archive/replies.html branching off.
 // Read-only; no sign-in.
 const PEOPLE = ["Ama", "Bo", "Cleo", "Dev", "Esi", "Finn", "Gus", "Hana", "Ines"];
 const PAST: [string, number, number[]][] = [

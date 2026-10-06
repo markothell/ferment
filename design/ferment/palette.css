@@ -1,59 +1,48 @@
-/* Ferment: Culture palette, reference only.
-   Not wired into web/. Copy what you need when you start building.
-   Rule carried from Toono: --live marks what is open right now and nothing else. */
+/* Ferment: the Starter palette, for reference.
+   The live copy is web/src/app/ferment.css; keep the two in step.
+   Rules: --live marks what is open right now and nothing else. --mine is you, or one
+   person's mark. --shared is what the group made together. Beet fills a button only on
+   the homepage; inside the app buttons are ink. */
 
 :root {
-  --ground:    #E7EAD6; /* Agar: page background */
-  --raised:    #F6F7EE; /* Whey: cards, seats, inputs */
-  --ink:       #1C2A25; /* Brine: text, lines, the logo's arcs */
-  --ink-soft:  #4E5F58; /* secondary text */
-  --ink-faint: #7C8B83; /* labels, names under seats */
-  --live:      #1E7F72; /* Verdigris: open now, the only green */
-  --mine:      #C94B66; /* Beet: you, or one person's mark */
-  --shared:    #D99A1E; /* Saffron: what the group made together, the logo's thoughts */
-  --shared-soft: #EDD9A6; /* fill for shared nodes on the circle map (outlined in --shared) */
-  --rule:        rgba(28, 42, 37, 0.13);
-  --rule-strong: rgba(28, 42, 37, 0.30);
+  --ground:      #E8DBC4; /* Crumb: page background, under a fine grain (multiply .55; screen .18 in dark) */
+  --raised:      #F3EDDD; /* Cream: cards, seats, inputs */
+  --ink:         #2A1D22; /* Plum-black: text, lines, the logo's arcs */
+  --ink-soft:    #5F4B50; /* secondary text */
+  --ink-faint:   #7E6B69; /* labels, names under seats */
+  --live:        #17675C; /* Verdigris, deepened for crumb: open now, the only green */
+  --mine:        #A3234A; /* Beet: you, or one person's mark */
+  --on-mine:     #FFF6EE; /* text on beet */
+  --shared:      #D99414; /* Saffron: what the group made together, the logo's thoughts */
+  --shared-soft: #F1D08A; /* fill for shared nodes (outlined in --shared) */
+  --rule:        rgba(42, 29, 34, 0.14);
+  --rule-strong: rgba(42, 29, 34, 0.32);
 
-  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif; /* headlines only */
-  --font-body:    "Hanken Grotesk", system-ui, sans-serif;               /* wordmark, body, UI, initials */
-  --font-mono:    "Geist Mono", ui-monospace, monospace;                  /* counts, states, small labels */
+  --font-display: "Fraunces", Georgia, serif;          /* headlines: SOFT 100, WONK 1, weight 520–560 */
+  --font-body:    "Hanken Grotesk", system-ui, sans-serif; /* wordmark, body, UI, initials */
+  --font-mono:    "Geist Mono", ui-monospace, monospace;   /* counts, states, small lowercase labels */
 
   color-scheme: light;
 }
 
-/* Dark: lifted accents on a deep green-black, not an inversion. */
+/* Dark: a deep plum-brown crock, lifted accents. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground:    #111A17; /* Cellar */
-    --raised:    #182420; /* Crock */
-    --ink:       #E3E8D5; /* Lantern */
-    --ink-soft:  #9FAEA5;
-    --ink-faint: #6F7F77;
-    --live:      #43B8A5;
-    --mine:      #EC7E93;
-    --shared:    #E6AE45;
-    --shared-soft: #4A4226;
-    --rule:        rgba(227, 232, 213, 0.12);
-    --rule-strong: rgba(227, 232, 213, 0.28);
+    --ground:      #1E1619; /* Crock */
+    --raised:      #29211F;
+    --ink:         #F4E6D6;
+    --ink-soft:    #C2AFA3;
+    --ink-faint:   #8F7D77;
+    --live:        #43B8A5;
+    --mine:        #F27E9A;
+    --on-mine:     #22171A;
+    --shared:      #F2B64C;
+    --shared-soft: #5A4320;
+    --rule:        rgba(244, 230, 214, 0.12);
+    --rule-strong: rgba(244, 230, 214, 0.28);
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
-  --ground:    #111A17;
-  --raised:    #182420;
-  --ink:       #E3E8D5;
-  --ink-soft:  #9FAEA5;
-  --ink-faint: #6F7F77;
-  --live:      #43B8A5;
-  --mine:      #EC7E93;
-  --shared:    #E6AE45;
-  --shared-soft: #4A4226;
-  --rule:        rgba(227, 232, 213, 0.12);
-  --rule-strong: rgba(227, 232, 213, 0.28);
-  color-scheme: dark;
-}
 
-/* Google Fonts:
-   https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap
-   In Next, next/font/google has all three. */
+/* Circle colours (web/src/app/(app)/circles.css) are unchanged: saffron, clay, moss,
+   slate, plum. Never verdigris or beet. */

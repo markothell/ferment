@@ -1,5 +1,5 @@
 /**
- * How far a question has spread (design/ferment/previews/community.html).
+ * How far a question has spread (design/ferment/archive/community.html).
  * Center: where it started, filled if here, hollow if it arrived from another
  * community. Inner ring: the share of this community's circles that took it
  * up (green and full when it's open to everyone). Outer ring: one tick per

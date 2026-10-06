@@ -1,4 +1,4 @@
-// Replies (design/ferment/previews/replies.html): a follow-up round the whole
+// Replies (design/ferment/archive/replies.html): a follow-up round the whole
 // circle takes a turn on, answering an earlier round and optionally pointing
 // at one person's answer in it. A reply is an ordinary round in every other
 // way — support, queue, reveal, answers — and lives on its parent's branch of

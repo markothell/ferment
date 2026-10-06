@@ -1,0 +1,151 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ferment Headlines</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..800,0..100,0..1;1,9..144,300..800,0..100,0..1&family=Geist+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600&display=swap">
+<style>
+  /* Starter, kept: crumb ground, plum-black ink, pickle green, beet, honey, crust. Fraunces set soft and fat.
+     Dropped: the wobbly shapes, the rising bubbles, the glow behind the hero. */
+  :root {
+    --g: #E8DBC4; --r: #F6EEDF; --i: #2A1D22; --s: #5F4B50; --f: #8B7876;
+    --lv: #3E6A1F; --mn: #A3234A; --sh: #D99414; --crust: #9C5B2A;
+    --ru: rgba(42,29,34,.14); --rs: rgba(42,29,34,.32);
+    --on-mn: #FFF6EE; --grain-blend: multiply; --grain-op: .6;
+    --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --g: #1E1619; --r: #2A1F23; --i: #F4E6D6; --s: #C2AFA3; --f: #8A7872;
+    --lv: #A0C86E; --mn: #F27E9A; --sh: #F2B64C; --crust: #D08A55;
+    --ru: rgba(244,230,214,.12); --rs: rgba(244,230,214,.28);
+    --on-mn: #22171A; --grain-blend: screen; --grain-op: .2;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --g: #1E1619; --r: #2A1F23; --i: #F4E6D6; --s: #C2AFA3; --f: #8A7872;
+      --lv: #A0C86E; --mn: #F27E9A; --sh: #F2B64C; --crust: #D08A55;
+      --ru: rgba(244,230,214,.12); --rs: rgba(244,230,214,.28);
+      --on-mn: #22171A; --grain-blend: screen; --grain-op: .2;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--g); color: var(--i); font: 16px/1.55 var(--sans); padding: 40px 16px 96px; }
+  .wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 40px; }
+  .eyebrow { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--s); }
+  .head { display: grid; gap: 14px; max-width: 66ch; }
+  .head h1 { margin: 0; font: 560 clamp(34px, 5vw, 52px)/1 var(--display); font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 72; letter-spacing: -.02em; }
+  .head p { margin: 0; color: var(--s); }
+  .theme { display: flex; gap: 8px; align-items: center; }
+  .theme > span { font: 400 12px/1 var(--mono); color: var(--s); margin-right: 4px; }
+  .theme button { font: 500 13px/1 var(--sans); color: var(--s); background: var(--r); border: 1px solid var(--ru); padding: 9px 14px; border-radius: 999px; cursor: pointer; }
+  .theme button[aria-pressed="true"] { background: var(--i); color: var(--g); border-color: var(--i); }
+  .theme button:focus-visible, .btn:focus-visible { outline: 2px solid var(--lv); outline-offset: 2px; }
+
+  .opt { display: grid; gap: 10px; }
+  .opt .label { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+  .opt .label b { font: 600 14px/1.3 var(--sans); }
+  .opt .label span { font-size: 14px; color: var(--s); }
+
+  .hero { position: relative; isolation: isolate; overflow: hidden; border-radius: 18px; border: 1px solid var(--ru); background: var(--g);
+          padding: 26px 32px 44px; display: flex; flex-direction: column; gap: 18px; min-height: 560px; }
+  .hero::before { content: ""; position: absolute; inset: 0; z-index: -1; opacity: var(--grain-op); mix-blend-mode: var(--grain-blend); background-image: var(--grain); pointer-events: none; }
+  .hero nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .wm { display: inline-flex; align-items: center; gap: .3em; font: 500 24px/1 var(--sans); letter-spacing: -.035em; }
+  .wm svg { width: 1.2em; height: 1.2em; flex: none; }
+  .links { display: flex; gap: 22px; font-size: 14.5px; color: var(--s); }
+  .hl { margin-top: auto; display: grid; gap: 22px; }
+  .hero h2 { margin: 0; font: 560 clamp(44px, 7.6vw, 92px)/.94 var(--display); font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 120; letter-spacing: -.025em; text-wrap: balance; max-width: 13ch; }
+  .hero h2 em { color: var(--sh); font-weight: 480; }
+  .sub { margin: 0; color: var(--s); font-size: 17px; max-width: 44ch; }
+  .ctas { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .btn { background: var(--mn); color: var(--on-mn); font: 500 15px/1 var(--sans); padding: 14px 22px; border-radius: 999px; border: 0; cursor: pointer; }
+  .quiet { color: var(--i); font-size: 15px; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
+
+  .ref .hero { min-height: 0; padding-top: 22px; }
+  .ref .hero h2 { font-size: clamp(34px, 5vw, 56px); }
+
+  @media (max-width: 720px) {
+    .hero { min-height: 480px; padding: 20px 20px 30px; }
+    .links { display: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <div class="eyebrow">ferment.earth · homepage · headlines</div>
+    <h1>Three headlines in Starter</h1>
+    <p>This keeps the Starter type and colors and drops the wobbly shapes, the bubble animation and the glow behind the hero. Only the headline changes between versions. The subline and buttons are written from the community's side: you start a community, and circles happen inside it.</p>
+    <div class="theme" role="group" aria-label="Theme">
+      <span>Theme</span>
+      <button type="button" data-t="light" aria-pressed="false">Light</button>
+      <button type="button" data-t="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <section class="opt">
+    <div class="label"><b>1</b><span>The emphasis lands on conversation, which is what the app actually does.</span></div>
+    <div class="hero" data-hero>
+      <h2>Culture grows through <em>conversation</em>.</h2>
+    </div>
+  </section>
+
+  <section class="opt">
+    <div class="label"><b>2</b><span>The same words, with the emphasis on grows: the living part.</span></div>
+    <div class="hero" data-hero>
+      <h2>Culture <em>grows</em> through conversation.</h2>
+    </div>
+  </section>
+
+  <section class="opt">
+    <div class="label"><b>3</b><span>The current headline, with the emphasis moved from community to become.</span></div>
+    <div class="hero" data-hero>
+      <h2>How people <em>become</em> community.</h2>
+    </div>
+  </section>
+
+  <section class="opt ref">
+    <div class="label"><b>For reference</b><span>Last round's version.</span></div>
+    <div class="hero" data-hero>
+      <h2>Culture is something you <em>pass on</em>.</h2>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const hash = location.hash.slice(1);
+  if (hash === "light" || hash === "dark") root.dataset.theme = hash;
+  if (!root.dataset.theme) root.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const buttons = document.querySelectorAll(".theme button");
+  const mark = () => buttons.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.t === root.dataset.theme)));
+  buttons.forEach(b => b.addEventListener("click", () => { root.dataset.theme = b.dataset.t; mark(); }));
+  mark();
+
+  const grain = `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>`;
+  root.style.setProperty("--grain", `url("data:image/svg+xml;utf8,${grain}")`);
+
+  // Everything around the headline is the same in each version.
+  const LOGO = `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M8,52 A15,15 0 0 1 38,52" fill="none" stroke="var(--i)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M26,52 A15,15 0 0 1 56,52" fill="none" stroke="var(--i)" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="32" cy="26" r="4.6" fill="var(--sh)"/><circle cx="24" cy="14.5" r="3.3" fill="var(--sh)"/><circle cx="39" cy="7.5" r="3.8" fill="var(--sh)"/></svg>`;
+  document.querySelectorAll("[data-hero]").forEach(hero => {
+    const h2 = hero.querySelector("h2");
+    const nav = document.createElement("nav");
+    nav.innerHTML = `<span class="wm">${LOGO}ferment</span><span class="links"><span>How it works</span><span>Sign in</span></span>`;
+    const hl = document.createElement("div"); hl.className = "hl";
+    hl.innerHTML = `<p class="sub">A home for the people you already think with. Small circles form inside it, good questions travel between them, and what you make together gets passed on.</p>
+      <div class="ctas"><button class="btn" type="button">Start a community</button><span class="quiet">Look around a sample community</span></div>`;
+    hl.prepend(h2);
+    hero.append(nav, hl);
+  });
+})();
+</script>
