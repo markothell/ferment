@@ -23,6 +23,9 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
 ## Decided
 
 - **Name:** ferment, always lowercase, in Hanken Grotesk 500 with tracking at -0.035em.
+- **Address:** ferment.earth. It's the domain, not the mark: the wordmark stays "ferment",
+  the name people say. The address sits where people type or share it: the homepage footer,
+  the app footer, and the end of every email.
 - **Logo, "Rising":** two overlapping arcs in ink with three saffron thoughts rising above
   them, slightly off-center. The arcs are two circles of people, and their overlap makes the
   "m". Files are in `logo/` (light, dark, and a `currentColor` mono version). Never the live
@@ -35,9 +38,10 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
   lowercase.
 - **Shapes stay exact.** Circles are circles and lines are straight. Starter changed the
   colour and type only; the wobbly shapes and bubble animation were tried and dropped.
-- **Homepage** (`archive/home.html`):
-  - Headline: "How *people* become *community*." Both highlighted words in saffron, and
-    "community" also in italic. No subline.
+- **Homepage** (`archive/home.html`, where openers are collected newest first):
+  - The opener, arriving one line at a time: "We shape the world with our ideas. / We shape
+    our ideas with each other." then "Culture is grown in *conversation*." (conversation in
+    saffron italic) then "This is where you pass it on." The quiet lines bookend the headline.
   - Two ways in: **Start a conversation** (beet) and **Look in on open circles**.
   - "How it grows", five steps told at the social level, with one drawing in ink and saffron
     only: invite your people; pick what matters (from life or the library); gather in
@@ -75,9 +79,9 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
 - Kitchen table (Culture warmed through) as too timid; Preserves (a jar colour per circle) as
   breaking the colour rules.
 - Wobbly bubble shapes, rising-bubble animation, a glow behind the hero.
-- A rotating headline carousel. "We shape the world with our ideas. We shape our ideas with
-  each other. Culture is grown in conversation." is kept in `archive/home.html` as a sequence,
-  not chosen.
+- A rotating headline carousel; the opener arrives once and stays instead.
+- The big wordmark between the lead lines and the headline. It looked wrong in the middle.
+- Every other opener we tried is kept in `archive/home.html`.
 - A leaning beaker, vessel and jar versions of the logo; human figures in the logo.
 - Seat tallies on the circle map; a hero illustration.
 

@@ -63,13 +63,19 @@
   .btn { display: inline-block; background: var(--mn); color: var(--on-mn); font: 500 15px/1 var(--sans); padding: 15px 22px; border-radius: 999px; border: 0; text-decoration: none; cursor: pointer; }
   .quiet { color: var(--i); font-size: 15px; text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 2px; }
 
-  /* The sequence: three lines arrive one after another, then the last one stays. */
-  .seq .lead span, .seq h1 { opacity: 0; transform: translateY(10px); animation: arrive .9s ease-out forwards; }
-  .seq .lead span:nth-child(2) { animation-delay: 1.4s; }
-  .seq h1 { animation-delay: 2.8s; }
-  .seq .ctas { opacity: 0; animation: arrive .9s ease-out 3.8s forwards; }
-  @keyframes arrive { to { opacity: 1; transform: none; } }
-  @media (prefers-reduced-motion: reduce) { .seq .lead span, .seq h1, .seq .ctas { animation: none; opacity: 1; transform: none; } }
+  /* Openers, collected newest first. Static: each shows its finished state. */
+  .ops-head { display: grid; gap: 8px; padding: 28px 0 8px; max-width: 64ch; }
+  .ops-head h2 { margin: 0; font-weight: 560; font-size: 30px; line-height: 1.05; }
+  .ops-head p { margin: 0; color: var(--s); font-size: 15px; }
+  .op { border-top: 1px dashed var(--rs); padding-top: 14px; }
+  .op-label { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; font: 400 12px/1.4 var(--mono); color: var(--s); }
+  .op-label b { font-weight: 500; color: var(--i); }
+  .op-label .pick { color: var(--mn); }
+  .op .hero { min-height: 560px; padding: 32px 0 64px; }
+  .after { margin: 22px 0 0; font-weight: 420; font-size: clamp(24px, 3.2vw, 36px); line-height: 1.15; color: var(--s); }
+  .bigname { display: inline-flex; align-items: center; gap: .16em; margin: 18px 0 -6px; font: 500 clamp(44px, 6.4vw, 80px)/1 var(--sans); letter-spacing: -.035em; }
+  .bigname svg { width: 1.1em; height: 1.1em; }
+  .op .lead { margin-bottom: 18px; }
 
   /* Five steps */
   .band { border-top: 1px solid var(--ru); padding-top: 12px; font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--f); }
@@ -113,12 +119,6 @@
 
 <div class="wrap">
   <div class="review" aria-label="Review controls">
-    <div class="grp" role="group" aria-label="Headline">
-      <span>Headline</span>
-      <button type="button" data-h="become" aria-pressed="true">How people become community</button>
-      <button type="button" data-h="seq" aria-pressed="false">The sequence</button>
-      <button type="button" data-h="grown" aria-pressed="false">Culture is grown in conversation</button>
-    </div>
     <div class="grp" role="group" aria-label="Theme">
       <span>Theme</span>
       <button type="button" data-t="light">Light</button>
@@ -134,7 +134,11 @@
     <nav class="links"><span>Open circles</span><span>Sign in</span></nav>
   </header>
 
-  <section class="hero" id="hero"></section>
+  <section class="ops-head">
+    <h2 class="display">Openers</h2>
+    <p>Ideas for the top of the homepage, newest first. Each shows its finished state, without the fade-in. The rest of the page follows the last one.</p>
+  </section>
+  <div id="openers"></div>
 
   <div class="band">How it grows</div>
   <section class="how">
@@ -184,23 +188,53 @@
   const grain = `<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>`;
   root.style.setProperty("--grain", `url("data:image/svg+xml;utf8,${grain}")`);
 
-  // ── Headlines ──
+  // ── Openers, newest first. Add new ones at the top of the list. ──
   const CTAS = `<div class="ctas"><a class="btn" href="#">Start a conversation</a><a class="quiet" href="#">Look in on open circles</a></div>`;
-  const HEROES = {
-    become: `<h1 class="display">How <span class="hi">people</span> become <em class="hi">community</em>.</h1>${CTAS}`,
-    seq: `<div><div class="lead display"><span>We shape the world with our ideas.</span><span>We shape our ideas with each other.</span></div>
-          <h1 class="display">Culture is grown in <em class="hi">conversation</em>.</h1></div>${CTAS}`,
-    grown: `<h1 class="display">Culture is grown in <em class="hi">conversation</em>.</h1>${CTAS}`,
-  };
-  const hero = document.getElementById("hero");
-  const hbtn = document.querySelectorAll("[data-h]");
-  function setHero(k) {
-    hero.className = "hero" + (k === "seq" ? " seq" : "");
-    hero.innerHTML = HEROES[k];
-    hbtn.forEach(b => b.setAttribute("aria-pressed", String(b.dataset.h === k)));
-  }
-  hbtn.forEach(b => b.addEventListener("click", () => setHero(b.dataset.h)));
-  setHero("become");
+  const SHAPE = ["We shape the world with our ideas.", "We shape our ideas with each other."];
+  const MARK = document.querySelector(".top .wm svg").outerHTML;
+  const OPENERS = [
+    { when: "Oct 7", note: "On the homepage. Grown in conversation, then where. No product noun: the page itself is the place.", pick: true,
+      lead: SHAPE, h: 'Culture is grown in <em class="hi">conversation</em>.', after: "This is where you pass it on." },
+    { when: "Oct 7", note: "The same, with an invitation instead of a description.",
+      lead: SHAPE, h: 'Culture is grown in <em class="hi">conversation</em>.', after: "Come pass it on." },
+    { when: "Oct 7", note: "Grows in community, then a place.",
+      lead: SHAPE, h: 'Culture grows in <em class="hi">community</em>.', after: "Here's a place to pass it on." },
+    { when: "Oct 7", note: "Your draft as written. \u201cWe build tools\u201d is the company talking, and brings back \u201cbuild.\u201d",
+      lead: SHAPE, h: 'Culture grows in <em class="hi">community</em>.', after: "We build tools to help you pass it on." },
+    { when: "Oct 7", note: "Was on the homepage briefly, before 13.",
+      lead: SHAPE, h: '<span class="hi">Community</span> grows through <em class="hi">conversation</em>.' },
+    { when: "Oct 7", note: "Tried and dropped: the big wordmark in the middle looked wrong.",
+      lead: SHAPE, name: true, h: 'How <span class="hi">people</span> become <em class="hi">community</em>.' },
+    { when: "Oct 7", note: "The shape lines above the committed headline.",
+      lead: SHAPE, h: 'How <span class="hi">people</span> become <em class="hi">community</em>.' },
+    { when: "Oct 6", note: "Committed homepage headline.",
+      h: 'How <span class="hi">people</span> become <em class="hi">community</em>.' },
+    { when: "Oct 6", note: "The original sequence, with \u201cbuild\u201d before it became \u201cshape.\u201d",
+      lead: ["We build the world with our ideas.", "We build our ideas with each other."], h: 'Culture is grown in <em class="hi">conversation</em>.' },
+    { when: "Oct 6", note: "Grown in conversation, on its own.",
+      h: 'Culture is grown in <em class="hi">conversation</em>.' },
+    { when: "Oct 2", note: "From the headline sheet: the emphasis on conversation.",
+      h: 'Culture grows through <em class="hi">conversation</em>.' },
+    { when: "Oct 2", note: "From the headline sheet: the emphasis on grows.",
+      h: 'Culture <em class="hi">grows</em> through conversation.' },
+    { when: "Sep 29", note: "The first Starter headline.",
+      h: 'Culture is something you <em class="hi">pass on</em>.' },
+  ];
+  const list = document.getElementById("openers");
+  OPENERS.forEach((o, i) => {
+    const art = document.createElement("article"); art.className = "op";
+    art.innerHTML = `<div class="op-label"><b>${OPENERS.length - i}</b><span>${o.when}</span><span>${o.note}</span>${o.pick ? '<span class="pick">chosen</span>' : ""}</div>
+      <section class="hero">
+        <div>
+          ${o.lead ? `<div class="lead display">${o.lead.map(l => `<span>${l}</span>`).join("")}</div>` : ""}
+          ${o.name ? `<div class="bigname">${MARK}ferment</div>` : ""}
+          <h1 class="display">${o.h}</h1>
+          ${o.after ? `<p class="after display">${o.after}</p>` : ""}
+        </div>
+        ${CTAS}
+      </section>`;
+    list.appendChild(art);
+  });
 
   // ── The drawing ──
   const NS = "http://www.w3.org/2000/svg";

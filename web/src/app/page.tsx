@@ -39,9 +39,14 @@ export default async function Home() {
         </header>
 
         <section className="home-hero">
+          <p className="home-lead display">
+            <span>We shape the world with our ideas.</span>
+            <span>We shape our ideas with each other.</span>
+          </p>
           <h1 className="display">
-            How <span className="hi">people</span> become <em className="hi">community</em>.
+            Culture is grown in <em className="hi">conversation</em>.
           </h1>
+          <p className="home-after display">This is where you pass it on.</p>
           <div className="home-ctas">
             <Link href={START_HREF} className="home-btn">Start a conversation</Link>
             <Link href={LOOK_HREF} className="home-quiet">Look in on open circles</Link>
@@ -66,7 +71,7 @@ export default async function Home() {
         </section>
 
         <footer className="home-foot">
-          <Wordmark />
+          <span className="home-address">ferment.earth</span>
           <span>Tools for becoming community.</span>
         </footer>
       </div>

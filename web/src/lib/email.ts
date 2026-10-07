@@ -11,7 +11,11 @@ export type Mail = { to: string; subject: string; text: string; html?: string };
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const from = process.env.EMAIL_FROM || "ferment <hello@ferment.earth>";
 
-export async function sendMail(mail: Mail): Promise<void> {
+// Every email ends with the address, so people know where to find us again.
+const SIGNATURE = "\n\n—\nferment.earth";
+
+export async function sendMail(message: Mail): Promise<void> {
+  const mail = { ...message, text: message.text + SIGNATURE };
   if (!resend) {
     const entry = `\n✉️  to ${mail.to} — ${mail.subject}\n${mail.text}\n`;
     console.log(entry);

@@ -14,7 +14,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       data-theme={theme === "system" ? undefined : theme}
     >
       <div className="flex-1">{children}</div>
-      <footer className="mx-auto w-full max-w-2xl px-4 pt-10 pb-6">
+      <footer className="mx-auto flex w-full max-w-2xl flex-wrap items-center justify-between gap-3 px-4 pt-10 pb-6">
+        <span className="text-sm text-[var(--ink-faint)]">ferment.earth</span>
         <ThemeSwitch initial={theme} />
       </footer>
     </div>

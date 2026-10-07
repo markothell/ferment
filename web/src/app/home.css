@@ -17,6 +17,25 @@
 .home-hero .hi { color: var(--shared); }
 .home-hero em { font-weight: 480; }
 
+/* The lead-in: two quieter lines, then the headline, then the way in. Each arrives
+   once and stays. */
+.home-lead { display: grid; gap: 4px; margin: 0 0 -14px; }
+.home-lead span {
+  font-weight: 420; font-size: clamp(24px, 3.2vw, 36px); line-height: 1.15;
+  letter-spacing: -0.015em; color: var(--ink-soft);
+}
+/* The line after: what this place is for, as quiet as the lead-in. */
+.home-after {
+  margin: -8px 0 0; font-weight: 420; font-size: clamp(24px, 3.2vw, 36px); line-height: 1.15;
+  letter-spacing: -0.015em; color: var(--ink-soft);
+}
+.home-lead span, .home-hero h1, .home-after, .home-ctas { opacity: 0; transform: translateY(10px); animation: home-arrive .9s ease-out forwards; }
+.home-lead span:nth-child(2) { animation-delay: 1.2s; }
+.home-hero h1 { animation-delay: 2.4s; }
+.home-after { animation-delay: 3.6s; }
+.home-ctas { animation-delay: 4.4s; }
+@keyframes home-arrive { to { opacity: 1; transform: none; } }
+
 .home-ctas { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
 .home-btn {
   display: inline-block; border-radius: 999px; padding: 15px 22px;
@@ -48,16 +67,19 @@
 .home-way p { margin: 0; color: var(--ink-soft); font-size: 16.5px; line-height: 1.55; max-width: 38ch; }
 
 .home-foot { padding: 28px 0 48px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--ink-faint); font-size: 14px; }
-.home-foot .home-wm { font-size: 18px; }
+.home-address { font-weight: 500; font-size: 16px; letter-spacing: -0.02em; color: var(--ink); }
 
 @media (max-width: 820px) {
   .home-hero { min-height: 72vh; padding-bottom: 56px; }
   .grow { grid-template-columns: 1fr; gap: 0; }
-  .grow-pic { order: 0; height: 48vh; z-index: 2; background: var(--ground); }
+  /* On phones the drawing covers the steps as they scroll under it, so it carries the ground and its grain. */
+  .grow-pic { order: 0; height: 48vh; z-index: 2; background: var(--ground); isolation: isolate; }
+  .grow-pic::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background-image: var(--grain); mix-blend-mode: var(--grain-blend); opacity: var(--grain-opacity); }
   .grow-pic svg { max-height: 46vh; }
   .grow-step { min-height: 70vh; }
   .home-ways { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .grow-move, .grow-fade, .grow-step > div { transition: none; }
+  .home-lead span, .home-hero h1, .home-after, .home-ctas { animation: none; opacity: 1; transform: none; }
 }

@@ -11,7 +11,7 @@ const hanken = Hanken_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600"
 const geistMono = Geist_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-geist-mono" });
 
 export const metadata: Metadata = {
-  title: `${PROJECT_NAME} — how people become community`,
+  title: `${PROJECT_NAME} — culture is grown in conversation`,
   description:
     "Invite your people, pick what matters, and gather in small circles to talk it through. What a circle finds is shared with the community, and good conversations travel on.",
 };
