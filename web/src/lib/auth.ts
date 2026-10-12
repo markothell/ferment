@@ -50,6 +50,13 @@ const linkRules = {
         if (!u?.flagged) return false;
       },
       async after(session: { id: string; userId: string }, ctx: Parameters<typeof linkKind>[0]) {
+        if (linkKind(ctx) === "held") {
+          // Claimed between the check above and this session's insert: the
+          // claim's sweep may have run first and missed it, so sweep it here.
+          const [u] = await db.select({ flagged: schema.user.openedByInvite }).from(schema.user).where(eq(schema.user.id, session.userId)).limit(1);
+          if (!u?.flagged) await db.delete(schema.session).where(eq(schema.session.id, session.id));
+          return;
+        }
         if (linkKind(ctx) !== "emailed") return;
         const [claimed] = await db
           .update(schema.user)
