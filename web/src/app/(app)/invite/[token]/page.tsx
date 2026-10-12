@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { membershipOf } from "@/domain/communities";
@@ -8,7 +9,7 @@ import { displayName } from "@/lib/session";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
 import { signOut } from "../../home/actions";
-import { accept, sendInviteLink } from "./actions";
+import { accept, comeIn } from "./actions";
 
 export const metadata: Metadata = { title: "You're invited · ferment" };
 
@@ -47,6 +48,19 @@ export default async function AcceptInvitePage({ params, searchParams }: PagePro
     );
   }
 
+  // Used already: coming in again is an ordinary sign-in, by email.
+  if (invite.state === "accepted" && !session) {
+    return (
+      <Shell>
+        <h1 className="display text-3xl">You&apos;ve already come in with this invitation.</h1>
+        <p className="text-[var(--ink-soft)]">
+          <Link className="underline" href={`/signin?next=${encodeURIComponent(`/c/${invite.community.slug}`)}`}>Sign in</Link> and
+          we&apos;ll email you a link.
+        </p>
+      </Shell>
+    );
+  }
+
   const tokenField = <input type="hidden" name="token" value={token} />;
   const from = displayName(invite.inviter);
 
@@ -63,14 +77,14 @@ export default async function AcceptInvitePage({ params, searchParams }: PagePro
         )}
       </div>
 
-      {error === "link" && <p className="text-[var(--mine)]">That sign-in link expired. Send yourself a new one.</p>}
+      {error === "link" && <p className="text-[var(--mine)]">That didn&apos;t work. Try coming in again.</p>}
 
       {!session ? (
-        <Form action={sendInviteLink} submit="Come in" pending="Sending…">
+        <Form action={comeIn} submit="Come in" pending="Coming in…">
           {tokenField}
           <Field label="What should people call you?" name="name" autoComplete="name" maxLength={60} />
           <p className="text-sm text-[var(--ink-soft)]">
-            We&apos;ll email a link to <span className="mono">{invite.email}</span> to confirm it&apos;s you. No password.
+            You&apos;ll come in as <span className="mono">{invite.email}</span>. No password: next time, we&apos;ll email you a link.
           </p>
         </Form>
       ) : session.user.email.toLowerCase() !== invite.email ? (
