@@ -16,7 +16,9 @@ voice recordings are saved to `.data/audio`. With no `DEEPGRAM_API_KEY`, recordi
 a transcript.
 
 The clock (`lib/tick.ts`: timers, lapsed proposals, notification email, pending transcripts) runs every minute in
-`npm run dev` and every 15 minutes on Vercel via `vercel.json` (needs `CRON_SECRET`).
+`npm run dev`. In production an outside scheduler (cron-job.org) calls `/api/cron` every 15 minutes
+with `Authorization: Bearer $CRON_SECRET`; `vercel.json` adds a daily run as a backstop, the most
+the Hobby plan allows.
 
 Sample pages that need no sign-in: `/demo/circle`, `/demo/community`, `/demo/feed`.
 
