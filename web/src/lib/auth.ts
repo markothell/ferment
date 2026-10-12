@@ -22,26 +22,47 @@ const held = new AsyncLocalStorage<{ url?: string }>();
 // whole token. So a sign-in always knows which kind of link it came from.
 const HELD = "held_";
 
-/**
- * After every sign-in by link. A held link opens a new account from an
- * invitation (heldLink): flag it. The first emailed link into a flagged
- * account is its owner, reading their own mail: end every other session, so
- * whoever opened a forwarded invitation is out.
- */
-async function afterLinkSignIn(session: { id: string; userId: string }, token: string) {
-  if (token.startsWith(HELD)) {
-    await db.update(schema.user).set({ openedByInvite: true }).where(eq(schema.user.id, session.userId));
-    return;
-  }
-  const [claimed] = await db
-    .update(schema.user)
-    .set({ openedByInvite: false })
-    .where(and(eq(schema.user.id, session.userId), eq(schema.user.openedByInvite, true)))
-    .returning({ id: schema.user.id });
-  if (claimed) {
-    await db.delete(schema.session).where(and(eq(schema.session.userId, session.userId), ne(schema.session.id, session.id)));
-  }
+/** The link a sign-in came from: held (heldLink), emailed, or not a link at all. */
+function linkKind(ctx: { path?: string; query?: Record<string, unknown> } | null): "held" | "emailed" | null {
+  if (ctx?.path !== "/magic-link/verify") return null;
+  return String(ctx.query?.token ?? "").startsWith(HELD) ? "held" : "emailed";
 }
+
+// The rule for held links, checked as they are used, not only when made: a
+// held link may open a new account, flagged openedByInvite, and only ever an
+// account still so flagged. The first emailed link into a flagged account is
+// its owner, reading their own mail: that clears the flag and ends every other
+// session, so whoever opened a forwarded invitation is out and can't come back
+// with a held link made earlier.
+const linkRules = {
+  user: {
+    create: {
+      async after(user: { id: string }, ctx: Parameters<typeof linkKind>[0]) {
+        if (linkKind(ctx) === "held") await db.update(schema.user).set({ openedByInvite: true }).where(eq(schema.user.id, user.id));
+      },
+    },
+  },
+  session: {
+    create: {
+      async before(session: { userId: string }, ctx: Parameters<typeof linkKind>[0]) {
+        if (linkKind(ctx) !== "held") return;
+        const [u] = await db.select({ flagged: schema.user.openedByInvite }).from(schema.user).where(eq(schema.user.id, session.userId)).limit(1);
+        if (!u?.flagged) return false;
+      },
+      async after(session: { id: string; userId: string }, ctx: Parameters<typeof linkKind>[0]) {
+        if (linkKind(ctx) !== "emailed") return;
+        const [claimed] = await db
+          .update(schema.user)
+          .set({ openedByInvite: false })
+          .where(and(eq(schema.user.id, session.userId), eq(schema.user.openedByInvite, true)))
+          .returning({ id: schema.user.id });
+        if (claimed) {
+          await db.delete(schema.session).where(and(eq(schema.session.userId, session.userId), ne(schema.session.id, session.id)));
+        }
+      },
+    },
+  },
+};
 
 // Email-link sign-in only; no passwords (PLAN §9).
 export const auth = betterAuth({
@@ -50,15 +71,7 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 60, // 60 days: people come back by email, weeks apart
     updateAge: 60 * 60 * 24,
   },
-  databaseHooks: {
-    session: {
-      create: {
-        async after(session, ctx) {
-          if (ctx?.path === "/magic-link/verify") await afterLinkSignIn(session, String(ctx.query?.token ?? ""));
-        },
-      },
-    },
-  },
+  databaseHooks: linkRules,
   plugins: [
     magicLink({
       expiresIn: 60 * 15,
