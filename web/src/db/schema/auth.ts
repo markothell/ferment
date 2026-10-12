@@ -12,6 +12,9 @@ export const user = pgTable("user", {
   image: text(),
   createdAt: timestamp().notNull().defaultNow(),
   updatedAt: timestamp().notNull().defaultNow(),
+  // Ferment's own: opened from an invitation link and not yet signed into by
+  // email. That first emailed sign-in ends every other session (lib/auth.ts).
+  openedByInvite: boolean().notNull().default(false),
 });
 
 export const session = pgTable("session", {

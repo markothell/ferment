@@ -50,6 +50,13 @@
       "when": 1791197518999,
       "tag": "0006_harvests",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791818495401,
+      "tag": "0007_invite_opened",
+      "breakpoints": true
     }
   ]
 }

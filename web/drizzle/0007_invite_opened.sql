@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "opened_by_invite" boolean DEFAULT false NOT NULL;

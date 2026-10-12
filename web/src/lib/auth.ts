@@ -1,13 +1,14 @@
 import "server-only";
 
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { magicLink } from "better-auth/plugins";
 import { headers } from "next/headers";
+import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
 import { maySignIn, normalizeEmail } from "./access";
 import { sendMail } from "./email";
 
@@ -16,6 +17,32 @@ import { sendMail } from "./email";
 // runs inside it, so its links always go by email.
 const held = new AsyncLocalStorage<{ url?: string }>();
 
+// A held link's token starts with this. It can't be added to an emailed
+// token or taken off a held one: the stored verification is keyed on the
+// whole token. So a sign-in always knows which kind of link it came from.
+const HELD = "held_";
+
+/**
+ * After every sign-in by link. A held link opens a new account from an
+ * invitation (heldLink): flag it. The first emailed link into a flagged
+ * account is its owner, reading their own mail: end every other session, so
+ * whoever opened a forwarded invitation is out.
+ */
+async function afterLinkSignIn(session: { id: string; userId: string }, token: string) {
+  if (token.startsWith(HELD)) {
+    await db.update(schema.user).set({ openedByInvite: true }).where(eq(schema.user.id, session.userId));
+    return;
+  }
+  const [claimed] = await db
+    .update(schema.user)
+    .set({ openedByInvite: false })
+    .where(and(eq(schema.user.id, session.userId), eq(schema.user.openedByInvite, true)))
+    .returning({ id: schema.user.id });
+  if (claimed) {
+    await db.delete(schema.session).where(and(eq(schema.session.userId, session.userId), ne(schema.session.id, session.id)));
+  }
+}
+
 // Email-link sign-in only; no passwords (PLAN §9).
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
@@ -23,10 +50,20 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 60, // 60 days: people come back by email, weeks apart
     updateAge: 60 * 60 * 24,
   },
+  databaseHooks: {
+    session: {
+      create: {
+        async after(session, ctx) {
+          if (ctx?.path === "/magic-link/verify") await afterLinkSignIn(session, String(ctx.query?.token ?? ""));
+        },
+      },
+    },
+  },
   plugins: [
     magicLink({
       expiresIn: 60 * 15,
       storeToken: "hashed",
+      generateToken: () => (held.getStore() ? HELD : "") + randomBytes(24).toString("base64url"),
       async sendMagicLink({ email, url }) {
         if (!(await maySignIn(db, email))) return;
         const hold = held.getStore();
