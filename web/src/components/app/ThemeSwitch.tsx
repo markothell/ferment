@@ -11,20 +11,35 @@ function apply(t: Theme) {
   document.cookie = `${THEME_COOKIE}=${t}; path=/; max-age=31536000; samesite=lax`;
 }
 
-/** Temporary, while we build: pick light or dark instead of following the system. */
+const CHOICES: [Theme, string, string][] = [
+  ["system", "Match this device", "Light or dark, following your phone or computer."],
+  ["light", "Light", "Plum ink on crumb."],
+  ["dark", "Dark", "Cream ink on plum."],
+];
+
+/** Light, dark, or the device's own. Takes effect as soon as it's picked; no saving. */
 export function ThemeSwitch({ initial }: { initial: Theme }) {
   const [theme, setTheme] = useState<Theme>(initial);
-  const pick = (t: Theme) => {
-    setTheme(t);
-    apply(t);
-  };
   return (
-    <div className="theme-switch mono flex items-center justify-center gap-3 text-xs" role="group" aria-label="Theme">
-      <span className="text-[var(--ink-faint)]">theme</span>
-      {(["system", "light", "dark"] as const).map((t) => (
-        <button key={t} type="button" aria-pressed={theme === t} onClick={() => pick(t)}>
-          {t}
-        </button>
+    <div className="space-y-3" role="radiogroup" aria-label="Theme">
+      {CHOICES.map(([value, label, hint]) => (
+        <label key={value} className="flex gap-3">
+          <input
+            type="radio"
+            name="theme"
+            value={value}
+            checked={theme === value}
+            onChange={() => {
+              setTheme(value);
+              apply(value);
+            }}
+            className="mt-1"
+          />
+          <span>
+            <span className="block font-medium">{label}</span>
+            <span className="block text-sm text-[var(--ink-soft)]">{hint}</span>
+          </span>
+        </label>
       ))}
     </div>
   );

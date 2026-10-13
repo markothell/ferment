@@ -33,7 +33,7 @@ export default async function CommunityPage({ params }: PageProps<"/c/[community
 
   return (
     <>
-      <Top trail={[{ label: community.name }]} menu={`${base}/settings`} />
+      <Top trail={[{ label: community.name }]} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
         <CommunityHeader name={community.name} slug={community.slug} tab="home">
           {community.welcomeNote && (

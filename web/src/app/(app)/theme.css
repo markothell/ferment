@@ -1,5 +1,0 @@
-/* The switch in the footer (temporary, while we build). The theme it picks is
-   applied in ../ferment.css, on .ferment[data-theme]. */
-
-.ferment .theme-switch button { color: var(--ink-faint); }
-.ferment .theme-switch button[aria-pressed="true"] { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }

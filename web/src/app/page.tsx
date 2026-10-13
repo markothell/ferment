@@ -14,6 +14,10 @@ import "./home.css";
 const START_HREF = "/new";
 const LOOK_HREF = "/demo/community";
 
+// iOS opens a home-screen bookmark on the page it was saved from, not the
+// manifest's start_url, so a bookmark of this page goes on to /start too.
+const OPENED_AS_APP = `if (matchMedia("(display-mode: standalone)").matches || navigator.standalone) location.replace("/start");`;
+
 function Wordmark() {
   return (
     <span className="home-wm">
@@ -24,11 +28,12 @@ function Wordmark() {
 }
 
 export default async function Home() {
-  // Follows the theme picked in the app's footer, so the two never disagree.
+  // Light unless a theme was picked in settings; "match this device" follows the device here too.
   const saved = (await cookies()).get(THEME_COOKIE)?.value;
-  const theme = saved === "light" || saved === "dark" ? saved : undefined;
+  const theme = saved === "dark" ? "dark" : saved === "system" ? undefined : "light";
   return (
     <div className="ferment home" data-theme={theme}>
+      <script dangerouslySetInnerHTML={{ __html: OPENED_AS_APP }} />
       <div className="home-wrap">
         <header className="home-top">
           <Wordmark />

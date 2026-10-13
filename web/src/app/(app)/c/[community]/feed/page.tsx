@@ -18,7 +18,7 @@ export default async function FeedPage({ params, searchParams }: PageProps<"/c/[
   const chip = (on: boolean) => `rounded-full border px-3 py-1 text-sm ${on ? "border-[var(--ink)] bg-[var(--ink)] text-[var(--ground)]" : "border-[var(--rule)] text-[var(--ink-soft)] hover:text-[var(--ink)]"}`;
   return (
     <>
-      <Top trail={[{ label: community.name, href: `/c/${community.slug}` }]} menu={`/c/${community.slug}/settings`} />
+      <Top trail={[{ label: community.name, href: `/c/${community.slug}` }]} />
       <main className="mx-auto max-w-2xl space-y-8 px-4 py-8">
         <CommunityHeader name={community.name} slug={community.slug} tab="feed" />
         <div className="space-y-2">

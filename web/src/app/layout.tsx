@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   title: `${PROJECT_NAME} — culture is grown in conversation`,
   description:
     "Invite your people, pick what matters, and gather in small circles to talk it through. What a circle finds is shared with the community, and good conversations travel on.",
+  appleWebApp: { capable: true, title: PROJECT_NAME },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,6 @@
 /* Ferment — the Starter palette (09_community/design/ferment/palette.css).
    Crumb ground, plum-black ink, saffron, beet, and the teal that marks what is open.
-   Shared by the homepage and the app; the app's footer switch (theme.css) can pin a theme.
+   Shared by the homepage and the app; a theme picked in settings pins it.
    --live marks what is open right now and nothing else. --mine is you. --shared is what
    the group made together. */
 
@@ -42,7 +42,7 @@
   }
 }
 
-/* A theme picked in the app's footer. Declared on the wrapper, so it wins over :root. */
+/* A theme picked in settings. Declared on the wrapper, so it wins over :root. */
 .ferment[data-theme="light"] {
   --ground:      #E8DBC4;
   --raised:      #F3EDDD;

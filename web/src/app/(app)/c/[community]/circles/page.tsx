@@ -15,7 +15,7 @@ export default async function CirclesPage({ params }: PageProps<"/c/[community]/
   const base = `/c/${community.slug}`;
   return (
     <>
-      <Top trail={[{ label: community.name, href: base }]} menu={`${base}/settings`} />
+      <Top trail={[{ label: community.name, href: base }]} />
       <main className="mx-auto max-w-2xl space-y-8 px-4 py-8">
         <CommunityHeader name={community.name} slug={community.slug} tab="circles" />
         <section className="space-y-4">

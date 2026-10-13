@@ -6,7 +6,10 @@ import { RisingMark } from "./Logo";
 
 export type Crumb = { label: string; href?: string };
 
-/** The bar at the top of every app screen: ferment / community / circle / here. */
+/**
+ * The bar at the top of every app screen: ferment / community / circle / here.
+ * Signed in, ••• opens your settings, or `menu` when a screen has its own.
+ */
 export async function Top({ trail = [], links = [], menu }: { trail?: Crumb[]; links?: { label: string; href: string }[]; menu?: string }) {
   const session = await currentSession();
   const unread = session ? await unreadCount(db, session.user.id) : 0;
@@ -42,8 +45,8 @@ export async function Top({ trail = [], links = [], menu }: { trail?: Crumb[]; l
             {unread > 0 && <span className="inbox-count">{unread > 99 ? "99+" : unread}</span>}
           </Link>
         )}
-        {menu && (
-          <Link href={menu} className="text-lg leading-none tracking-widest text-[var(--ink-soft)] hover:text-[var(--ink)]" aria-label="Settings">
+        {session && (
+          <Link href={menu ?? "/settings"} className="text-lg leading-none tracking-widest text-[var(--ink-soft)] hover:text-[var(--ink)]" aria-label="Settings">
             •••
           </Link>
         )}
