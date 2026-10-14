@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { contactMessages } from "@/db/schema";
+import { contactMessages, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { contactInbox, sendContact, type ContactMail } from "./contact";
+import { contactInbox, sendContact, SIGNED_OUT_PER_HOUR, type ContactMail } from "./contact";
 
 let db: DB;
 let sent: ContactMail[];
@@ -45,6 +45,25 @@ describe("contact", () => {
     await expect(sendContact(db, { name: "", email: "a@example.com", message: "m5", now: t0 }, send, "me@example.com")).rejects.toThrow(/later/);
     const later = new Date(t0.getTime() + 61 * 60_000);
     await expect(sendContact(db, { name: "", email: "a@example.com", message: "m6", now: later }, send, "me@example.com")).resolves.toBeTruthy();
+  });
+
+  it("caps signed-out messages together, tells you once, and lets members through", async () => {
+    for (let i = 0; i < SIGNED_OUT_PER_HOUR; i++) {
+      await sendContact(db, { name: "", email: `bot${i}@example.com`, message: "spam", now: t0 }, send, "me@example.com");
+    }
+    sent = [];
+    await expect(sendContact(db, { name: "", email: "new1@example.com", message: "one more", now: t0 }, send, "me@example.com")).rejects.toThrow(/sign in/);
+    await expect(sendContact(db, { name: "", email: "new2@example.com", message: "and another", now: t0 }, send, "me@example.com")).rejects.toThrow(/sign in/);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].subject).toMatch(/capped/);
+    expect(sent[0].text).toContain("new1@example.com");
+    expect(sent[0].text).toContain("one more");
+
+    await db.insert(user).values({ id: "u_m", name: "Member", email: "m@example.com" });
+    await expect(sendContact(db, { userId: "u_m", name: "Member", email: "m@example.com", message: "hi", now: t0 }, send, "me@example.com")).resolves.toBeTruthy();
+
+    const later = new Date(t0.getTime() + 61 * 60_000);
+    await expect(sendContact(db, { name: "", email: "new3@example.com", message: "back", now: later }, send, "me@example.com")).resolves.toBeTruthy();
   });
 
   it("goes to FERMENT_CONTACT_EMAIL, else the first host", () => {
