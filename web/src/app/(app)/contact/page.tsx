@@ -15,7 +15,7 @@ export default async function ContactPage() {
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
         <h1 className="display text-4xl">Get in touch</h1>
         <p className="text-[var(--ink-soft)]">
-          A question, an idea, or something that broke. This reaches the person who makes ferment.
+          A question, an idea, or something that broke. We read every message.
         </p>
         <ContactForm from={session?.user.email ?? null} max={MESSAGE_MAX} />
       </main>

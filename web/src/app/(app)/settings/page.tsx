@@ -49,7 +49,7 @@ export default async function AccountSettingsPage() {
           <h2 className="display text-2xl">Get in touch</h2>
           <Link href="/contact" className="card flex items-center justify-between">
             <span>
-              <span className="block font-medium">Write to the person who makes ferment</span>
+              <span className="block font-medium">Write to us</span>
               <span className="block text-sm text-[var(--ink-soft)]">A question, an idea, or something that broke.</span>
             </span>
             <span className="text-[var(--ink-soft)]" aria-hidden>→</span>

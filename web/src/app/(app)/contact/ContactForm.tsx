@@ -11,7 +11,7 @@ export function ContactForm({ from, max }: { from: string | null; max: number })
     return (
       <div className="card space-y-2" role="status">
         <p className="font-medium">Got it. Thank you.</p>
-        <p className="text-[var(--ink-soft)]">I read these myself, and I&rsquo;ll write back{from ? ` to ${from}` : ""}.</p>
+        <p className="text-[var(--ink-soft)]">We&rsquo;ll read it and write back{from ? ` to ${from}` : ""}.</p>
       </div>
     );
   }
@@ -19,12 +19,12 @@ export function ContactForm({ from, max }: { from: string | null; max: number })
     <form action={action} className="space-y-5">
       {from ? (
         <p className="text-sm text-[var(--ink-soft)]">
-          I&rsquo;ll write back to <span className="mono">{from}</span>.
+          We&rsquo;ll write back to <span className="mono">{from}</span>.
         </p>
       ) : (
         <>
           <Field label="Your name" name="name" autoComplete="name" maxLength={80} />
-          <Field label="Email" name="email" type="email" autoComplete="email" required hint="Where I'll write back." />
+          <Field label="Email" name="email" type="email" autoComplete="email" required hint="Where we'll write back." />
         </>
       )}
       <Field label="Message" name="message" multiline required maxLength={max} rows={6} />
