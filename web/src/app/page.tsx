@@ -78,6 +78,7 @@ export default async function Home() {
         <footer className="home-foot">
           <span className="home-address">ferment.earth</span>
           <span>Tools for becoming community.</span>
+          <Link href="/contact" className="home-contact">Contact</Link>
         </footer>
       </div>
     </div>

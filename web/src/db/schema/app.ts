@@ -451,3 +451,21 @@ export const harvestItems = pgTable(
   },
   (t) => [primaryKey({ columns: [t.harvestId, t.userId] })],
 );
+
+// ── Contact ────────────────────────────────────────────────────────────────
+
+// Someone wrote in from /contact. Saved before it's emailed, so a failed send
+// loses nothing; `delivery` says whether the email went.
+export const contactMessages = pgTable(
+  "contact_messages",
+  {
+    id: text().primaryKey(),
+    userId: text().references(() => user.id, { onDelete: "set null" }),
+    name: text().notNull().default(""),
+    email: text().notNull(),
+    message: text().notNull(),
+    delivery: text().notNull().default("pending"),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index().on(t.email, t.createdAt)],
+);

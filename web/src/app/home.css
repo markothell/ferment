@@ -68,6 +68,8 @@
 
 .home-foot { padding: 28px 0 48px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; color: var(--ink-faint); font-size: 14px; }
 .home-address { font-weight: 500; font-size: 16px; letter-spacing: -0.02em; color: var(--ink); }
+.home-contact { color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
+.home-contact:hover { color: var(--ink); }
 
 @media (max-width: 820px) {
   .home-hero { min-height: 72vh; padding-bottom: 56px; }

@@ -57,6 +57,13 @@
       "when": 1791818495401,
       "tag": "0007_invite_opened",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791898289071,
+      "tag": "0008_contact_messages",
+      "breakpoints": true
     }
   ]
 }

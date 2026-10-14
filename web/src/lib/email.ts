@@ -3,7 +3,7 @@ import "server-only";
 import { appendFile, mkdir } from "node:fs/promises";
 import { Resend } from "resend";
 
-export type Mail = { to: string; subject: string; text: string; html?: string };
+export type Mail = { to: string; subject: string; text: string; html?: string; replyTo?: string };
 
 // RESEND_API_KEY unset → mail is printed to the dev server console and
 // appended to .data/outbox.log instead of sent, so sign-in links and
@@ -17,7 +17,7 @@ const SIGNATURE = "\n\n—\nferment.earth";
 export async function sendMail(message: Mail): Promise<void> {
   const mail = { ...message, text: message.text + SIGNATURE };
   if (!resend) {
-    const entry = `\n✉️  to ${mail.to} — ${mail.subject}\n${mail.text}\n`;
+    const entry = `\n✉️  to ${mail.to}${mail.replyTo ? ` (reply to ${mail.replyTo})` : ""} — ${mail.subject}\n${mail.text}\n`;
     console.log(entry);
     await mkdir("./.data", { recursive: true });
     await appendFile("./.data/outbox.log", `${new Date().toISOString()}${entry}`);

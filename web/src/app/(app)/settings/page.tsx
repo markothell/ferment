@@ -11,7 +11,7 @@ import { Top } from "@/components/app/Top";
 export const metadata: Metadata = { title: "Settings · ferment" };
 
 // Your account's settings, behind the ••• on every screen. Each community's own
-// (its email, and hosting) stay on its page, linked from here.
+// (its email, and hosting) stay on its page, linked from here, and so does /contact.
 export default async function AccountSettingsPage() {
   const me = await requireUser("/settings");
   const mine = await listMyCommunities(db, me.id);
@@ -44,6 +44,17 @@ export default async function AccountSettingsPage() {
             </ul>
           </section>
         )}
+
+        <section className="space-y-3 border-t border-[var(--rule)] pt-8">
+          <h2 className="display text-2xl">Get in touch</h2>
+          <Link href="/contact" className="card flex items-center justify-between">
+            <span>
+              <span className="block font-medium">Write to the person who makes ferment</span>
+              <span className="block text-sm text-[var(--ink-soft)]">A question, an idea, or something that broke.</span>
+            </span>
+            <span className="text-[var(--ink-soft)]" aria-hidden>→</span>
+          </Link>
+        </section>
       </main>
     </>
   );
