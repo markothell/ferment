@@ -5,7 +5,8 @@
 
 import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circles, harvestItems, harvests } from "@/db/schema";
+import { circles, communityMembers, harvestItems, harvests } from "@/db/schema";
+import { listenPath } from "@/lib/audioStore";
 
 const MIN = 3; // HARVEST_MIN in harvests.ts; repeated so this file imports nothing from the write side.
 
@@ -65,5 +66,27 @@ export async function readHarvest(db: DB, communityId: string, harvestId: string
     .from(harvestItems)
     .where(inArray(harvestItems.harvestId, [h.id]))
     .orderBy(asc(harvestItems.sharedAt));
-  return { ...h, items };
+  return { ...h, items: items.map((i) => ({ ...i, audioUrl: i.audioUrl && listenPath.harvest(h.id, i.userId) })) };
+}
+
+/**
+ * The stored recording behind one shared answer, for /api/listen, or null if
+ * the viewer may not hear it: the harvest must be up, the answer still in it,
+ * and the viewer in its community.
+ */
+export async function harvestAudio(db: DB, harvestId: string, userId: string, viewerId: string): Promise<string | null> {
+  const [h] = await db.select({ communityId: harvests.communityId }).from(harvests).where(eq(harvests.id, harvestId)).limit(1);
+  if (!h) return null;
+  const [member] = await db
+    .select({ userId: communityMembers.userId })
+    .from(communityMembers)
+    .where(and(eq(communityMembers.communityId, h.communityId), eq(communityMembers.userId, viewerId)))
+    .limit(1);
+  if (!member || !(await readHarvest(db, h.communityId, harvestId))) return null;
+  const [item] = await db
+    .select({ audioUrl: harvestItems.audioUrl })
+    .from(harvestItems)
+    .where(and(eq(harvestItems.harvestId, harvestId), eq(harvestItems.userId, userId)))
+    .limit(1);
+  return item?.audioUrl ?? null;
 }

@@ -36,6 +36,18 @@ export function isOurAudio(url: string, env = process.env): boolean {
   return u.protocol === "https:" && u.host === host && !u.username && !u.password && u.pathname.startsWith("/rounds/");
 }
 
+/**
+ * Where the browser plays a recording from. Pages never hand out a stored
+ * recording's address: they point here, and /api/listen asks the domain who
+ * may hear it on every request (domain/rounds.ts#responseAudio,
+ * domain/harvests.read.ts#harvestAudio). So taking an answer out of a harvest,
+ * or leaving a circle, stops it playing for those who could hear it before.
+ */
+export const listenPath = {
+  response: (responseId: string) => `/api/listen/r/${responseId}`,
+  harvest: (harvestId: string, userId: string) => `/api/listen/h/${harvestId}/${userId}`,
+};
+
 // Blob matches content types by exact string, and Safari spells the codecs
 // parameter with a space; the client sends the base type (baseMimeType).
 export const AUDIO_TYPES = ["audio/webm", "audio/mp4", "audio/ogg", "audio/mpeg", "audio/aac"];

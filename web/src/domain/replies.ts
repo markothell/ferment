@@ -8,6 +8,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { DB } from "@/db";
 import { prompts, responses, rounds, user } from "@/db/schema";
+import { listenPath } from "@/lib/audioStore";
 import { displayName } from "@/lib/names";
 import { refuse } from "./errors";
 import { promptById, type PromptInput } from "./prompts";
@@ -100,7 +101,7 @@ export async function replyContext(db: DB, round: Round, viewerId: string) {
         .innerJoin(user, eq(user.id, responses.userId))
         .where(eq(responses.id, round.replyToResponseId))
         .limit(1);
-      if (a) answer = { name: a.userId === viewerId ? "you" : displayName(a), text: a.text, audioUrl: a.audioUrl, audioSeconds: a.audioSeconds };
+      if (a) answer = { name: a.userId === viewerId ? "you" : displayName(a), text: a.text, audioUrl: a.audioUrl && listenPath.response(round.replyToResponseId), audioSeconds: a.audioSeconds };
     }
   }
   return { chain, answer };

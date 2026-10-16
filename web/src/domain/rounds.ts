@@ -17,7 +17,7 @@ import {
   circleMembers, circles, communities, communityMembers, prompts, responseWords, responses,
   roundSupports, rounds, user, words,
 } from "@/db/schema";
-import { isOurAudio } from "@/lib/audioStore";
+import { isOurAudio, listenPath } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
 import { activeMemberCount, isCircleMember } from "./circles";
 import { membershipOf, requireMember } from "./communities";
@@ -445,7 +445,8 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
     .from(responses)
     .innerJoin(user, eq(user.id, responses.userId))
     .where(eq(responses.roundId, roundId))
-    .orderBy(asc(responses.createdAt));
+    .orderBy(asc(responses.createdAt))
+    .then((rows) => rows.map((r) => ({ ...r, audioUrl: r.audioUrl && listenPath.response(r.id) })));
 
   const mine = all.find((r) => r.userId === viewerId) ?? null;
   const closed = round.phase === "closed";
@@ -494,6 +495,29 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
     vocabulary: roundWords.map((w) => ({ id: w.id, label: w.label, origin: w.origin })),
     aggregate,
   };
+}
+
+/**
+ * The stored recording behind one answer, for /api/listen, or null if the
+ * viewer may not hear it: their own, or one roundView would show them.
+ */
+export async function responseAudio(db: DB, responseId: string, viewerId: string): Promise<string | null> {
+  const [r] = await db
+    .select({ roundId: responses.roundId, userId: responses.userId, audioUrl: responses.audioUrl })
+    .from(responses)
+    .where(eq(responses.id, responseId))
+    .limit(1);
+  if (!r?.audioUrl) return null;
+  if (r.userId === viewerId) return r.audioUrl;
+  const round = (await roundById(db, r.roundId))!;
+  if (!(await mayTakePart(db, round, viewerId))) return null;
+  const prompt = (await promptById(db, round.promptId))!;
+  const [mine] = await db
+    .select({ id: responses.id })
+    .from(responses)
+    .where(and(eq(responses.roundId, round.id), eq(responses.userId, viewerId)))
+    .limit(1);
+  return visibility(prompt.reveal, round.phase === "closed", Boolean(mine)) === "all" ? r.audioUrl : null;
 }
 
 /** The circle's rounds, with support counts, for its page. */

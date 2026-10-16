@@ -9,7 +9,7 @@ import { Refusal } from "./errors";
 import { acceptInvite, createInvite } from "./invites";
 import { normalizePrompt } from "./prompts";
 import {
-  approvalsNeeded, postOpenQuestion, promoteRound, respond, revealNow, roundById, roundView,
+  approvalsNeeded, postOpenQuestion, promoteRound, respond, responseAudio, revealNow, roundById, roundView,
   suggestRound, toggleSupport, visibility,
 } from "./rounds";
 
@@ -147,7 +147,8 @@ describe("responding and closing", () => {
     await respond(db, { roundId: id, userId: people[1], input: { text: "tired", audioUrl: "/api/audio/local/take1.m4a", x: 0.8 }, now: t0 });
     await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "/api/audio/local/take2.m4a", x: 0.6 }, now: t0 });
     let mine = (await roundView(db, id, people[1], t0)).mine!;
-    expect(mine.audioUrl).toBe("/api/audio/local/take1.m4a");
+    expect(mine.audioUrl).toBe(`/api/listen/r/${mine.id}`);
+    expect(await responseAudio(db, mine.id, people[1])).toBe("/api/audio/local/take1.m4a");
     expect(mine.x).toBe(0.6);
 
     await revealNow(db, { roundId: id, userId: people[1], now: t0 });
@@ -155,6 +156,21 @@ describe("responding and closing", () => {
     mine = (await roundView(db, id, people[1], t0)).mine!;
     expect(mine.text).toBe("rested now");
     expect(mine.x).toBe(0.6);
+  });
+
+  it("plays a recording only to whoever can see the answer, asked each time", async () => {
+    const id = await openRound();
+    await respond(db, { roundId: id, userId: people[1], input: { audioUrl: "/api/audio/local/take1.m4a" }, now: t0 });
+    const rid = (await roundView(db, id, people[1], t0)).mine!.id;
+    const outsider = await member("eve");
+    expect(await responseAudio(db, rid, people[1])).toBe("/api/audio/local/take1.m4a");
+    expect(await responseAudio(db, rid, people[2])).toBeNull(); // sealed until the close
+    await revealNow(db, { roundId: id, userId: people[1], now: t0 });
+    expect(await responseAudio(db, rid, people[2])).toBe("/api/audio/local/take1.m4a");
+    expect(await responseAudio(db, rid, outsider)).toBeNull();
+    await leaveCircle(db, { circleId: circle.id, userId: people[2], now: hours(1) });
+    expect(await responseAudio(db, rid, people[2])).toBeNull();
+    expect(await responseAudio(db, "nope", people[1])).toBeNull();
   });
 
   it("only takes recordings from our own storage", async () => {

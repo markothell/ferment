@@ -8,7 +8,7 @@ import { createCircle, leaveCircle, seatInCircle, type Circle } from "./circles"
 import { createCommunity, type Community } from "./communities";
 import { Refusal } from "./errors";
 import { chooseHarvest, harvestById, harvestForRound, proposeHarvest, tickHarvests, withdrawFromHarvest } from "./harvests";
-import { circleHarvests, harvestsByPrompt, readHarvest } from "./harvests.read";
+import { circleHarvests, harvestAudio, harvestsByPrompt, readHarvest } from "./harvests.read";
 import { feed } from "./feed";
 import { acceptInvite, createInvite } from "./invites";
 import { respond } from "./rounds";
@@ -142,6 +142,21 @@ describe("taking yours out", () => {
     expect(await kinds(amy)).toContain("harvest_down");
     expect(await kinds(cal)).not.toContain("harvest_down");
     await expect(withdrawFromHarvest(db, { harvestId: h.id, userId: dee, now: days(11) })).rejects.toThrow(Refusal);
+  });
+
+  it("stops a voice answer playing once it's out, and never plays one outside the community", async () => {
+    await db.update(responses).set({ audioUrl: "/api/audio/local/amy.m4a" }).where(eq(responses.userId, amy));
+    const h = await proposeHarvest(db, { roundId, userId: amy, now: t0 });
+    for (const u of [ben, cal, host]) await chooseHarvest(db, { harvestId: h.id, userId: u, share: true, now: t0 });
+    const item = (await readHarvest(db, community.id, h.id))!.items.find((i) => i.userId === amy)!;
+    expect(item.audioUrl).toBe(`/api/listen/h/${h.id}/${amy}`);
+    expect(await harvestAudio(db, h.id, amy, dee)).toBe("/api/audio/local/amy.m4a");
+
+    await db.insert(user).values({ id: "u_far", name: "Far", email: "far@example.com" });
+    expect(await harvestAudio(db, h.id, amy, "u_far")).toBeNull();
+
+    await withdrawFromHarvest(db, { harvestId: h.id, userId: amy, now: days(2) });
+    expect(await harvestAudio(db, h.id, amy, dee)).toBeNull();
   });
 
   it("works after leaving the circle, and leaving alone takes nothing out", async () => {
