@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
-import { listMyCommunities } from "@/domain/communities";
+import { listMyArchived, listMyCommunities } from "@/domain/communities";
 import { hostAllowlist, normalizeEmail } from "@/lib/access";
 import { requireUser } from "@/lib/session";
 import { Field } from "@/components/app/Field";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "ferment" };
 
 export default async function HomePage() {
   const me = await requireUser();
-  const mine = await listMyCommunities(db, me.id);
+  const [mine, archived] = await Promise.all([listMyCommunities(db, me.id), listMyArchived(db, me.id)]);
   const mayStart = hostAllowlist().has(normalizeEmail(me.email));
 
   return (
@@ -51,6 +51,19 @@ export default async function HomePage() {
             <Link href="/new" className="button-quiet">Start a community</Link>
           )}
         </section>
+
+        {archived.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="label">archived</h2>
+            <ul className="space-y-2">
+              {archived.map((c) => (
+                <li key={c.id}>
+                  <Link href={`/c/${c.slug}/settings`} className="link text-[var(--ink-soft)]">{c.name}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <footer className="flex items-center gap-4 border-t border-[var(--rule)] pt-6 text-sm text-[var(--ink-soft)]">
           <span className="mono">{me.email}</span>

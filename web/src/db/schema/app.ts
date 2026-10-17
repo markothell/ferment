@@ -71,6 +71,8 @@ export const communityMembers = pgTable(
     // How this member hears about this community (PLAN §7).
     email: emailPref().notNull().default("each"),
     joinedAt: timestamp().notNull().defaultNow(),
+    // Set when this member moves the community off their own list. Nobody else sees a change.
+    archivedAt: timestamp(),
   },
   (t) => [primaryKey({ columns: [t.communityId, t.userId] })],
 );
@@ -367,6 +369,8 @@ export const notifications = pgTable(
     inviteId: text().references(() => invites.id, { onDelete: "cascade" }),
     seatRequestId: text().references(() => seatRequests.id, { onDelete: "cascade" }),
     harvestId: text().references((): AnyPgColumn => harvests.id, { onDelete: "cascade" }),
+    // A name the moment needs once its row is gone: the circle that was taken down.
+    detail: text(),
     createdAt: timestamp().notNull().defaultNow(),
     readAt: timestamp(),
     emailedAt: timestamp(),

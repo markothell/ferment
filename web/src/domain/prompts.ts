@@ -55,13 +55,19 @@ export function cleanWord(raw: string): string {
   return w;
 }
 
-/** Validate and fill defaults. Returns exactly the columns a prompt stores. */
-export function normalizePrompt(input: PromptInput) {
+/** The words of a question: what an edit may change. */
+export function cleanWording(input: { question?: string; context?: string }) {
   const question = (input.question || "").trim();
   if (!question) refuse("Write the question.");
   if (question.length > QUESTION_MAX) refuse(`Questions are ${QUESTION_MAX} characters at most.`);
   const context = (input.context || "").trim();
   if (context.length > CONTEXT_MAX) refuse("That context is too long.");
+  return { question, context };
+}
+
+/** Validate and fill defaults. Returns exactly the columns a prompt stores. */
+export function normalizePrompt(input: PromptInput) {
+  const { question, context } = cleanWording(input);
 
   const shape = input.shape ?? "story";
   if (!SHAPES.includes(shape)) refuse("Unknown answer shape.");

@@ -4,12 +4,14 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { CIRCLE_MAX, CIRCLE_MIN, circleBySlug, circleHome } from "@/domain/circles";
 import { communityHome } from "@/domain/communities";
-import { approvalsNeeded, circleResponders, circleRounds } from "@/domain/rounds";
+import { authorRights, mayDeleteCircle } from "@/domain/authoring";
+import { approvalsNeeded, circleResponders, circleRounds, roundById } from "@/domain/rounds";
 import { myAsk, suggestableFor, waitingSeats } from "@/domain/seats";
 import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
 import { CircleMap } from "@/components/app/CircleMap";
+import { ConfirmForm } from "@/components/app/ConfirmForm";
 import { Form } from "@/components/app/Form";
 import { CircleGlyph } from "@/components/app/Glyph";
 import { circleHarvests } from "@/domain/harvests.read";
@@ -18,7 +20,7 @@ import { RoundRow } from "@/components/app/RoundRow";
 import { Top } from "@/components/app/Top";
 import { Field } from "@/components/app/Field";
 import {
-  askToJoin, join, leave, promote, seatDecline, seatMakeRoom, seatSupport, seatWithdraw, suggest, support, withdraw,
+  askToJoin, join, leave, promote, seatDecline, seatMakeRoom, seatSupport, seatWithdraw, suggest, support, remove, removeCircle,
 } from "../../actions";
 
 type Props = PageProps<"/c/[community]/circles/[circle]">;
@@ -52,6 +54,13 @@ export default async function CirclePage({ params }: Props) {
   const queued = all.filter((r) => r.phase === "queued");
   const suggested = all.filter((r) => r.phase === "nominated");
   const past = all.filter((r) => r.phase === "closed").reverse();
+  // Your own waiting questions you can still fix: someone else may have picked or adapted the same question.
+  const editable = new Set(
+    (await Promise.all(
+      [...queued, ...suggested].filter((r) => r.authorId === me.id)
+        .map(async (r) => ((await authorRights(db, (await roundById(db, r.id))!, me.id)).edit ? r.id : null)),
+    )).filter(Boolean),
+  );
   const needed = approvalsNeeded(circle, home.members.length);
   const neededForReply = approvalsNeeded(circle, home.members.length, { reply: true });
   const question = new Map(all.map((r) => [r.id, r.question]));
@@ -69,6 +78,7 @@ export default async function CirclePage({ params }: Props) {
     home.isMember && running ? communityHome(db, community, me.id).then((c) => suggestableFor(db, circle, c.members)) : [],
   ]);
   const room = home.members.length < CIRCLE_MAX;
+  const deletable = await mayDeleteCircle(db, circle, me.id);
   const hidden = (
     <>
       <input type="hidden" name="community" value={community.slug} />
@@ -240,10 +250,13 @@ export default async function CirclePage({ params }: Props) {
                             {hidden}<input type="hidden" name="round" value={r.id} />
                           </Form>
                         )}
-                        {(isHost || r.authorId === me.id) && (
-                          <Form action={withdraw} submit="Withdraw" quiet className="">
-                            {hidden}<input type="hidden" name="round" value={r.id} />
-                          </Form>
+                        {r.authorId === me.id && (
+                          <>
+                            {editable.has(r.id) && <Link href={`${roundHref(r.id)}#edit`} className="button-quiet">Edit</Link>}
+                            <ConfirmForm action={remove} submit="Remove" confirm="This removes your question from the circle for good.">
+                              {hidden}<input type="hidden" name="round" value={r.id} />
+                            </ConfirmForm>
+                          </>
                         )}
                       </div>
                     </li>
@@ -291,7 +304,16 @@ export default async function CirclePage({ params }: Props) {
               </section>
             )}
 
-            <section className="border-t border-[var(--rule)] pt-6">
+            <section className="space-y-4 border-t border-[var(--rule)] pt-6">
+              {deletable && (
+                <ConfirmForm
+                  action={removeCircle}
+                  submit="Delete this circle"
+                  confirm={`This deletes ${circle.name} and everything waiting in it.${home.members.length > 1 ? " Everyone who joined is told." : ""}`}
+                >
+                  {hidden}
+                </ConfirmForm>
+              )}
               <Form action={leave} submit="Leave this circle" pending="Leaving…" buttonClass="link text-sm" className="">{hidden}</Form>
             </section>
           </>

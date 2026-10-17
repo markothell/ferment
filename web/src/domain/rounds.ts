@@ -235,14 +235,6 @@ export async function promoteRound(db: DB, { roundId, userId, now = new Date() }
   await settleCircle(db, circle.id, now);
 }
 
-/** Withdraw a suggestion that hasn't opened: its author or the host. */
-export async function withdrawRound(db: DB, { roundId, userId }: { roundId: string; userId: string }): Promise<void> {
-  const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
-  if (round.phase !== "nominated" && round.phase !== "queued") refuse("It has already opened.");
-  if (!(await mayConduct(db, round, userId))) refuse("Only its author or the host can withdraw it.");
-  await db.update(rounds).set({ phase: "skipped" }).where(eq(rounds.id, roundId));
-}
-
 // ── Open questions ────────────────────────────────────────────────────────
 
 /** A question to the whole community. Open at once; no queue. */

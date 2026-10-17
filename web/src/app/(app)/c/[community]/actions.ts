@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { circleById, createCircle, joinCircle, leaveCircle, type Circle } from "@/domain/circles";
-import { setWelcomeQuestion, updateWelcomeNote } from "@/domain/communities";
+import { setArchived, setWelcomeQuestion, updateWelcomeNote } from "@/domain/communities";
 import { confirmInvite, createInvite, declineInvite, invitationLetter, withdrawInvite } from "@/domain/invites";
 import { askForSeat, declineSeat, makeRoom, toggleSeatSupport, withdrawSeat } from "@/domain/seats";
 import { setEmailPref } from "@/domain/notifications";
@@ -13,8 +13,9 @@ import type { PromptInput } from "@/domain/prompts";
 import { suggestReply } from "@/domain/replies";
 import { transcribeResponse } from "@/domain/transcripts";
 import {
-  postOpenQuestion, promoteRound, respond, revealNow, suggestRound, toggleSupport, withdrawRound,
+  postOpenQuestion, promoteRound, respond, revealNow, suggestRound, toggleSupport,
 } from "@/domain/rounds";
+import { deleteCircle, deleteRound, editQuestion } from "@/domain/authoring";
 import { attempt, type ActionState } from "@/lib/actions";
 import { deepgram } from "@/lib/deepgram";
 import { loadCommunity } from "@/lib/community";
@@ -39,6 +40,17 @@ export async function saveWelcomeQuestion(_prev: ActionState, form: FormData): P
   if (failed) return failed;
   revalidatePath(`/c/${community.slug}`, "layout");
   return { ok: "Saved." };
+}
+
+/** Archive the community from your own list (then home), or put it back (then into it). */
+export async function archive(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const archived = str(form, "archived") === "yes";
+  const failed = await attempt(() => setArchived(db, { communityId: community.id, userId: me.id, archived }));
+  if (failed) return failed;
+  revalidatePath("/home");
+  revalidatePath(`/c/${community.slug}`, "layout");
+  redirect(archived ? "/home" : `/c/${community.slug}`);
 }
 
 export async function proposeCircle(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -165,6 +177,14 @@ export async function join(_prev: ActionState, form: FormData): Promise<ActionSt
   return undefined;
 }
 
+export async function removeCircle(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() => deleteCircle(db, { circleId: str(form, "circle"), userId: me.id }));
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  redirect(`/c/${community.slug}`);
+}
+
 export async function leave(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, community } = await loadCommunity(str(form, "community"));
   await leaveCircle(db, { circleId: str(form, "circle"), userId: me.id });
@@ -248,12 +268,25 @@ export async function promote(_prev: ActionState, form: FormData): Promise<Actio
   return undefined;
 }
 
-export async function withdraw(_prev: ActionState, form: FormData): Promise<ActionState> {
+/** Delete a question you asked that hasn't taken hold. From its own page, go back to where it lived. */
+export async function remove(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, community } = await loadCommunity(str(form, "community"));
-  const failed = await attempt(() => withdrawRound(db, { roundId: str(form, "round"), userId: me.id }));
+  const failed = await attempt(() => deleteRound(db, { roundId: str(form, "round"), userId: me.id }));
   if (failed) return failed;
   revalidatePath(`/c/${community.slug}`, "layout");
+  const back = str(form, "back");
+  if (back) redirect(back.startsWith(`/c/${community.slug}`) ? back : `/c/${community.slug}`);
   return undefined;
+}
+
+export async function edit(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, community } = await loadCommunity(str(form, "community"));
+  const failed = await attempt(() =>
+    editQuestion(db, { roundId: str(form, "round"), userId: me.id, question: str(form, "question"), context: str(form, "context") }),
+  );
+  if (failed) return failed;
+  revalidatePath(`/c/${community.slug}`, "layout");
+  return { ok: "Saved." };
 }
 
 export async function share(_prev: ActionState, form: FormData): Promise<ActionState> {

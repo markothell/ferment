@@ -1,6 +1,6 @@
 // Communities: the social home and the outermost circle (PLAN §1, §4).
 
-import { and, asc, count, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import type { DB } from "@/db";
 import { circleMembers, circles, communities, communityMembers, prompts, responses, rounds, user } from "@/db/schema";
 import { hostAllowlist, normalizeEmail } from "@/lib/access";
@@ -74,13 +74,39 @@ export async function memberCount(db: DB, communityId: string): Promise<number> 
   return n;
 }
 
+/** Your communities, without the ones you've archived. */
 export async function listMyCommunities(db: DB, userId: string) {
   return db
     .select({ id: communities.id, slug: communities.slug, name: communities.name, role: communityMembers.role })
     .from(communityMembers)
     .innerJoin(communities, eq(communities.id, communityMembers.communityId))
-    .where(eq(communityMembers.userId, userId))
+    .where(and(eq(communityMembers.userId, userId), isNull(communityMembers.archivedAt)))
     .orderBy(asc(communities.name));
+}
+
+/** The ones you've archived, so you can bring them back. */
+export async function listMyArchived(db: DB, userId: string) {
+  return db
+    .select({ id: communities.id, slug: communities.slug, name: communities.name })
+    .from(communityMembers)
+    .innerJoin(communities, eq(communities.id, communityMembers.communityId))
+    .where(and(eq(communityMembers.userId, userId), isNotNull(communityMembers.archivedAt)))
+    .orderBy(asc(communities.name));
+}
+
+/**
+ * Move a community off your own list, or back onto it. It's yours alone: the
+ * community, its members and its pages are untouched, and you can still open it.
+ */
+export async function setArchived(
+  db: DB,
+  { communityId, userId, archived, now = new Date() }: { communityId: string; userId: string; archived: boolean; now?: Date },
+): Promise<void> {
+  await requireMember(db, communityId, userId);
+  await db
+    .update(communityMembers)
+    .set({ archivedAt: archived ? now : null })
+    .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId)));
 }
 
 export async function updateWelcomeNote(

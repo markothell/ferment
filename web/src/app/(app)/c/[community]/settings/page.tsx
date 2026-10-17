@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { loadCommunity } from "@/lib/community";
+import { ConfirmForm } from "@/components/app/ConfirmForm";
 import { Form } from "@/components/app/Form";
 import { Top } from "@/components/app/Top";
-import { emailPref } from "../actions";
+import { archive, emailPref } from "../actions";
 
 export const metadata: Metadata = { title: "Settings · ferment" };
 
@@ -45,6 +46,26 @@ export default async function SettingsPage({ params }: PageProps<"/c/[community]
             </Link>
           </section>
         )}
+
+        <section className="space-y-3 border-t border-[var(--rule)] pt-8">
+          <h2 className="display text-2xl">Your list</h2>
+          {membership.archivedAt ? (
+            <ConfirmForm action={archive} submit={`Put ${community.name} back on my list`} confirm="It returns to your list of communities." yes="Put it back" doing="Putting back…" final={false}>
+              <input type="hidden" name="community" value={community.slug} />
+              <input type="hidden" name="archived" value="no" />
+            </ConfirmForm>
+          ) : (
+            <ConfirmForm
+              action={archive}
+              submit={`Archive ${community.name} from my list`}
+              confirm={`It leaves your own list only. ${community.name} and everyone in it carry on as before, you stay a member, and you can put it back from the archived list on your home page.`}
+              yes="Archive it" doing="Archiving…" final={false}
+            >
+              <input type="hidden" name="community" value={community.slug} />
+              <input type="hidden" name="archived" value="yes" />
+            </ConfirmForm>
+          )}
+        </section>
       </main>
     </>
   );

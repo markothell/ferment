@@ -31,12 +31,13 @@ export const KINDS = {
   harvest_up: "harvest up",
   harvest_down: "harvest down",
   harvest_lapsed: "not enough yeses",
+  circle_removed: "taken down",
 } as const;
 export type Kind = keyof typeof KINDS;
 
 type Moment = {
   kind: Kind; communityId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null;
-  inviteId?: string | null; seatRequestId?: string | null; harvestId?: string | null; now?: Date;
+  inviteId?: string | null; seatRequestId?: string | null; harvestId?: string | null; detail?: string | null; now?: Date;
 };
 
 async function insertFor(db: DB, userIds: string[], m: Moment) {
@@ -46,9 +47,14 @@ async function insertFor(db: DB, userIds: string[], m: Moment) {
     to.map((userId) => ({
       id: newId(), userId, communityId: m.communityId, kind: m.kind,
       actorId: m.actorId ?? null, circleId: m.circleId ?? null, roundId: m.roundId ?? null,
-      inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, harvestId: m.harvestId ?? null, createdAt: m.now ?? new Date(),
+      inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, harvestId: m.harvestId ?? null, detail: m.detail ?? null, createdAt: m.now ?? new Date(),
     })),
   );
+}
+
+/** These people, minus whoever caused the moment. */
+export async function notifyPeople(db: DB, userIds: string[], m: Moment) {
+  await insertFor(db, userIds, m);
 }
 
 /** Everyone active in a circle, minus whoever caused the moment. */
@@ -102,6 +108,7 @@ export type NotificationView = {
 
 function describe(r: {
   kind: string; actorName: string | null; actorEmail: string | null; circleName: string | null; question: string | null; communityName: string;
+  detail: string | null;
   /** invitations and seats: who it's for, whether that's the reader, and a host's note */
   subject: string | null; forReader: boolean; selfAsked: boolean; hostNote: string | null;
 }): string {
@@ -131,6 +138,7 @@ function describe(r: {
     case "harvest_up": return `${r.circleName}'s answers to ${q} are open to ${r.communityName}.`;
     case "harvest_down": return `${r.circleName}'s harvest of ${q} came down: fewer than 3 are sharing now.`;
     case "harvest_lapsed": return `Not enough yeses to open ${q}. Nothing was shared.`;
+    case "circle_removed": return `${who} took down ${r.detail ?? "a circle"} before it began.`;
     default: return "Something happened.";
   }
 }
@@ -149,7 +157,7 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
       communityName: communities.name, communitySlug: communities.slug,
       actorName: user.name, actorEmail: user.email,
       circleName: circles.name, circleSlug: circles.slug, roundId: notifications.roundId, question: prompts.question,
-      harvestId: notifications.harvestId,
+      harvestId: notifications.harvestId, detail: notifications.detail,
     })
     .from(notifications)
     .innerJoin(communities, eq(communities.id, notifications.communityId))

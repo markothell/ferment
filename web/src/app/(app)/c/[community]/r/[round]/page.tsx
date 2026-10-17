@@ -5,6 +5,7 @@ import { circleById } from "@/domain/circles";
 import { Refusal } from "@/domain/errors";
 import { harvestForRound } from "@/domain/harvests";
 import { replyContext, repliesTo } from "@/domain/replies";
+import { authorRights } from "@/domain/authoring";
 import { roundView } from "@/domain/rounds";
 import { formatDuration } from "@/lib/audio/recorder";
 import { audioStorage } from "@/lib/audioStore";
@@ -12,6 +13,8 @@ import { loadCommunity } from "@/lib/community";
 import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
 import { Composer } from "@/components/app/Composer";
+import { ConfirmForm } from "@/components/app/ConfirmForm";
+import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
 import { HarvestPanel } from "@/components/app/HarvestPanel";
 import { PlacementInput } from "@/components/app/PlacementInput";
@@ -22,7 +25,7 @@ import { Top } from "@/components/app/Top";
 import { TurnDot } from "@/components/app/TurnDot";
 import Link from "next/link";
 import { PromptFields } from "@/components/app/PromptFields";
-import { reply, reveal, share } from "../../actions";
+import { edit, remove, reply, reveal, share } from "../../actions";
 
 type Props = PageProps<"/c/[community]/r/[round]">;
 
@@ -39,7 +42,8 @@ async function load(params: Props["params"]) {
     ? await Promise.all([repliesTo(db, view.round.id, ctx.me.id), replyContext(db, view.round, ctx.me.id)])
     : [[], null];
   const harvest = circle && view.canTakePart && view.round.phase === "closed" ? await harvestForRound(db, view.round.id, ctx.me.id) : undefined;
-  return { ...ctx, view, circle, replies, context, harvest };
+  const rights = await authorRights(db, view.round, ctx.me.id);
+  return { ...ctx, view, circle, replies, context, harvest, rights };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -54,7 +58,7 @@ const REVEAL_NOTE = {
 } as const;
 
 export default async function RoundPage({ params }: Props) {
-  const { me, community, view, circle, replies, context, harvest } = await load(params);
+  const { me, community, view, circle, replies, context, harvest, rights } = await load(params);
   const { round, prompt } = view;
   const base = `/c/${community.slug}`;
   const open = round.phase === "open";
@@ -267,6 +271,34 @@ export default async function RoundPage({ params }: Props) {
                   </Form>
                 </div>
               </details>
+            )}
+          </section>
+        )}
+
+        {(rights.edit || rights.delete) && (
+          <section id="edit" className="space-y-4 border-t border-[var(--rule)] pt-6">
+            {rights.edit && (
+              <details className="card">
+                <summary className="cursor-pointer font-medium">Edit the question</summary>
+                <div className="pt-4">
+                  <Form action={edit} submit="Save" pending="Saving…">
+                    {hidden}
+                    <Field label="Question" name="question" defaultValue={prompt.question} maxLength={200} required />
+                    <Field label="Context" name="context" defaultValue={prompt.context} multiline maxLength={1000} placeholder="Optional" />
+                    <p className="text-sm text-[var(--ink-soft)]">You can change the words until someone else answers.</p>
+                  </Form>
+                </div>
+              </details>
+            )}
+            {rights.delete && (
+              <ConfirmForm
+                action={remove}
+                submit="Delete this question"
+                confirm={circle ? `This removes it from ${circle.name} for good.` : "This deletes the question and anything said on it."}
+              >
+                {hidden}
+                <input type="hidden" name="back" value={circle ? `${base}/circles/${circle.slug}` : base} />
+              </ConfirmForm>
             )}
           </section>
         )}
