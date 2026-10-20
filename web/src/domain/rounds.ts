@@ -19,7 +19,7 @@ import {
 } from "@/db/schema";
 import { isOurAudio, listenPath } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
-import { activeMemberCount, isCircleMember } from "./circles";
+import { activeMemberCount, CIRCLE_MIN, isCircleMember } from "./circles";
 import { membershipOf, requireMember } from "./gatherings";
 import { refuse } from "./errors";
 import { refreshHarvestItem } from "./harvests";
@@ -95,6 +95,16 @@ export function approvalsNeeded(circle: Pick<Circle, "approvalsToStart">, member
   return Math.max(1, Math.min(wanted, members));
 }
 
+/**
+ * Supports a question needs in this circle. A circle that is still forming
+ * decides as if it had its minimum, so its proposer alone can't line up its
+ * questions before anyone else is in: the first question waits to open, and
+ * the rest wait for the circle (STARTERS.md §2).
+ */
+export function questionApprovals(circle: Pick<Circle, "approvalsToStart" | "status">, members: number, opts: { reply?: boolean } = {}): number {
+  return approvalsNeeded(circle, circle.status === "forming" ? Math.max(members, CIRCLE_MIN) : members, opts);
+}
+
 async function openRound(db: DB, round: Round, now: Date): Promise<void> {
   await db
     .update(rounds)
@@ -161,7 +171,7 @@ async function maybeQueue(db: DB, round: Round, now: Date): Promise<void> {
   const [circle] = await db.select().from(circles).where(eq(circles.id, round.circleId)).limit(1);
   const members = await activeMemberCount(db, circle.id);
   const [{ n }] = await db.select({ n: count() }).from(roundSupports).where(eq(roundSupports.roundId, round.id));
-  if (n >= approvalsNeeded(circle, members, { reply: round.replyToRoundId !== null })) {
+  if (n >= questionApprovals(circle, members, { reply: round.replyToRoundId !== null })) {
     await db.update(rounds).set({ phase: "queued", queuedAt: now }).where(eq(rounds.id, round.id));
   }
 }

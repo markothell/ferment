@@ -34,7 +34,7 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  gathering = await createGathering(db, { userId: "u_host", name: "Tables" });
   circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", now: t0 });
   people = ["u_host"];
   for (const n of ["amy", "ben", "cal", "dee"]) {
@@ -60,6 +60,15 @@ describe("the circle machine", () => {
     expect(approvalsNeeded({ approvalsToStart: null }, 5)).toBe(2);
     expect(approvalsNeeded({ approvalsToStart: null }, 12)).toBe(4);
     expect(approvalsNeeded({ approvalsToStart: 9 }, 5)).toBe(5);
+  });
+
+  it("lets a forming circle decide as if it had four: its proposer alone queues nothing", async () => {
+    const forming = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Soup", now: t0 });
+    const r = await suggestRound(db, { circleId: forming.id, userId: "u_host", prompt: { question: "What soup?" }, now: t0 });
+    expect(r.phase).toBe("nominated");
+    await seatInCircle(db, { circleId: forming.id, userId: people[1], now: t0 });
+    await toggleSupport(db, { roundId: r.id, userId: people[1], now: t0 });
+    expect(await phase(r.id)).toBe("queued");
   });
 
   it("queues on support and opens into a free slot", async () => {

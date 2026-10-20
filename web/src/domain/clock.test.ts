@@ -23,7 +23,7 @@ beforeEach(async () => {
 });
 
 async function setup() {
-  const gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  const gathering = await createGathering(db, { userId: "u_host", name: "Tables" });
   const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
   for (const n of ["amy", "ben", "cal"]) {
     await db.insert(user).values({ id: `u_${n}`, name: n, email: `${n}@example.com` });
@@ -60,7 +60,7 @@ describe("the clock", () => {
   });
 
   it("lapses proposals that never filled", async () => {
-    const gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Quiet" });
+    const gathering = await createGathering(db, { userId: "u_host", name: "Quiet" });
     await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Alone", now: t0 });
     expect((await runClock(db, send, hours(24 * 8))).expired).toBe(1);
   });

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { invites, seatRequests, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { maySignIn } from "@/lib/access";
 import { createCircle, isCircleMember, joinCircle, type Circle } from "./circles";
 import { createGathering, type Gathering } from "./gatherings";
 import {
@@ -38,7 +37,7 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await person("host");
-  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  gathering = await createGathering(db, { userId: "u_host", name: "Tables" });
   bread = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", now: t0 });
   for (const n of ["amy", "ben", "cal"]) await joinCircle(db, { circleId: bread.id, userId: await member(n), now: t0 });
 });
@@ -47,14 +46,12 @@ describe("suggesting someone", () => {
   it("waits for a host before anything is sent, then comes from the suggester", async () => {
     const s = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana Reyes", email: "ana@example.com", note: "She bakes.", now: t0 });
     expect(s).toMatchObject({ status: "nominated", token: null });
-    expect(await maySignIn(db, "ana@example.com", t0)).toBe(false);
     expect(await texts("u_host")).toContain("amy suggests inviting Ana Reyes.");
     expect((await invitesWaiting(db, gathering.id, "u_host", t0)).map((i) => [i.name, i.by, i.email])).toEqual([["Ana Reyes", "amy", "ana@example.com"]]);
     expect(await mySuggestions(db, gathering.id, "u_amy", t0)).toHaveLength(1);
 
     await expect(confirmInvite(db, { inviteId: s.inviteId, userId: "u_ben", now: t0 })).rejects.toThrow(/host/);
     const { token } = await confirmInvite(db, { inviteId: s.inviteId, userId: "u_host", now: t0 });
-    expect(await maySignIn(db, "ana@example.com", t0)).toBe(true);
     expect(await texts("u_amy")).toContain("Your invitation to Ana Reyes went out.");
     expect((await findInvite(db, token, t0))?.inviter.name).toBe("amy");
     await expect(confirmInvite(db, { inviteId: s.inviteId, userId: "u_host", now: t0 })).rejects.toThrow(/decided/);

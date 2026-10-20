@@ -57,6 +57,8 @@ export const gatherings = pgTable("gatherings", {
   maxMembers: integer().notNull().default(100),
   createdBy: userRef().notNull(),
   createdAt: timestamp().notNull().defaultNow(),
+  // The starter it was started from, or the first one added to it (STARTERS.md §4).
+  starterId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
 });
 
 export const gatheringMembers = pgTable(
@@ -218,6 +220,9 @@ export const prompts = pgTable(
       .references(() => gatherings.id, { onDelete: "cascade" }),
     authorId: userRef().notNull(),
     adaptedFromId: text().references((): AnyPgColumn => prompts.id, { onDelete: "set null" }),
+    // Seeded from a starter: which one, and the key of its question there (STARTERS.md §4).
+    starterId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
+    starterKey: text(),
     question: text().notNull(),
     context: text().notNull().default(""),
     shape: shape().notNull(),
@@ -231,7 +236,7 @@ export const prompts = pgTable(
     reveal: reveal().notNull().default("sealed"),
     createdAt: timestamp().notNull().defaultNow(),
   },
-  (t) => [index().on(t.gatheringId), index().on(t.adaptedFromId)],
+  (t) => [index().on(t.gatheringId), index().on(t.adaptedFromId), index().on(t.starterId)],
 );
 
 // ── Round: one run of a prompt (PLAN §5, "on the Round") ───────────────────
@@ -472,4 +477,94 @@ export const contactMessages = pgTable(
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [index().on(t.email, t.createdAt)],
+);
+
+// ── Starters: a gathering's design, without its people (STARTERS.md) ──────
+//
+// What a gathering can be started from: the welcome note and question, its
+// circles with their questions in order, and its questions to everyone. Never
+// people, answers, invitations, harvests or follow-ups. The design is one
+// document (`content`), checked by domain/starters.ts on the way in.
+
+export const starterVisibility = pgEnum("starter_visibility", ["private", "published"]);
+
+/** A question in a starter: what a prompt carries, the round's timer, and where it came from. */
+export type StarterQuestion = {
+  /** Stable within the starter; a prompt seeded from it keeps it as prompts.starter_key. */
+  key: string;
+  /** The question in another starter this one descends from. */
+  from?: { starterId: string; key: string } | null;
+  question: string;
+  context: string;
+  shape: "story" | "placement" | "story_placement" | "words";
+  axes: Axis[];
+  placing: "free" | "quadrants" | null;
+  telling: "voice" | "text" | null;
+  seedWords: string[];
+  pickMax: number | null;
+  coinMax: number | null;
+  secondsPerNote: number | null;
+  reveal: "open" | "after_share" | "sealed";
+  timerHours: number | null;
+};
+
+export type StarterCircle = {
+  key: string;
+  name: string;
+  description: string;
+  color: "saffron" | "clay" | "moss" | "slate" | "plum";
+  /** In order: the first is queued when the circle is proposed, the rest wait as suggestions. */
+  questions: StarterQuestion[];
+};
+
+export type StarterContent = {
+  welcomeNote: string;
+  welcomeQuestion: { key: string; from?: { starterId: string; key: string } | null; question: string } | null;
+  circles: StarterCircle[];
+  /** Questions to everyone, other than the welcome question. */
+  openQuestions: StarterQuestion[];
+};
+
+export const starters = pgTable(
+  "starters",
+  {
+    id: text().primaryKey(),
+    slug: text().notNull().unique(),
+    title: text().notNull(),
+    summary: text().notNull().default(""),
+    // null = from ferment: the curated starters in web/starters/.
+    authorId: text().references(() => user.id, { onDelete: "set null" }),
+    visibility: starterVisibility().notNull().default("private"),
+    // Copied from, or saved from a gathering started from (STARTERS.md §4). The
+    // title is kept so the link still reads when the other starter is gone.
+    forkedFromId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
+    forkedFromTitle: text(),
+    madeFromGatheringId: text().references((): AnyPgColumn => gatherings.id, { onDelete: "set null" }),
+    content: jsonb().$type<StarterContent>().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+    publishedAt: timestamp(),
+  },
+  (t) => [
+    index().on(t.visibility),
+    index().on(t.authorId),
+    index().on(t.forkedFromId),
+    index().on(t.madeFromGatheringId),
+  ],
+);
+
+// ── Sign-in requests ───────────────────────────────────────────────────────
+
+// Anyone may ask for a sign-in link (STARTERS.md §6), and each one sends an
+// email, so asks are counted: per address, and across addresses that don't
+// have an account yet.
+export const signInRequests = pgTable(
+  "sign_in_requests",
+  {
+    id: text().primaryKey(),
+    email: text().notNull(),
+    newAccount: boolean().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [index().on(t.email, t.createdAt), index().on(t.newAccount, t.createdAt)],
 );

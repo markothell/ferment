@@ -3,10 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { gatheringHome } from "@/domain/gatherings";
+import { gatheringOrigin, starterById, startersToAdd } from "@/domain/starters";
 import { loadGathering } from "@/lib/gathering";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
 import { Top } from "@/components/app/Top";
+import { addToGathering } from "@/app/(app)/library/actions";
 import { invite, proposeCircle, saveWelcomeNote, saveWelcomeQuestion } from "../actions";
 
 export const metadata: Metadata = { title: "Set up · ferment" };
@@ -24,10 +26,17 @@ function Step({ n, title, done, children }: { n: number; title: string; done: bo
   );
 }
 
-export default async function SetupPage({ params }: PageProps<"/g/[gathering]/setup">) {
+export default async function SetupPage({ params, searchParams }: PageProps<"/g/[gathering]/setup">) {
   const { me, gathering, isHost } = await loadGathering((await params).gathering);
   if (!isHost) notFound();
-  const home = await gatheringHome(db, gathering, me.id);
+  const viewer = { id: me.id, email: me.email };
+  const added = (await searchParams).added;
+  const [home, origin, toAdd, justAdded] = await Promise.all([
+    gatheringHome(db, gathering, me.id),
+    gatheringOrigin(db, gathering.id, viewer),
+    startersToAdd(db, me.id),
+    typeof added === "string" ? starterById(db, added) : null,
+  ]);
   const base = `/g/${gathering.slug}`;
   const hidden = <input type="hidden" name="gathering" value={gathering.slug} />;
 
@@ -41,6 +50,21 @@ export default async function SetupPage({ params }: PageProps<"/g/[gathering]/se
             Newcomers read your note, answer the welcome question, then pick a circle. Aim for someone sharing within five minutes of arriving.
           </p>
         </div>
+
+        {origin && (
+          <div className="card space-y-1">
+            <p className="label">started from</p>
+            <p>
+              {origin.slug ? <Link href={`/library/${origin.slug}`} className="link">{origin.title}</Link> : origin.title}
+            </p>
+            <p className="text-sm text-[var(--ink-soft)]">
+              Its note, welcome question and circles are filled in below. Read them through, change what you like, then invite people.
+            </p>
+          </div>
+        )}
+        {justAdded && (
+          <p className="text-[var(--ink-soft)]" role="status">Added <em>{justAdded.title}</em>: its circles are below, and its questions to everyone are open.</p>
+        )}
 
         <Step n={1} title="A welcome note" done={Boolean(gathering.welcomeNote)}>
           <Form action={saveWelcomeNote} submit="Save note" quiet>
@@ -68,7 +92,7 @@ export default async function SetupPage({ params }: PageProps<"/g/[gathering]/se
 
         <Step n={3} title="Circles to join" done={home.circles.length > 0}>
           <p className="text-[var(--ink-soft)]">
-            Two or three starter circles, each with a first question ready. You hold the host seat; each begins when four people are in.
+            Two or three circles to begin with, each with a first question ready. You hold the host seat; each begins when four people are in.
           </p>
           {home.circles.length > 0 && (
             <ul className="space-y-1">
@@ -109,8 +133,26 @@ export default async function SetupPage({ params }: PageProps<"/g/[gathering]/se
           </Form>
         </Step>
 
-        <div className="border-t border-[var(--rule)] pt-8">
+        {toAdd.length > 0 && (
+          <Step n={5} title="Add a starter" done={false}>
+            <p className="text-[var(--ink-soft)]">
+              Optional. A starter&apos;s circles and questions to everyone join what&apos;s here. Your note and welcome question stay as they are.{" "}
+              <Link href="/library" className="link">Look through them first</Link>.
+            </p>
+            <Form action={addToGathering} submit="Add it" pending="Adding…" quiet>
+              <input type="hidden" name="gathering" value={gathering.slug} />
+              <select name="starter" className="field" aria-label="Starter">
+                {toAdd.map((s) => <option key={s.id} value={s.id}>{s.title}{s.visibility === "private" ? " (yours)" : ""}</option>)}
+              </select>
+            </Form>
+          </Step>
+        )}
+
+        <div className="space-y-4 border-t border-[var(--rule)] pt-8">
           <Link href={base} className="button">Go to {gathering.name}</Link>
+          <p className="text-center text-sm text-[var(--ink-soft)]">
+            Happy with how it&apos;s set up? <Link href={`${base}/starter`} className="link">Save it as a starter</Link> to begin another one like it.
+          </p>
         </div>
       </main>
     </>

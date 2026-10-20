@@ -8,7 +8,7 @@
 import { and, count, eq, gt, isNull, ne } from "drizzle-orm";
 import type { DB } from "@/db";
 import { contactMessages } from "@/db/schema";
-import { hostAllowlist, normalizeEmail } from "@/lib/access";
+import { curators, normalizeEmail } from "@/lib/access";
 import { newId } from "@/lib/id";
 import { refuse } from "./errors";
 
@@ -26,11 +26,11 @@ export const SIGNED_OUT_PER_HOUR = 20;
 // The row that says the signed-out cap tripped and you were told, at most once an hour.
 const CAP_ALERT = "cap-alert";
 
-/** Who reads these: FERMENT_CONTACT_EMAIL, else the first host on the allowlist. */
+/** Who reads these: FERMENT_CONTACT_EMAIL, else the first curator. */
 export function contactInbox(env: Record<string, string | undefined> = process.env): string | null {
   const set = env.FERMENT_CONTACT_EMAIL?.trim();
   if (set) return set;
-  const [first] = hostAllowlist(env.FERMENT_HOST_EMAILS);
+  const [first] = curators(env.FERMENT_HOST_EMAILS);
   return first ?? null;
 }
 

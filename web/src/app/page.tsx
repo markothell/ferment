@@ -6,13 +6,11 @@ import { HowItGrows } from "@/components/home/HowItGrows";
 import { THEME_COOKIE } from "@/lib/theme";
 import "./home.css";
 
-// The homepage (design/ferment/archive/home.html). Its first readers are people
-// who were invited, so it explains the social side, not the screens.
-// "Start a conversation" goes to the gathering setup until there's a lighter
-// first step. "Open circles" goes to the sample gathering until outsiders can
-// look in on real ones.
+// The homepage (design/ferment/archive/home.html). It explains the social
+// side, not the screens. Two ways in (STARTERS.md §5): start a gathering, or
+// look through the starters other gatherings began with.
 const START_HREF = "/new";
-const LOOK_HREF = "/demo/gathering";
+const LIBRARY_HREF = "/library";
 
 // iOS opens a home-screen bookmark on the page it was saved from, not the
 // manifest's start_url, so a bookmark of this page goes on to /start too.
@@ -38,7 +36,7 @@ export default async function Home() {
         <header className="home-top">
           <Wordmark />
           <nav className="home-links">
-            <Link href={LOOK_HREF} className="hidden sm:inline">Open circles</Link>
+            <Link href={LIBRARY_HREF} className="hidden sm:inline">Starters</Link>
             <Link href="/signin">Sign in</Link>
           </nav>
         </header>
@@ -54,7 +52,7 @@ export default async function Home() {
           <p className="home-after display">This is where you pass it on.</p>
           <div className="home-ctas">
             <Link href={START_HREF} className="home-btn">Start a conversation</Link>
-            <Link href={LOOK_HREF} className="home-quiet">Look in on open circles</Link>
+            <Link href={LIBRARY_HREF} className="home-quiet">Browse starters</Link>
           </div>
         </section>
 
@@ -64,9 +62,9 @@ export default async function Home() {
         <p className="home-band mono">two ways in</p>
         <section className="home-ways">
           <div className="home-way">
-            <h2 className="display">Sit in on a circle</h2>
-            <p>Some circles keep a seat open. Read the question, add your answer, and see if it&rsquo;s your kind of table. There&rsquo;s nothing to set up.</p>
-            <Link href={LOOK_HREF} className="home-quiet">Look in on open circles</Link>
+            <h2 className="display">Begin from a starter</h2>
+            <p>Gatherings that went well, ready to begin again: a welcome, a few circles, and the questions they open with. Read one through, then make it yours.</p>
+            <Link href={LIBRARY_HREF} className="home-quiet">Browse starters</Link>
           </div>
           <div className="home-way">
             <h2 className="display">Start a conversation</h2>

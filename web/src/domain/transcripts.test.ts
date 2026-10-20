@@ -21,7 +21,7 @@ beforeEach(async () => {
   heard = [];
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  const gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  const gathering = await createGathering(db, { userId: "u_host", name: "Tables" });
   roundId = (await postOpenQuestion(db, { gatheringId: gathering.id, userId: "u_host", prompt: { question: "What fed you?", reveal: "open" }, now: t0 })).id;
 });
 

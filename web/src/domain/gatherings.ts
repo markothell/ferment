@@ -1,9 +1,8 @@
 // Gatherings: the social home and the outermost circle (PLAN §1, §4).
 
-import { and, asc, count, eq, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import type { DB } from "@/db";
 import { circleMembers, circles, gatherings, gatheringMembers, prompts, responses, rounds, user } from "@/db/schema";
-import { hostAllowlist, normalizeEmail } from "@/lib/access";
 import { newId } from "@/lib/id";
 import { refuse } from "./errors";
 import { normalizePrompt } from "./prompts";
@@ -11,6 +10,7 @@ import { uniqueSlug } from "./slug";
 
 export const NAME_MAX = 60;
 export const NOTE_MAX = 2000;
+const DAY_MS = 86_400_000;
 
 export type Gathering = typeof gatherings.$inferSelect;
 export type Membership = typeof gatheringMembers.$inferSelect;
@@ -22,14 +22,28 @@ function cleanName(raw: string): string {
   return name;
 }
 
+/** How many gatherings one person can start in a day: open to anyone, so capped. */
+export const STARTS_PER_DAY = 5;
+
 export async function createGathering(
   db: DB,
-  { userId, userEmail, name, welcomeNote = "" }: { userId: string; userEmail: string; name: string; welcomeNote?: string },
+  {
+    userId, name, welcomeNote = "", starterId = null, seed, now = new Date(),
+  }: {
+    userId: string; name: string; welcomeNote?: string; now?: Date;
+    /** Started from a starter: its id, and what fills the gathering in the same transaction (domain/starters.ts). */
+    starterId?: string | null;
+    seed?: (tx: DB, gathering: Gathering) => Promise<void>;
+  },
 ): Promise<Gathering> {
-  if (!hostAllowlist().has(normalizeEmail(userEmail))) refuse("Starting a gathering is invite-only for now.");
   const clean = cleanName(name);
   const note = welcomeNote.trim();
   if (note.length > NOTE_MAX) refuse("That welcome note is too long.");
+  const [{ started }] = await db
+    .select({ started: count() })
+    .from(gatherings)
+    .where(and(eq(gatherings.createdBy, userId), gt(gatherings.createdAt, new Date(now.getTime() - DAY_MS))));
+  if (started >= STARTS_PER_DAY) refuse(`That's ${STARTS_PER_DAY} gatherings started today. Try again tomorrow.`);
 
   const slug = await uniqueSlug(clean, async (s) =>
     Boolean((await db.select({ id: gatherings.id }).from(gatherings).where(eq(gatherings.slug, s)).limit(1))[0]),
@@ -38,9 +52,10 @@ export async function createGathering(
   return db.transaction(async (tx) => {
     const [gathering] = await tx
       .insert(gatherings)
-      .values({ id: newId(), slug, name: clean, welcomeNote: note, createdBy: userId })
+      .values({ id: newId(), slug, name: clean, welcomeNote: note, createdBy: userId, createdAt: now, starterId })
       .returning();
-    await tx.insert(gatheringMembers).values({ gatheringId: gathering.id, userId, role: "host" });
+    await tx.insert(gatheringMembers).values({ gatheringId: gathering.id, userId, role: "host", joinedAt: now });
+    if (seed) await seed(tx as unknown as DB, gathering);
     return gathering;
   });
 }

@@ -85,12 +85,13 @@ export const auth = betterAuth({
       storeToken: "hashed",
       generateToken: () => (held.getStore() ? HELD : "") + randomBytes(24).toString("base64url"),
       async sendMagicLink({ email, url }) {
-        if (!(await maySignIn(db, email))) return;
+        // A held link sends no mail, so it isn't counted (lib/access.ts).
         const hold = held.getStore();
         if (hold) {
           hold.url = url;
           return;
         }
+        if (!(await maySignIn(db, email))) return;
         await sendMail({
           to: email,
           subject: "Your sign-in link for ferment",
@@ -107,8 +108,7 @@ export const auth = betterAuth({
  * has already shown they read mail at the address: they opened an invitation
  * sent to it. Only ever for a new account: a forwarded invitation must not
  * open an existing one, with everything it already belongs to, so those still
- * get their link by email. Null when the address has an account or may not
- * sign in (lib/access.ts).
+ * get their link by email. Null when the address has an account.
  */
 export async function heldLink(body: { email: string; name?: string; callbackURL: string; errorCallbackURL: string }): Promise<string | null> {
   const [existing] = await db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.email, normalizeEmail(body.email))).limit(1);

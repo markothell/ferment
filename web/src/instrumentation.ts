@@ -7,6 +7,10 @@ export async function register() {
     const { db } = await import("./db");
     const { migrate } = await import("drizzle-orm/pglite/migrator");
     await migrate(db as never, { migrationsFolder: "./drizzle" });
+    // And our own starters, so the library is never empty here (npm run starters:load elsewhere).
+    const { loadCurated } = await import("./domain/starters");
+    const { curatedFiles } = await import("./lib/curated");
+    await loadCurated(db, curatedFiles());
   }
 
   // Local dev has no cron: run the clock every minute instead (lib/tick.ts).

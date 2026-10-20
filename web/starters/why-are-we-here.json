@@ -1,0 +1,113 @@
+{
+  "slug": "why-are-we-here",
+  "title": "Why are we here?",
+  "summary": "For a group that wants to own what it becomes. What each person hopes for, how much they plan to put in, their doubts, and the gifts they bring, one question at a time. After Peter Block's Community: The Structure of Belonging (2008).",
+  "content": {
+    "welcomeNote": "We're starting with what each of us hopes for, and what we're each willing to bring. There are no right answers, and nothing here gets decided. The point is to hear each other.",
+    "welcomeQuestion": {
+      "key": "block-possibility-1",
+      "question": "What possibility did you come here to live into?"
+    },
+    "circles": [
+      {
+        "key": "ownership",
+        "name": "What we're putting in",
+        "description": "How much each of us plans to give this, and the stories we already tell about it.",
+        "color": "moss",
+        "questions": [
+          {
+            "key": "block-ownership-1",
+            "question": "How valuable do you plan for this circle to be for you, and what would you do to make it so?",
+            "context": "Plan, not expect. This isn't a rating of the circle. It's how much you're choosing to put in. Place yourself, then say what it would take. From Peter Block's ownership conversation.",
+            "shape": "story_placement",
+            "axes": [{ "poleA": "A pleasant extra", "poleB": "Among the best things I do" }],
+            "telling": "voice",
+            "secondsPerNote": 60,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "block-ownership-2",
+            "question": "How much do you plan to take part here, and how much are you willing to risk?",
+            "context": "Two honest guesses about yourself, for now. Nobody is graded and you can be anywhere. The circle will see where everyone landed. From Peter Block's ownership conversation.",
+            "shape": "placement",
+            "axes": [
+              { "poleA": "Mostly listen", "poleB": "Fully take part" },
+              { "poleA": "Keep it safe", "poleB": "Risk something real" }
+            ],
+            "placing": "free",
+            "reveal": "sealed",
+            "timerHours": 48
+          },
+          {
+            "key": "block-ownership-3",
+            "question": "What's the story about this group that you hear yourself telling most often?",
+            "context": "The one you tell friends, or yourself on the way home. It doesn't have to be fair. The stories a group repeats about itself tend to come true. From Peter Block.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          }
+        ]
+      },
+      {
+        "key": "doubts-gifts",
+        "name": "Doubts and gifts",
+        "description": "What we're unsure of, what we hold back, and what we'd promise.",
+        "color": "plum",
+        "questions": [
+          {
+            "key": "block-dissent-1",
+            "question": "What doubts or reservations do you have about this circle?",
+            "context": "There's no need to resolve them. Naming a doubt is a way of caring about something. From Peter Block's dissent conversation.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "block-gifts-2",
+            "question": "What gift do you have that you haven't fully brought into the world yet?",
+            "context": "Something you can do, or are, that mostly stays at home. Block calls it a gift held in exile. You don't have to promise to do anything with it.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "after_share",
+            "timerHours": 72
+          },
+          {
+            "key": "block-commitment-1",
+            "question": "What promise are you willing to make to this circle?",
+            "context": "Small is fine. A promise is worth being able to reread, so this one is written. From Peter Block's commitment conversation.",
+            "shape": "story",
+            "telling": "text",
+            "reveal": "sealed"
+          }
+        ]
+      }
+    ],
+    "openQuestions": [
+      {
+        "key": "block-gifts-1",
+        "question": "What do you bring to a circle like this one?",
+        "context": "Pick what's true of you, not what you wish was. Add a word if yours isn't there. Everyone will see what we have to work with. After Peter Block's gifts conversation.",
+        "shape": "words",
+        "seedWords": ["listening", "questions", "humour", "calm", "honesty", "warmth", "curiosity", "patience", "stories", "practical help", "cooking", "making things", "memory", "courage", "welcome", "ideas", "steadiness", "play", "attention", "care", "skepticism", "noticing", "encouragement", "hosting"],
+        "pickMax": 3,
+        "coinMax": 2,
+        "reveal": "after_share",
+        "timerHours": 48
+      },
+      {
+        "key": "block-invitation-1",
+        "question": "Who isn't here who should be?",
+        "context": "A person, or a kind of person. Naming them is the first step to inviting them. From Peter Block's invitation conversation.",
+        "shape": "story",
+        "telling": "text",
+        "reveal": "open"
+      }
+    ]
+  }
+}

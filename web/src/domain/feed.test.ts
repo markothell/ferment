@@ -42,7 +42,7 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  gathering = await createGathering(db, { userId: "u_host", name: "Tables" });
   const [a, b, c] = [await member("a"), await member("b"), await member("c")];
   circles = [await formed("One", [a, b, c]), await formed("Two", [a, b, c]), await formed("Three", [a, b, c])];
 });

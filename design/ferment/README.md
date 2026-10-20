@@ -42,10 +42,10 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
   - The opener, arriving one line at a time: "We shape the world with our ideas. / We shape
     our ideas with each other." then "Culture is grown in *conversation*." (conversation in
     saffron italic) then "This is where you pass it on." The quiet lines bookend the headline.
-  - Two ways in: **Start a conversation** (beet) and **Look in on open circles**.
+  - Two ways in: **Start a conversation** (beet) and **Browse starters**.
   - "How it grows", five steps told at the social level, with one drawing in ink and saffron
     only: invite your people; pick what matters (from life or the library); gather in
-    circles of 4–12; share with the community; pass it on.
+    circles of 4–12; share with the gathering; pass it on.
   - Its first readers are people who were invited. It doesn't name workshops and doesn't
     pitch.
 - **Circle map:** same grammar as the Toono version, recoloured (`archive/circle.html`):
@@ -87,6 +87,5 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
 
 ## Still open
 
-- Where "Look in on open circles" goes, and what an outsider may see there (the name, the
-  question and open seats, never answers?). It points at the sample community for now.
-- "Start a conversation" points at community setup until there's a lighter first step.
+- What an outsider may see of a real gathering. The homepage's second way in is now "Browse
+  starters" (`/library`, 2026-10-19), with the sample gathering linked from there.

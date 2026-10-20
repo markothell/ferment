@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { CIRCLE_MAX, CIRCLE_MIN, circleBySlug, circleHome } from "@/domain/circles";
 import { gatheringHome } from "@/domain/gatherings";
 import { authorRights, mayDeleteCircle } from "@/domain/authoring";
-import { approvalsNeeded, circleResponders, circleRounds, roundById } from "@/domain/rounds";
+import { circleResponders, circleRounds, questionApprovals, roundById } from "@/domain/rounds";
 import { myAsk, suggestableFor, waitingSeats } from "@/domain/seats";
 import { loadGathering } from "@/lib/gathering";
 import { displayName } from "@/lib/session";
@@ -61,8 +61,8 @@ export default async function CirclePage({ params }: Props) {
         .map(async (r) => ((await authorRights(db, (await roundById(db, r.id))!, me.id)).edit ? r.id : null)),
     )).filter(Boolean),
   );
-  const needed = approvalsNeeded(circle, home.members.length);
-  const neededForReply = approvalsNeeded(circle, home.members.length, { reply: true });
+  const needed = questionApprovals(circle, home.members.length);
+  const neededForReply = questionApprovals(circle, home.members.length, { reply: true });
   const question = new Map(all.map((r) => [r.id, r.question]));
   const replyTo = (r: (typeof all)[number]) => (r.replyToRoundId ? question.get(r.replyToRoundId) ?? null : null);
   const isHost = circle.hostId === me.id;

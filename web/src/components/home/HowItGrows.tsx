@@ -12,7 +12,7 @@ const STEPS = [
   },
   {
     title: "Pick what matters.",
-    body: "Bring a topic from your own life, or choose one from a library of conversations that other groups have already had and loved.",
+    body: "Bring a topic from your own life, or begin from a starter: circles and questions that other gatherings have already used and loved.",
   },
   {
     title: "Gather in circles.",

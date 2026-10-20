@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
 import { listMyArchived, listMyGatherings } from "@/domain/gatherings";
-import { hostAllowlist, normalizeEmail } from "@/lib/access";
 import { requireUser } from "@/lib/session";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
@@ -14,7 +13,6 @@ export const metadata: Metadata = { title: "ferment" };
 export default async function HomePage() {
   const me = await requireUser();
   const [mine, archived] = await Promise.all([listMyGatherings(db, me.id), listMyArchived(db, me.id)]);
-  const mayStart = hostAllowlist().has(normalizeEmail(me.email));
 
   return (
     <>
@@ -32,9 +30,12 @@ export default async function HomePage() {
         <section className="space-y-4">
           <h1 className="display text-4xl">Your gatherings</h1>
           {mine.length === 0 ? (
-            <p className="text-[var(--ink-soft)]">
-              {mayStart ? "None yet. Start one below." : "None yet. Ferment is invite-only: someone in a gathering can invite you."}
-            </p>
+            <div className="card space-y-3">
+              <p>None yet. If someone has invited you, their email has your way in.</p>
+              <p className="text-[var(--ink-soft)]">
+                Or start one of your own. A starter gives you a welcome, a few circles and the questions they open with; you change what you like before you invite anyone.
+              </p>
+            </div>
           ) : (
             <ul className="space-y-3">
               {mine.map((c) => (
@@ -47,9 +48,11 @@ export default async function HomePage() {
               ))}
             </ul>
           )}
-          {mayStart && (
+          <div className="flex flex-wrap gap-3">
+            <Link href="/library" className="button-quiet">Browse starters</Link>
             <Link href="/new" className="button-quiet">Start a gathering</Link>
-          )}
+            <Link href="/library/mine" className="link self-center text-sm">Your starters</Link>
+          </div>
         </section>
 
         {archived.length > 0 && (

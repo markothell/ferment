@@ -20,7 +20,11 @@ The clock (`lib/tick.ts`: timers, lapsed proposals, notification email, pending 
 with `Authorization: Bearer $CRON_SECRET`; `vercel.json` adds a daily run as a backstop, the most
 the Hobby plan allows.
 
-Sample pages that need no sign-in: `/demo/circle`, `/demo/gathering`, `/demo/feed`.
+Pages that need no sign-in: the library of starters (`/library`, `/library/<slug>`), and the samples
+`/demo/circle`, `/demo/gathering`, `/demo/feed`.
+
+Our own starters are `starters/*.json`. `npm run dev` loads them into the local store at start;
+elsewhere, run `npm run starters:load` after `npm run db:migrate`.
 
 ## Layout
 
@@ -28,7 +32,9 @@ Sample pages that need no sign-in: `/demo/circle`, `/demo/gathering`, `/demo/fee
 - `drizzle/` — generated SQL migrations. After changing the schema: `npm run db:generate`.
 - `src/db/testing.ts` — `testDb()`: a fresh migrated in-memory database per test.
 - `src/lib/auth.ts` — Better Auth, email link only. `src/lib/access.ts` decides who may get a
-  link (invite-only: an account, a live invitation, or `FERMENT_HOST_EMAILS`).
+  link: anyone, capped per address and across new addresses. `FERMENT_HOST_EMAILS` names the
+  curators, who may publish starters to the library.
+- `src/domain/starters.ts` — starters and their lineage (`docs/plan/ferment/STARTERS.md`).
 - `src/app/(app)/` — the app, in the Culture palette (`app.css`, scoped to `.ferment`).
 - `src/app/page.tsx` and `src/components/` — the draft lander, still on the Toono tokens.
 

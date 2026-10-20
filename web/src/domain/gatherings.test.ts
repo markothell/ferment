@@ -32,14 +32,14 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await person("host");
-  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tuesday Tables" });
+  gathering = await createGathering(db, { userId: "u_host", name: "Tuesday Tables" });
 });
 
 describe("gatherings", () => {
-  it("only lets the host allowlist start one, and gives each a unique slug", async () => {
+  it("lets anyone start one, and gives each a unique slug", async () => {
     await person("amy");
-    await expect(createGathering(db, { userId: "u_amy", userEmail: "amy@example.com", name: "Mine" })).rejects.toBeInstanceOf(Refusal);
-    const again = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tuesday Tables" });
+    expect((await createGathering(db, { userId: "u_amy", name: "Mine" })).createdBy).toBe("u_amy");
+    const again = await createGathering(db, { userId: "u_host", name: "Tuesday Tables" });
     expect(gathering.slug).toBe("tuesday-tables");
     expect(again.slug).toBe("tuesday-tables-2");
   });

@@ -44,6 +44,10 @@ export default async function SettingsPage({ params }: PageProps<"/g/[gathering]
               <span className="block font-medium">Set up {gathering.name} →</span>
               <span className="block text-sm text-[var(--ink-soft)]">The welcome note and question, first circles, invitations.</span>
             </Link>
+            <Link href={`${base}/starter`} className="card block">
+              <span className="block font-medium">Save as a starter →</span>
+              <span className="block text-sm text-[var(--ink-soft)]">Its circles and questions, without anyone in it, so another gathering can start the same way.</span>
+            </Link>
           </section>
         )}
 
