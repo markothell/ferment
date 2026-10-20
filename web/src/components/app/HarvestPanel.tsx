@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Axis } from "@/db/schema";
 import type { harvestForRound } from "@/domain/harvests";
 import { HARVEST_MIN } from "@/domain/harvests";
-import { chooseHarvestAction, proposeHarvestAction, withdrawHarvestAction } from "@/app/(app)/c/[community]/h/actions";
+import { chooseHarvestAction, proposeHarvestAction, withdrawHarvestAction } from "@/app/(app)/g/[gathering]/h/actions";
 import { relative } from "@/lib/time";
 import { Form } from "./Form";
 import { SharedAnswer, type Shared } from "./SharedAnswer";
@@ -12,31 +12,31 @@ type View = NonNullable<Awaited<ReturnType<typeof harvestForRound>>>;
 const day = (d: Date) => d.toLocaleDateString("en", { day: "numeric", month: "long" });
 
 /**
- * On a closed round, for people in its circle: open it to the community
+ * On a closed round, for people in its circle: open it to the gathering
  * (design/ferment/archive/harvests.html). Each person who answered decides
  * about their own answer; only the yeses go in.
  */
 export function HarvestPanel({
-  community, communityName, roundId, answered, view, mine, axes,
+  gathering, gatheringName, roundId, answered, view, mine, axes,
 }: {
-  community: string; communityName: string; roundId: string; answered: number; view: View | null; axes: Axis[];
-  /** The viewer's own answer, as the community would see it; null if they didn't answer. */
+  gathering: string; gatheringName: string; roundId: string; answered: number; view: View | null; axes: Axis[];
+  /** The viewer's own answer, as the gathering would see it; null if they didn't answer. */
   mine: Shared | null;
 }) {
   const fields = (extra?: React.ReactNode) => (
     <>
-      <input type="hidden" name="community" value={community} />
+      <input type="hidden" name="gathering" value={gathering} />
       {view && <input type="hidden" name="harvest" value={view.harvest.id} />}
       {extra}
     </>
   );
   const h = view?.harvest;
-  const active = h && (h.status === "gathering" || h.status === "up");
+  const active = h && (h.status === "collecting" || h.status === "up");
 
   if (!active) {
     return (
       <section className="card space-y-3">
-        <h2 className="font-medium">Open this round to {communityName}</h2>
+        <h2 className="font-medium">Open this round to {gatheringName}</h2>
         <p className="text-sm text-[var(--ink-soft)]">
           Anyone here can propose it. Each person who answered decides about their own answer, and only the yeses go in. It goes up once {HARVEST_MIN} say yes.
         </p>
@@ -44,7 +44,7 @@ export function HarvestPanel({
           <p className="mono text-xs text-[var(--ink-faint)]">Last proposed {relative(h.createdAt)}: {view!.shared} said yes.</p>
         )}
         {h?.status === "down" && (
-          <p className="mono text-xs text-[var(--ink-faint)]">It was open to {communityName} until fewer than {HARVEST_MIN} were sharing.</p>
+          <p className="mono text-xs text-[var(--ink-faint)]">It was open to {gatheringName} until fewer than {HARVEST_MIN} were sharing.</p>
         )}
         {answered < HARVEST_MIN ? (
           <p className="text-sm text-[var(--ink-soft)]">It takes {HARVEST_MIN} answers, and this round has {answered}.</p>
@@ -62,12 +62,12 @@ export function HarvestPanel({
   return (
     <section className="card space-y-4">
       <div className="space-y-1">
-        <h2 className="font-medium">{up ? `Open to ${communityName}` : `${view.proposer} proposed opening this to ${communityName}`}</h2>
+        <h2 className="font-medium">{up ? `Open to ${gatheringName}` : `${view.proposer} proposed opening this to ${gatheringName}`}</h2>
         <p className="mono text-xs text-[var(--ink-soft)]">
           {up ? `${view.shared} of ${h.answered} shared` : `${view.shared} of ${HARVEST_MIN} to go up`}
           {view.open ? ` · yeses until ${day(h.closesAt)}` : ""}
         </p>
-        {up && <Link href={`/c/${community}/h/${h.id}`} className="link text-sm">See the harvest</Link>}
+        {up && <Link href={`/g/${gathering}/h/${h.id}`} className="link text-sm">See the harvest</Link>}
       </div>
 
       {!mine ? (
@@ -78,7 +78,7 @@ export function HarvestPanel({
         </Form>
       ) : view.open ? (
         <div className="space-y-3">
-          <p className="mono text-xs text-[var(--ink-faint)]">Yours, as {communityName} would see it</p>
+          <p className="mono text-xs text-[var(--ink-faint)]">Yours, as {gatheringName} would see it</p>
           <SharedAnswer a={mine} axes={axes} />
           {view.myChoice === "keep" && <p className="text-sm text-[var(--ink-soft)]">You&apos;re keeping yours in the circle. You can change that until {day(h.closesAt)}.</p>}
           <div className="flex flex-wrap gap-2">

@@ -13,7 +13,7 @@ export default async function InboxPage() {
   const items = await listNotifications(db, { userId: me.id, limit: 100 });
   // Seen once shown. New ones keep their mark on this visit.
   await markAllRead(db, me.id);
-  const communities = new Set(items.map((n) => n.communityId)).size;
+  const gatherings = new Set(items.map((n) => n.gatheringId)).size;
 
   return (
     <>
@@ -31,7 +31,7 @@ export default async function InboxPage() {
                   <span className="grid min-w-0 gap-0.5">
                     <span className={n.readAt ? "text-[var(--ink-soft)]" : ""}>{n.text}</span>
                     <span className="mono text-xs text-[var(--ink-faint)]">
-                      {communities > 1 ? `${n.communityName} · ` : ""}{relative(n.createdAt)}
+                      {gatherings > 1 ? `${n.gatheringName} · ` : ""}{relative(n.createdAt)}
                     </span>
                   </span>
                 </Link>

@@ -1,6 +1,6 @@
 // Ferment's own tables — docs/plan/ferment/PLAN.md §8.
 //
-// Community → circles → rounds, with the Prompt split out as its own record so
+// Gathering → circles → rounds, with the Prompt split out as its own record so
 // a conversation structure can travel between circles and carry its lineage.
 // Rules that must always hold are constraints here, not checks in code: one
 // response per member per round, one membership per person per circle.
@@ -44,9 +44,9 @@ export const wordOrigin = pgEnum("word_origin", ["seeded", "coined"]);
 
 const userRef = () => text().references(() => user.id, { onDelete: "cascade" });
 
-// ── Community ──────────────────────────────────────────────────────────────
+// ── Gathering ──────────────────────────────────────────────────────────────
 
-export const communities = pgTable("communities", {
+export const gatherings = pgTable("gatherings", {
   id: text().primaryKey(),
   slug: text().notNull().unique(),
   name: text().notNull(),
@@ -59,22 +59,22 @@ export const communities = pgTable("communities", {
   createdAt: timestamp().notNull().defaultNow(),
 });
 
-export const communityMembers = pgTable(
-  "community_members",
+export const gatheringMembers = pgTable(
+  "gathering_members",
   {
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
+      .references(() => gatherings.id, { onDelete: "cascade" }),
     userId: userRef().notNull(),
     role: memberRole().notNull().default("member"),
     invitedBy: text().references(() => user.id, { onDelete: "set null" }),
-    // How this member hears about this community (PLAN §7).
+    // How this member hears about this gathering (PLAN §7).
     email: emailPref().notNull().default("each"),
     joinedAt: timestamp().notNull().defaultNow(),
-    // Set when this member moves the community off their own list. Nobody else sees a change.
+    // Set when this member moves the gathering off their own list. Nobody else sees a change.
     archivedAt: timestamp(),
   },
-  (t) => [primaryKey({ columns: [t.communityId, t.userId] })],
+  (t) => [primaryKey({ columns: [t.gatheringId, t.userId] })],
 );
 
 // An invitation comes from a person (PLAN §4, §11): a member suggests someone
@@ -85,9 +85,9 @@ export const invites = pgTable(
   "invites",
   {
     id: text().primaryKey(),
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
+      .references(() => gatherings.id, { onDelete: "cascade" }),
     // Who the suggester says they are; hosts alone see the email.
     name: text().notNull().default(""),
     email: text().notNull(),
@@ -106,8 +106,8 @@ export const invites = pgTable(
     acceptedBy: text().references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    index().on(t.communityId, t.email),
-    index().on(t.communityId, t.status),
+    index().on(t.gatheringId, t.email),
+    index().on(t.gatheringId, t.status),
     check("invites_token_once_sent", sql`${t.status}::text not in ('pending', 'accepted') or ${t.tokenHash} is not null`),
   ],
 );
@@ -118,9 +118,9 @@ export const circles = pgTable(
   "circles",
   {
     id: text().primaryKey(),
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
+      .references(() => gatherings.id, { onDelete: "cascade" }),
     slug: text().notNull(),
     name: text().notNull(),
     description: text().notNull().default(""),
@@ -128,7 +128,7 @@ export const circles = pgTable(
     hostId: text().references(() => user.id, { onDelete: "set null" }),
     proposedBy: userRef().notNull(),
     status: circleStatus().notNull().default("forming"),
-    // Picked by the host: the header tint and the core on the community map.
+    // Picked by the host: the header tint and the core on the gathering map.
     color: circleColor().notNull().default("saffron"),
     // A forming circle that hasn't reached its minimum by this time expires.
     formingExpiresAt: timestamp(),
@@ -142,8 +142,8 @@ export const circles = pgTable(
     closedAt: timestamp(),
   },
   (t) => [
-    uniqueIndex().on(t.communityId, t.slug),
-    index().on(t.communityId, t.status),
+    uniqueIndex().on(t.gatheringId, t.slug),
+    index().on(t.gatheringId, t.status),
     check("circles_max_live", sql`${t.maxLive} between 1 and 10`),
   ],
 );
@@ -213,9 +213,9 @@ export const prompts = pgTable(
   "prompts",
   {
     id: text().primaryKey(),
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
+      .references(() => gatherings.id, { onDelete: "cascade" }),
     authorId: userRef().notNull(),
     adaptedFromId: text().references((): AnyPgColumn => prompts.id, { onDelete: "set null" }),
     question: text().notNull(),
@@ -231,7 +231,7 @@ export const prompts = pgTable(
     reveal: reveal().notNull().default("sealed"),
     createdAt: timestamp().notNull().defaultNow(),
   },
-  (t) => [index().on(t.communityId), index().on(t.adaptedFromId)],
+  (t) => [index().on(t.gatheringId), index().on(t.adaptedFromId)],
 );
 
 // ── Round: one run of a prompt (PLAN §5, "on the Round") ───────────────────
@@ -243,10 +243,10 @@ export const rounds = pgTable(
     promptId: text()
       .notNull()
       .references(() => prompts.id, { onDelete: "restrict" }),
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
-    // null = an open question to the whole community.
+      .references(() => gatherings.id, { onDelete: "cascade" }),
+    // null = an open question to the whole gathering.
     circleId: text().references(() => circles.id, { onDelete: "cascade" }),
     authorId: userRef().notNull(),
     // Where a suggestion came from, when it was carried over from another round.
@@ -270,14 +270,14 @@ export const rounds = pgTable(
   },
   (t) => [
     index().on(t.circleId, t.phase),
-    index().on(t.communityId, t.phase),
+    index().on(t.gatheringId, t.phase),
     index().on(t.promptId),
     index().on(t.replyToRoundId),
     check("rounds_reply_not_self", sql`${t.replyToRoundId} is distinct from ${t.id}`),
     check("rounds_reply_in_circle", sql`${t.replyToRoundId} is null or ${t.circleId} is not null`),
     check("rounds_answer_needs_round", sql`${t.replyToResponseId} is null or ${t.replyToRoundId} is not null`),
-    // One welcome question per community, and it is always community-wide.
-    uniqueIndex("rounds_one_welcome").on(t.communityId).where(sql`${t.welcome}`),
+    // One welcome question per gathering, and it is always gathering-wide.
+    uniqueIndex("rounds_one_welcome").on(t.gatheringId).where(sql`${t.welcome}`),
     check("rounds_welcome_is_open_question", sql`not ${t.welcome} or ${t.circleId} is null`),
   ],
 );
@@ -359,9 +359,9 @@ export const notifications = pgTable(
   {
     id: text().primaryKey(),
     userId: userRef().notNull(),
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
+      .references(() => gatherings.id, { onDelete: "cascade" }),
     kind: text().notNull(),
     actorId: text().references(() => user.id, { onDelete: "set null" }),
     circleId: text().references(() => circles.id, { onDelete: "cascade" }),
@@ -378,23 +378,23 @@ export const notifications = pgTable(
   (t) => [index().on(t.userId, t.readAt), index().on(t.emailedAt)],
 );
 
-// ── Harvests: a circle opens a closed round to its community (PLAN §11) ─────
+// ── Harvests: a circle opens a closed round to its gathering (PLAN §11) ─────
 //
 // Publishing is a copy, never a flag (08 PROTOCOLS §5): a harvest holds its own
 // snapshot of the question, and each shared answer is copied into
 // harvest_items when its author says yes and deleted when they take it out.
-// The community's read side (domain/harvests.read.ts) reads only these two
+// The gathering's read side (domain/harvests.read.ts) reads only these two
 // tables. harvest_choices is the circle's private record of who said what.
 
-export const harvestStatus = pgEnum("harvest_status", ["gathering", "up", "down", "lapsed"]);
+export const harvestStatus = pgEnum("harvest_status", ["collecting", "up", "down", "lapsed"]);
 
 export const harvests = pgTable(
   "harvests",
   {
     id: text().primaryKey(),
-    communityId: text()
+    gatheringId: text()
       .notNull()
-      .references(() => communities.id, { onDelete: "cascade" }),
+      .references(() => gatherings.id, { onDelete: "cascade" }),
     circleId: text()
       .notNull()
       .references(() => circles.id, { onDelete: "cascade" }),
@@ -406,8 +406,8 @@ export const harvests = pgTable(
     // For the feed: which question it hangs under.
     promptId: text().references(() => prompts.id, { onDelete: "set null" }),
     proposedBy: text().references(() => user.id, { onDelete: "set null" }),
-    status: harvestStatus().notNull().default("gathering"),
-    // The snapshot the community reads.
+    status: harvestStatus().notNull().default("collecting"),
+    // The snapshot the gathering reads.
     question: text().notNull(),
     shape: shape().notNull(),
     axes: jsonb().$type<Axis[]>().notNull().default([]),
@@ -420,7 +420,7 @@ export const harvests = pgTable(
     upAt: timestamp(),
     downAt: timestamp(),
   },
-  (t) => [index().on(t.communityId, t.status), index().on(t.circleId, t.status), index().on(t.promptId)],
+  (t) => [index().on(t.gatheringId, t.status), index().on(t.circleId, t.status), index().on(t.promptId)],
 );
 
 export const harvestChoices = pgTable(

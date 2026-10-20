@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
-import { listMyArchived, listMyCommunities } from "@/domain/communities";
+import { listMyArchived, listMyGatherings } from "@/domain/gatherings";
 import { hostAllowlist, normalizeEmail } from "@/lib/access";
 import { requireUser } from "@/lib/session";
 import { Field } from "@/components/app/Field";
@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "ferment" };
 
 export default async function HomePage() {
   const me = await requireUser();
-  const [mine, archived] = await Promise.all([listMyCommunities(db, me.id), listMyArchived(db, me.id)]);
+  const [mine, archived] = await Promise.all([listMyGatherings(db, me.id), listMyArchived(db, me.id)]);
   const mayStart = hostAllowlist().has(normalizeEmail(me.email));
 
   return (
@@ -30,16 +30,16 @@ export default async function HomePage() {
         )}
 
         <section className="space-y-4">
-          <h1 className="display text-4xl">Your communities</h1>
+          <h1 className="display text-4xl">Your gatherings</h1>
           {mine.length === 0 ? (
             <p className="text-[var(--ink-soft)]">
-              {mayStart ? "None yet. Start one below." : "None yet. Ferment is invite-only: someone in a community can invite you."}
+              {mayStart ? "None yet. Start one below." : "None yet. Ferment is invite-only: someone in a gathering can invite you."}
             </p>
           ) : (
             <ul className="space-y-3">
               {mine.map((c) => (
                 <li key={c.id}>
-                  <Link href={`/c/${c.slug}`} className="card flex items-center justify-between">
+                  <Link href={`/g/${c.slug}`} className="card flex items-center justify-between">
                     <span className="text-lg font-medium">{c.name}</span>
                     {c.role === "host" && <span className="label">host</span>}
                   </Link>
@@ -48,7 +48,7 @@ export default async function HomePage() {
             </ul>
           )}
           {mayStart && (
-            <Link href="/new" className="button-quiet">Start a community</Link>
+            <Link href="/new" className="button-quiet">Start a gathering</Link>
           )}
         </section>
 
@@ -58,7 +58,7 @@ export default async function HomePage() {
             <ul className="space-y-2">
               {archived.map((c) => (
                 <li key={c.id}>
-                  <Link href={`/c/${c.slug}/settings`} className="link text-[var(--ink-soft)]">{c.name}</Link>
+                  <Link href={`/g/${c.slug}/settings`} className="link text-[var(--ink-soft)]">{c.name}</Link>
                 </li>
               ))}
             </ul>

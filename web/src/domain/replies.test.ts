@@ -3,13 +3,13 @@ import type { DB } from "@/db";
 import { responses, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { createCircle, seatInCircle, type Circle } from "./circles";
-import { createCommunity, type Community } from "./communities";
+import { createGathering, type Gathering } from "./gatherings";
 import { acceptInvite, createInvite } from "./invites";
 import { replyContext, repliesTo, suggestReply } from "./replies";
 import { approvalsNeeded, postOpenQuestion, respond, revealNow, roundById, suggestRound, toggleSupport } from "./rounds";
 
 let db: DB;
-let community: Community;
+let gathering: Gathering;
 let circle: Circle;
 let people: string[]; // host + 4 members of the circle
 const t0 = new Date("2026-10-01T12:00:00Z");
@@ -17,7 +17,7 @@ const t0 = new Date("2026-10-01T12:00:00Z");
 async function member(name: string) {
   const id = `u_${name}`;
   await db.insert(user).values({ id, name, email: `${name}@example.com` });
-  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
+  const token = (await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -37,8 +37,8 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
-  circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", now: t0 });
+  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", now: t0 });
   people = ["u_host"];
   for (const n of ["amy", "ben", "cal", "dee"]) {
     const id = await member(n);
@@ -77,7 +77,7 @@ describe("replies", () => {
     const waiting = await suggestRound(db, { circleId: circle.id, userId: people[1], prompt: { question: "Not yet" }, now: t0 });
     await expect(suggestReply(db, { roundId: waiting.id, userId: people[2], prompt: { question: "Nothing to answer" }, now: t0 })).rejects.toThrow(/answered/);
 
-    const open = await postOpenQuestion(db, { communityId: community.id, userId: people[1], prompt: { question: "Everyone?" }, now: t0 });
+    const open = await postOpenQuestion(db, { gatheringId: gathering.id, userId: people[1], prompt: { question: "Everyone?" }, now: t0 });
     await expect(suggestReply(db, { roundId: open.id, userId: people[2], prompt: { question: "Replying" }, now: t0 })).rejects.toThrow(/Open questions/);
   });
 

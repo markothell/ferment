@@ -5,7 +5,7 @@ import { invites, seatRequests, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { maySignIn } from "@/lib/access";
 import { createCircle, isCircleMember, joinCircle, type Circle } from "./circles";
-import { createCommunity, type Community } from "./communities";
+import { createGathering, type Gathering } from "./gatherings";
 import {
   acceptInvite, confirmInvite, createInvite, declineInvite, findInvite, invitesWaiting, lapseInvites, mySuggestions, withdrawInvite,
 } from "./invites";
@@ -13,7 +13,7 @@ import { listNotifications } from "./notifications";
 import { askForSeat, declineSeat, lapseSeats, makeRoom, myAsk, toggleSeatSupport, waitingSeats, withdrawSeat } from "./seats";
 
 let db: DB;
-let community: Community;
+let gathering: Gathering;
 let bread: Circle; // running: host, amy, ben, cal
 const t0 = new Date("2026-10-01T12:00:00Z");
 const days = (n: number) => new Date(t0.getTime() + n * 86_400_000);
@@ -26,7 +26,7 @@ async function person(name: string) {
 
 async function member(name: string) {
   const id = await person(name);
-  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
+  const token = (await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -38,19 +38,19 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await person("host");
-  community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
-  bread = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", now: t0 });
+  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  bread = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", now: t0 });
   for (const n of ["amy", "ben", "cal"]) await joinCircle(db, { circleId: bread.id, userId: await member(n), now: t0 });
 });
 
 describe("suggesting someone", () => {
   it("waits for a host before anything is sent, then comes from the suggester", async () => {
-    const s = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana Reyes", email: "ana@example.com", note: "She bakes.", now: t0 });
+    const s = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana Reyes", email: "ana@example.com", note: "She bakes.", now: t0 });
     expect(s).toMatchObject({ status: "nominated", token: null });
     expect(await maySignIn(db, "ana@example.com", t0)).toBe(false);
     expect(await texts("u_host")).toContain("amy suggests inviting Ana Reyes.");
-    expect((await invitesWaiting(db, community.id, "u_host", t0)).map((i) => [i.name, i.by, i.email])).toEqual([["Ana Reyes", "amy", "ana@example.com"]]);
-    expect(await mySuggestions(db, community.id, "u_amy", t0)).toHaveLength(1);
+    expect((await invitesWaiting(db, gathering.id, "u_host", t0)).map((i) => [i.name, i.by, i.email])).toEqual([["Ana Reyes", "amy", "ana@example.com"]]);
+    expect(await mySuggestions(db, gathering.id, "u_amy", t0)).toHaveLength(1);
 
     await expect(confirmInvite(db, { inviteId: s.inviteId, userId: "u_ben", now: t0 })).rejects.toThrow(/host/);
     const { token } = await confirmInvite(db, { inviteId: s.inviteId, userId: "u_host", now: t0 });
@@ -65,25 +65,25 @@ describe("suggesting someone", () => {
   });
 
   it("needs a name, and one suggestion per person", async () => {
-    await expect(createInvite(db, { communityId: community.id, invitedBy: "u_amy", email: "ana@example.com", now: t0 })).rejects.toThrow(/who they are/);
-    await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", now: t0 });
-    await expect(createInvite(db, { communityId: community.id, invitedBy: "u_ben", name: "Ana", email: "ANA@example.com", now: t0 }))
+    await expect(createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", email: "ana@example.com", now: t0 })).rejects.toThrow(/who they are/);
+    await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", now: t0 });
+    await expect(createInvite(db, { gatheringId: gathering.id, invitedBy: "u_ben", name: "Ana", email: "ANA@example.com", now: t0 }))
       .rejects.toThrow(/amy already suggested them/);
   });
 
   it("says not now with the host's note, and only the suggester withdraws", async () => {
-    const a = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", now: t0 });
+    const a = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", now: t0 });
     await declineInvite(db, { inviteId: a.inviteId, userId: "u_host", note: "Let's wait until spring.", now: t0 });
     expect(await texts("u_amy")).toContain("Not this time for Ana: “Let's wait until spring.”");
 
-    const b = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Bo", email: "bo@example.com", now: t0 });
+    const b = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Bo", email: "bo@example.com", now: t0 });
     await expect(withdrawInvite(db, { inviteId: b.inviteId, userId: "u_ben" })).rejects.toThrow(/Only/);
     await withdrawInvite(db, { inviteId: b.inviteId, userId: "u_amy" });
-    expect(await invitesWaiting(db, community.id, "u_host", t0)).toEqual([]);
+    expect(await invitesWaiting(db, gathering.id, "u_host", t0)).toEqual([]);
   });
 
   it("lapses after 14 days and tells the suggester", async () => {
-    const a = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", now: t0 });
+    const a = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", now: t0 });
     expect(await lapseInvites(db, days(13))).toBe(0);
     expect(await lapseInvites(db, days(14))).toBe(1);
     expect((await db.select().from(invites).where(eq(invites.id, a.inviteId)))[0].status).toBe("lapsed");
@@ -94,7 +94,7 @@ describe("suggesting someone", () => {
 
 describe("a newcomer into a running circle", () => {
   it("holds the seat once the circle makes room, and seats them when they arrive", async () => {
-    const s = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", circleId: bread.id, now: t0 });
+    const s = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", circleId: bread.id, now: t0 });
     expect(await seatOf(s.inviteId)).toMatchObject({ status: "waiting" });
     const [card] = await waitingSeats(db, bread, "u_ben");
     expect(card).toMatchObject({ name: "Ana", newcomer: true, supports: 1, needed: 2, asker: "amy" });
@@ -113,7 +113,7 @@ describe("a newcomer into a running circle", () => {
   });
 
   it("names no circle until it's agreed, and keeps deciding after they arrive", async () => {
-    const s = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", circleId: bread.id, now: t0 });
+    const s = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", circleId: bread.id, now: t0 });
     const { token } = await confirmInvite(db, { inviteId: s.inviteId, userId: "u_host", now: t0 });
     expect((await findInvite(db, token, t0))?.circle).toBeNull();
     const ana = await person("ana");
@@ -127,7 +127,7 @@ describe("a newcomer into a running circle", () => {
   });
 
   it("goes with the invitation when a host says not now", async () => {
-    const s = await createInvite(db, { communityId: community.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", circleId: bread.id, now: t0 });
+    const s = await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_amy", name: "Ana", email: "ana@example.com", circleId: bread.id, now: t0 });
     await declineInvite(db, { inviteId: s.inviteId, userId: "u_host", now: t0 });
     expect(await seatOf(s.inviteId)).toMatchObject({ status: "withdrawn" });
     expect(await waitingSeats(db, bread, "u_ben")).toEqual([]);
@@ -186,7 +186,7 @@ describe("asking to join a running circle", () => {
     expect(await lapseSeats(db, days(14))).toBe(1);
     expect(await texts(dee)).toContain("Your ask to join Bread lapsed after 14 days.");
 
-    const forming = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Kiln", now: t0 });
+    const forming = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Kiln", now: t0 });
     await expect(askForSeat(db, { circleId: forming.id, userId: dee, now: t0 })).rejects.toThrow(/I'm in/);
   });
 });

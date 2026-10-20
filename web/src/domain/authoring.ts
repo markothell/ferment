@@ -111,7 +111,7 @@ export async function mayDeleteCircle(db: DB, circle: Circle, userId: string): P
 /**
  * Delete a circle that hasn't begun, and everything in it. Anyone who'd joined
  * is told by name. Suggested invitations made for a seat in it are withdrawn;
- * one already sent still lets them into the community, just without the seat.
+ * one already sent still lets them into the gathering, just without the seat.
  */
 export async function deleteCircle(db: DB, { circleId, userId, now = new Date() }: { circleId: string; userId: string; now?: Date }): Promise<void> {
   const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
@@ -131,7 +131,7 @@ export async function deleteCircle(db: DB, { circleId, userId, now = new Date() 
     const promptIds = new Set([...asked.map((r) => r.promptId), ...(circle.originPromptId ? [circle.originPromptId] : [])]);
     for (const id of promptIds) await pruneQuestion(tx, id);
     await notifyPeople(tx, joined.map((j) => j.userId), {
-      kind: "circle_removed", communityId: circle.communityId, actorId: userId, detail: circle.name, now,
+      kind: "circle_removed", gatheringId: circle.gatheringId, actorId: userId, detail: circle.name, now,
     });
   });
 }

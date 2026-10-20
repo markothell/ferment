@@ -19,10 +19,10 @@ const ERRORS: Record<RecorderErrorCode, string> = {
  * after that only the words can change.
  */
 export function Composer({
-  action, community, roundId, telling, maxSeconds, storage, existing, submitLabel, children,
+  action, gathering, roundId, telling, maxSeconds, storage, existing, submitLabel, children,
 }: {
   action: (prev: State, form: FormData) => Promise<State>;
-  community: string;
+  gathering: string;
   roundId: string;
   telling: "voice" | "text";
   maxSeconds: number;
@@ -83,7 +83,7 @@ export function Composer({
 
   return (
     <form ref={formRef} action={formAction} onSubmit={onSubmit} className="space-y-4">
-      <input type="hidden" name="community" value={community} />
+      <input type="hidden" name="gathering" value={gathering} />
       <input type="hidden" name="round" value={roundId} />
       <input ref={urlRef} type="hidden" name="audioUrl" defaultValue="" />
       <input ref={secondsRef} type="hidden" name="audioSeconds" defaultValue="" />

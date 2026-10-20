@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { communities, invites, user } from "@/db/schema";
+import { gatherings, invites, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { maySignIn } from "./access";
 import { newId } from "./id";
@@ -10,7 +10,7 @@ const now = new Date("2026-10-01T12:00:00Z");
 
 async function invite(email: string, patch: Partial<typeof invites.$inferInsert> = {}) {
   await db.insert(invites).values({
-    id: newId(), communityId: "c1", email, invitedBy: "u_host", tokenHash: newId(),
+    id: newId(), gatheringId: "c1", email, invitedBy: "u_host", tokenHash: newId(),
     expiresAt: new Date(now.getTime() + 86_400_000), ...patch,
   });
 }
@@ -18,7 +18,7 @@ async function invite(email: string, patch: Partial<typeof invites.$inferInsert>
 beforeEach(async () => {
   db = await testDb();
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  await db.insert(communities).values({ id: "c1", slug: "c1", name: "C1", createdBy: "u_host" });
+  await db.insert(gatherings).values({ id: "c1", slug: "c1", name: "C1", createdBy: "u_host" });
   process.env.FERMENT_HOST_EMAILS = "founder@example.com";
 });
 afterEach(() => { delete process.env.FERMENT_HOST_EMAILS; });

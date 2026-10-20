@@ -1,15 +1,15 @@
-// Circles: 4–12 members inside a community (PLAN §1, §2, §6).
+// Circles: 4–12 members inside a gathering (PLAN §1, §2, §6).
 //
 // A circle is proposed, gathers people while it is forming, and forms when the
 // fourth person joins. A proposal that never gets there expires after the
-// community's proposal window (default 7 days).
+// gathering's proposal window (default 7 days).
 
 import { and, asc, count, eq, isNull, lt } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circleMembers, circles, communities, prompts, rounds, user } from "@/db/schema";
+import { circleMembers, circles, gatherings, prompts, rounds, user } from "@/db/schema";
 import { isCircleColor, type CircleColor } from "@/lib/circleColors";
 import { newId } from "@/lib/id";
-import { requireMember } from "./communities";
+import { requireMember } from "./gatherings";
 import { normalizePrompt } from "./prompts";
 import { notifyCircle } from "./notifications";
 import { settleCircle } from "./rounds";
@@ -28,11 +28,11 @@ export async function circleById(db: DB, circleId: string): Promise<Circle | nul
   return c ?? null;
 }
 
-export async function circleBySlug(db: DB, communityId: string, slug: string): Promise<Circle | null> {
+export async function circleBySlug(db: DB, gatheringId: string, slug: string): Promise<Circle | null> {
   const [c] = await db
     .select()
     .from(circles)
-    .where(and(eq(circles.communityId, communityId), eq(circles.slug, slug)))
+    .where(and(eq(circles.gatheringId, gatheringId), eq(circles.slug, slug)))
     .limit(1);
   return c ?? null;
 }
@@ -61,14 +61,14 @@ export async function isCircleMember(db: DB, circleId: string, userId: string): 
 export async function createCircle(
   db: DB,
   {
-    communityId, userId, name, description = "", firstQuestion = "", promptId = null, color = "saffron", now = new Date(),
+    gatheringId, userId, name, description = "", firstQuestion = "", promptId = null, color = "saffron", now = new Date(),
   }: {
-    communityId: string; userId: string; name: string; description?: string; now?: Date; color?: string;
+    gatheringId: string; userId: string; name: string; description?: string; now?: Date; color?: string;
     /** A new first question, or an existing prompt: "start a circle around this". */
     firstQuestion?: string; promptId?: string | null;
   },
 ): Promise<Circle> {
-  await requireMember(db, communityId, userId);
+  await requireMember(db, gatheringId, userId);
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) refuse("Give the circle a name.");
   if (clean.length > 60) refuse("Circle names are 60 characters at most.");
@@ -77,33 +77,33 @@ export async function createCircle(
   if (!isCircleColor(color)) refuse("Pick one of the colours.");
   const first = !promptId && firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
   if (promptId) {
-    const [existing] = await db.select({ communityId: prompts.communityId }).from(prompts).where(eq(prompts.id, promptId)).limit(1);
-    if (!existing || existing.communityId !== communityId) refuse("That question isn't in this community.");
+    const [existing] = await db.select({ gatheringId: prompts.gatheringId }).from(prompts).where(eq(prompts.id, promptId)).limit(1);
+    if (!existing || existing.gatheringId !== gatheringId) refuse("That question isn't in this gathering.");
   }
 
-  const [community] = await db.select().from(communities).where(eq(communities.id, communityId)).limit(1);
-  const slug = await uniqueSlug(clean, async (s) => Boolean(await circleBySlug(db, communityId, s)));
+  const [gathering] = await db.select().from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  const slug = await uniqueSlug(clean, async (s) => Boolean(await circleBySlug(db, gatheringId, s)));
 
   return db.transaction(async (tx) => {
     let originPromptId: string | null = promptId;
     if (first) {
       originPromptId = newId();
-      await tx.insert(prompts).values({ id: originPromptId, communityId, authorId: userId, ...first });
+      await tx.insert(prompts).values({ id: originPromptId, gatheringId, authorId: userId, ...first });
     }
 
     const [circle] = await tx
       .insert(circles)
       .values({
-        id: newId(), communityId, slug, name: clean, description: desc,
+        id: newId(), gatheringId, slug, name: clean, description: desc,
         hostId: userId, proposedBy: userId, status: "forming", originPromptId, color: color as CircleColor,
-        formingExpiresAt: new Date(now.getTime() + community.proposalExpiryDays * DAY_MS),
+        formingExpiresAt: new Date(now.getTime() + gathering.proposalExpiryDays * DAY_MS),
       })
       .returning();
     await tx.insert(circleMembers).values({ circleId: circle.id, userId, joinedAt: now });
 
     if (originPromptId) {
       await tx.insert(rounds).values({
-        id: newId(), promptId: originPromptId, communityId, circleId: circle.id,
+        id: newId(), promptId: originPromptId, gatheringId, circleId: circle.id,
         authorId: userId, phase: "queued", queuedAt: now,
       });
     }
@@ -146,7 +146,7 @@ export async function seatInCircle(
   { circleId, userId, now = new Date() }: { circleId: string; userId: string; now?: Date },
 ): Promise<{ formed: boolean }> {
   const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
-  await requireMember(db, circle.communityId, userId);
+  await requireMember(db, circle.gatheringId, userId);
   if (circle.status === "closed") refuse("This circle has closed.");
   if (circle.status === "expired" || (circle.status === "forming" && circle.formingExpiresAt && circle.formingExpiresAt <= now)) {
     refuse("This proposal expired before it filled.");
@@ -178,7 +178,7 @@ export async function seatInCircle(
   }).then(async (r) => {
     // Formed: tell everyone in it, and its queued first question opens now.
     if (r.formed) {
-      await notifyCircle(db, circleId, { kind: "circle_formed", communityId: circle.communityId, actorId: userId, now });
+      await notifyCircle(db, circleId, { kind: "circle_formed", gatheringId: circle.gatheringId, actorId: userId, now });
       await settleCircle(db, circleId, now);
     }
     return r;
@@ -228,7 +228,7 @@ export async function circleHome(db: DB, circle: Circle, viewerId: string) {
         .where(eq(rounds.circleId, circle.id))
         .orderBy(asc(rounds.createdAt))
     : [];
-  // A count anyone in the community may see: how many rounds have closed.
+  // A count anyone in the gathering may see: how many rounds have closed.
   const [{ explored }] = await db
     .select({ explored: count() })
     .from(rounds)

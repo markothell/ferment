@@ -1,4 +1,4 @@
-import { confirmSuggestion, declineSuggestion } from "@/app/(app)/c/[community]/actions";
+import { confirmSuggestion, declineSuggestion } from "@/app/(app)/g/[gathering]/actions";
 import type { invitesWaiting } from "@/domain/invites";
 import { relative } from "@/lib/time";
 import { Form } from "./Form";
@@ -6,8 +6,8 @@ import { Form } from "./Form";
 type Suggestion = Awaited<ReturnType<typeof invitesWaiting>>[number];
 
 /** A host's "Waiting for you": people members have suggested. Nothing is sent until a host says yes. */
-export function SuggestionsWaiting({ suggestions, community, members, maxMembers }: {
-  suggestions: Suggestion[]; community: string; members: number; maxMembers: number;
+export function SuggestionsWaiting({ suggestions, gathering, members, maxMembers }: {
+  suggestions: Suggestion[]; gathering: string; members: number; maxMembers: number;
 }) {
   if (!suggestions.length) return null;
   return (
@@ -19,7 +19,7 @@ export function SuggestionsWaiting({ suggestions, community, members, maxMembers
         {suggestions.map((s) => {
           const fields = (
             <>
-              <input type="hidden" name="community" value={community} />
+              <input type="hidden" name="gathering" value={gathering} />
               <input type="hidden" name="invite" value={s.id} />
             </>
           );

@@ -1,11 +1,11 @@
-// "What we're talking about" (PLAN §2; design/ferment/archive/community.html):
-// the questions this community has actually asked, each with how far it has
+// "What we're talking about" (PLAN §2; design/ferment/archive/gathering.html):
+// the questions this gathering has actually asked, each with how far it has
 // spread. Adoption by independent circles is the only ranking: a question
 // counts every distinct circle that ran it or an adaptation of it.
 //
-// `beyond` (other communities that took it up) and `arrived` (it started in
-// another community) are the platform-level spread from the essays. Nothing
-// crosses communities yet, so they are 0 and false; the shape is ready.
+// `beyond` (other gatherings that took it up) and `arrived` (it started in
+// another gathering) are the platform-level spread from the essays. Nothing
+// crosses gatherings yet, so they are 0 and false; the shape is ready.
 //
 // Replies (domain/replies.ts) aren't questions of their own here: each is
 // listed under the question at the root of its chain, and never counts
@@ -19,7 +19,7 @@ import { harvestsByPrompt } from "./harvests.read";
 
 export type FeedItem = Awaited<ReturnType<typeof feed>>[number];
 
-export async function feed(db: DB, communityId: string, viewerId: string) {
+export async function feed(db: DB, gatheringId: string, viewerId: string) {
   const [promptRows, runRows, circleRows, mine, answered] = await Promise.all([
     db
       .select({
@@ -28,29 +28,29 @@ export async function feed(db: DB, communityId: string, viewerId: string) {
       })
       .from(prompts)
       .innerJoin(user, eq(user.id, prompts.authorId))
-      .where(eq(prompts.communityId, communityId)),
+      .where(eq(prompts.gatheringId, gatheringId)),
     db
       .select({
         id: rounds.id, promptId: rounds.promptId, circleId: rounds.circleId, phase: rounds.phase, openedAt: rounds.openedAt, closedAt: rounds.closedAt,
         replyToRoundId: rounds.replyToRoundId,
       })
       .from(rounds)
-      .where(and(eq(rounds.communityId, communityId), inArray(rounds.phase, ["open", "closed", "nominated", "queued"]))),
-    db.select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status }).from(circles).where(eq(circles.communityId, communityId)),
+      .where(and(eq(rounds.gatheringId, gatheringId), inArray(rounds.phase, ["open", "closed", "nominated", "queued"]))),
+    db.select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status }).from(circles).where(eq(circles.gatheringId, gatheringId)),
     db
       .select({ circleId: circleMembers.circleId })
       .from(circleMembers)
       .innerJoin(circles, eq(circles.id, circleMembers.circleId))
-      .where(and(eq(circles.communityId, communityId), eq(circleMembers.userId, viewerId), isNull(circleMembers.leftAt))),
+      .where(and(eq(circles.gatheringId, gatheringId), eq(circleMembers.userId, viewerId), isNull(circleMembers.leftAt))),
     db
       .select({ roundId: responses.roundId })
       .from(responses)
       .innerJoin(rounds, eq(rounds.id, responses.roundId))
-      .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId))),
+      .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId))),
   ]);
 
   // Harvests show on their question and filter the feed; they never move the ranking.
-  const harvested = await harvestsByPrompt(db, communityId);
+  const harvested = await harvestsByPrompt(db, gatheringId);
   const circleById = new Map(circleRows.map((c) => [c.id, c]));
   const total = Math.max(1, circleRows.filter((c) => c.status === "active" || c.status === "idle").length);
   const runById = new Map(runRows.map((r) => [r.id, r]));

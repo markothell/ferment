@@ -1,12 +1,12 @@
 // Notifications (PLAN §7): the moments that bring people back. A row per
 // person per moment; the inbox reads them and a sweep emails them, per each
-// member's choice for that community: each event, a daily digest, or never.
+// member's choice for that gathering: each event, a daily digest, or never.
 
 import { and, asc, desc, eq, inArray, isNull, lte, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { DB } from "@/db";
 import {
-  circleMembers, circles, communities, communityMembers, invites, notifications, prompts, rounds, seatRequests, user,
+  circleMembers, circles, gatherings, gatheringMembers, invites, notifications, prompts, rounds, seatRequests, user,
 } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
@@ -36,7 +36,7 @@ export const KINDS = {
 export type Kind = keyof typeof KINDS;
 
 type Moment = {
-  kind: Kind; communityId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null;
+  kind: Kind; gatheringId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null;
   inviteId?: string | null; seatRequestId?: string | null; harvestId?: string | null; detail?: string | null; now?: Date;
 };
 
@@ -45,7 +45,7 @@ async function insertFor(db: DB, userIds: string[], m: Moment) {
   if (!to.length) return;
   await db.insert(notifications).values(
     to.map((userId) => ({
-      id: newId(), userId, communityId: m.communityId, kind: m.kind,
+      id: newId(), userId, gatheringId: m.gatheringId, kind: m.kind,
       actorId: m.actorId ?? null, circleId: m.circleId ?? null, roundId: m.roundId ?? null,
       inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, harvestId: m.harvestId ?? null, detail: m.detail ?? null, createdAt: m.now ?? new Date(),
     })),
@@ -66,18 +66,18 @@ export async function notifyCircle(db: DB, circleId: string, m: Omit<Moment, "ci
   await insertFor(db, members.map((r) => r.userId), { ...m, circleId });
 }
 
-/** Everyone in a community, minus whoever caused the moment. */
-export async function notifyCommunity(db: DB, m: Moment) {
-  const members = await db.select({ userId: communityMembers.userId }).from(communityMembers).where(eq(communityMembers.communityId, m.communityId));
+/** Everyone in a gathering, minus whoever caused the moment. */
+export async function notifyGathering(db: DB, m: Moment) {
+  const members = await db.select({ userId: gatheringMembers.userId }).from(gatheringMembers).where(eq(gatheringMembers.gatheringId, m.gatheringId));
   await insertFor(db, members.map((r) => r.userId), m);
 }
 
-/** The community's hosts, minus whoever caused the moment. */
+/** The gathering's hosts, minus whoever caused the moment. */
 export async function notifyHosts(db: DB, m: Moment) {
   const hosts = await db
-    .select({ userId: communityMembers.userId })
-    .from(communityMembers)
-    .where(and(eq(communityMembers.communityId, m.communityId), eq(communityMembers.role, "host")));
+    .select({ userId: gatheringMembers.userId })
+    .from(gatheringMembers)
+    .where(and(eq(gatheringMembers.gatheringId, m.gatheringId), eq(gatheringMembers.role, "host")));
   await insertFor(db, hosts.map((r) => r.userId), m);
 }
 
@@ -103,11 +103,11 @@ export async function notifyOne(db: DB, userId: string, m: Moment) {
 
 export type NotificationView = {
   id: string; kind: Kind; createdAt: Date; readAt: Date | null; emailedAt: Date | null;
-  communityId: string; communityName: string; text: string; href: string;
+  gatheringId: string; gatheringName: string; text: string; href: string;
 };
 
 function describe(r: {
-  kind: string; actorName: string | null; actorEmail: string | null; circleName: string | null; question: string | null; communityName: string;
+  kind: string; actorName: string | null; actorEmail: string | null; circleName: string | null; question: string | null; gatheringName: string;
   detail: string | null;
   /** invitations and seats: who it's for, whether that's the reader, and a host's note */
   subject: string | null; forReader: boolean; selfAsked: boolean; hostNote: string | null;
@@ -133,9 +133,9 @@ function describe(r: {
     case "suggested": return `${who} suggested ${q} to ${r.circleName}. It needs support to open.`;
     case "answered": return `${who} answered your question ${q}.`;
     case "asked_everyone": return `${who} asked everyone ${q}.`;
-    case "harvest_proposed": return `${who} wants to open ${q} to ${r.communityName}. Share yours?`;
+    case "harvest_proposed": return `${who} wants to open ${q} to ${r.gatheringName}. Share yours?`;
     case "harvest_reminder": return `Two days left to share yours from ${q}.`;
-    case "harvest_up": return `${r.circleName}'s answers to ${q} are open to ${r.communityName}.`;
+    case "harvest_up": return `${r.circleName}'s answers to ${q} are open to ${r.gatheringName}.`;
     case "harvest_down": return `${r.circleName}'s harvest of ${q} came down: fewer than 3 are sharing now.`;
     case "harvest_lapsed": return `Not enough yeses to open ${q}. Nothing was shared.`;
     case "circle_removed": return `${who} took down ${r.detail ?? "a circle"} before it began.`;
@@ -153,14 +153,14 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
       seatUserId: seatRequests.userId, seatAskedBy: seatRequests.askedBy,
       candidateName: candidate.name, candidateEmail: candidate.email, seatInviteName: seatInvite.name,
       id: notifications.id, kind: notifications.kind, createdAt: notifications.createdAt, readAt: notifications.readAt,
-      emailedAt: notifications.emailedAt, communityId: notifications.communityId,
-      communityName: communities.name, communitySlug: communities.slug,
+      emailedAt: notifications.emailedAt, gatheringId: notifications.gatheringId,
+      gatheringName: gatherings.name, gatheringSlug: gatherings.slug,
       actorName: user.name, actorEmail: user.email,
       circleName: circles.name, circleSlug: circles.slug, roundId: notifications.roundId, question: prompts.question,
       harvestId: notifications.harvestId, detail: notifications.detail,
     })
     .from(notifications)
-    .innerJoin(communities, eq(communities.id, notifications.communityId))
+    .innerJoin(gatherings, eq(gatherings.id, notifications.gatheringId))
     .leftJoin(user, eq(user.id, notifications.actorId))
     .leftJoin(circles, eq(circles.id, notifications.circleId))
     .leftJoin(rounds, eq(rounds.id, notifications.roundId))
@@ -174,7 +174,7 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
     .limit(where.limit ?? 100);
   return rows.map((r) => ({
     id: r.id, kind: r.kind as Kind, createdAt: r.createdAt, readAt: r.readAt, emailedAt: r.emailedAt,
-    communityId: r.communityId, communityName: r.communityName,
+    gatheringId: r.gatheringId, gatheringName: r.gatheringName,
     text: describe({
       ...r,
       subject: r.inviteName
@@ -183,11 +183,11 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
       forReader: r.seatUserId === where.userId,
       selfAsked: r.seatUserId !== null && r.seatUserId === r.seatAskedBy,
     }),
-    href: r.kind === "harvest_up" && r.harvestId ? `/c/${r.communitySlug}/h/${r.harvestId}`
-      : r.roundId ? `/c/${r.communitySlug}/r/${r.roundId}`
-      : r.circleSlug ? `/c/${r.communitySlug}/circles/${r.circleSlug}`
-      : r.kind === "invite_suggested" ? `/c/${r.communitySlug}/people#waiting`
-      : `/c/${r.communitySlug}`,
+    href: r.kind === "harvest_up" && r.harvestId ? `/g/${r.gatheringSlug}/h/${r.harvestId}`
+      : r.roundId ? `/g/${r.gatheringSlug}/r/${r.roundId}`
+      : r.circleSlug ? `/g/${r.gatheringSlug}/circles/${r.circleSlug}`
+      : r.kind === "invite_suggested" ? `/g/${r.gatheringSlug}/people#waiting`
+      : `/g/${r.gatheringSlug}`,
   }));
 }
 
@@ -205,7 +205,7 @@ export async function markAllRead(db: DB, userId: string, now = new Date()) {
 const DAY_MS = 86_400_000;
 
 /**
- * What's due to be emailed now, one batch per person per community:
+ * What's due to be emailed now, one batch per person per gathering:
  *   each   → everything not yet sent (a sweep gathers a burst into one email);
  *   digest → everything not yet sent, once the oldest has waited a day;
  *   off    → nothing is sent; those rows are marked handled.
@@ -214,11 +214,11 @@ const DAY_MS = 86_400_000;
 export async function dueEmails(db: DB, now = new Date()) {
   const pending = await db
     .select({
-      id: notifications.id, userId: notifications.userId, communityId: notifications.communityId,
-      createdAt: notifications.createdAt, pref: communityMembers.email, email: user.email, name: user.name,
+      id: notifications.id, userId: notifications.userId, gatheringId: notifications.gatheringId,
+      createdAt: notifications.createdAt, pref: gatheringMembers.email, email: user.email, name: user.name,
     })
     .from(notifications)
-    .innerJoin(communityMembers, and(eq(communityMembers.communityId, notifications.communityId), eq(communityMembers.userId, notifications.userId)))
+    .innerJoin(gatheringMembers, and(eq(gatheringMembers.gatheringId, notifications.gatheringId), eq(gatheringMembers.userId, notifications.userId)))
     .innerJoin(user, eq(user.id, notifications.userId))
     .where(and(isNull(notifications.emailedAt), isNull(notifications.readAt), lte(notifications.createdAt, now)))
     .orderBy(asc(notifications.createdAt));
@@ -226,11 +226,11 @@ export async function dueEmails(db: DB, now = new Date()) {
   const off = pending.filter((p) => p.pref === "off").map((p) => p.id);
   if (off.length) await db.update(notifications).set({ emailedAt: now }).where(inArray(notifications.id, off));
 
-  const batches = new Map<string, { userId: string; communityId: string; email: string; name: string; ids: string[]; oldest: Date; pref: string }>();
+  const batches = new Map<string, { userId: string; gatheringId: string; email: string; name: string; ids: string[]; oldest: Date; pref: string }>();
   for (const p of pending) {
     if (p.pref === "off") continue;
-    const key = `${p.userId}:${p.communityId}`;
-    const b = batches.get(key) ?? { userId: p.userId, communityId: p.communityId, email: p.email, name: p.name, ids: [], oldest: p.createdAt, pref: p.pref };
+    const key = `${p.userId}:${p.gatheringId}`;
+    const b = batches.get(key) ?? { userId: p.userId, gatheringId: p.gatheringId, email: p.email, name: p.name, ids: [], oldest: p.createdAt, pref: p.pref };
     b.ids.push(p.id);
     batches.set(key, b);
   }
@@ -241,9 +241,9 @@ export async function markEmailed(db: DB, ids: string[], now = new Date()) {
   if (ids.length) await db.update(notifications).set({ emailedAt: now }).where(inArray(notifications.id, ids));
 }
 
-export async function setEmailPref(db: DB, { communityId, userId, pref }: { communityId: string; userId: string; pref: "each" | "digest" | "off" }) {
+export async function setEmailPref(db: DB, { gatheringId, userId, pref }: { gatheringId: string; userId: string; pref: "each" | "digest" | "off" }) {
   await db
-    .update(communityMembers)
+    .update(gatheringMembers)
     .set({ email: pref })
-    .where(and(eq(communityMembers.communityId, communityId), eq(communityMembers.userId, userId), ne(communityMembers.email, pref)));
+    .where(and(eq(gatheringMembers.gatheringId, gatheringId), eq(gatheringMembers.userId, userId), ne(gatheringMembers.email, pref)));
 }

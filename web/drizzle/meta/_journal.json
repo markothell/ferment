@@ -71,6 +71,13 @@
       "when": 1792258157986,
       "tag": "0009_delete_and_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792432449148,
+      "tag": "0010_gatherings",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CIRCLE_MAX, CIRCLE_MIN } from "@/domain/circles";
-import { join } from "@/app/(app)/c/[community]/actions";
+import { join } from "@/app/(app)/g/[gathering]/actions";
 import type { CircleColor } from "@/lib/circleColors";
 import { Form } from "./Form";
 import { CircleGlyph } from "./Glyph";
@@ -16,13 +16,13 @@ function daysLeft(until: Date | null): string {
   return d <= 1 ? "last day" : `${d} days left`;
 }
 
-export function CircleCard({ circle, community }: { circle: CircleRow; community: string }) {
+export function CircleCard({ circle, gathering }: { circle: CircleRow; gathering: string }) {
   const forming = circle.status === "forming";
   const need = Math.max(0, CIRCLE_MIN - circle.members);
   return (
     <li className="card space-y-3">
       <div className="flex items-baseline justify-between gap-3">
-        <Link href={`/c/${community}/circles/${circle.slug}`} className="flex items-center gap-3 text-lg font-medium hover:underline">
+        <Link href={`/g/${gathering}/circles/${circle.slug}`} className="flex items-center gap-3 text-lg font-medium hover:underline">
           <CircleGlyph size={24} forming={forming} color={circle.color} />
           {circle.name}
         </Link>
@@ -41,10 +41,10 @@ export function CircleCard({ circle, community }: { circle: CircleRow; community
         ) : circle.members >= CIRCLE_MAX ? (
           <span className="label shrink-0">full</span>
         ) : !forming ? (
-          <Link href={`/c/${community}/circles/${circle.slug}`} className="link shrink-0 text-sm">Ask to join</Link>
+          <Link href={`/g/${gathering}/circles/${circle.slug}`} className="link shrink-0 text-sm">Ask to join</Link>
         ) : (
           <Form action={join} submit="I'm in" pending="Joining…" quiet className="flex items-center gap-3">
-            <input type="hidden" name="community" value={community} />
+            <input type="hidden" name="gathering" value={gathering} />
             <input type="hidden" name="circle" value={circle.id} />
           </Form>
         )}

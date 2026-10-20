@@ -8,11 +8,11 @@ import "./home.css";
 
 // The homepage (design/ferment/archive/home.html). Its first readers are people
 // who were invited, so it explains the social side, not the screens.
-// "Start a conversation" goes to the community setup until there's a lighter
-// first step. "Open circles" goes to the sample community until outsiders can
+// "Start a conversation" goes to the gathering setup until there's a lighter
+// first step. "Open circles" goes to the sample gathering until outsiders can
 // look in on real ones.
 const START_HREF = "/new";
-const LOOK_HREF = "/demo/community";
+const LOOK_HREF = "/demo/gathering";
 
 // iOS opens a home-screen bookmark on the page it was saved from, not the
 // manifest's start_url, so a bookmark of this page goes on to /start too.
@@ -70,7 +70,7 @@ export default async function Home() {
           </div>
           <div className="home-way">
             <h2 className="display">Start a conversation</h2>
-            <p>Ask one question you&rsquo;d love to hear people answer, and send it to a few of them. A community can grow from there, when you&rsquo;re ready.</p>
+            <p>Ask one question you&rsquo;d love to hear people answer, and send it to a few of them. A gathering can grow from there, when you&rsquo;re ready.</p>
             <div><Link href={START_HREF} className="home-btn">Start a conversation</Link></div>
           </div>
         </section>

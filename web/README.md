@@ -20,7 +20,7 @@ The clock (`lib/tick.ts`: timers, lapsed proposals, notification email, pending 
 with `Authorization: Bearer $CRON_SECRET`; `vercel.json` adds a daily run as a backstop, the most
 the Hobby plan allows.
 
-Sample pages that need no sign-in: `/demo/circle`, `/demo/community`, `/demo/feed`.
+Sample pages that need no sign-in: `/demo/circle`, `/demo/gathering`, `/demo/feed`.
 
 ## Layout
 

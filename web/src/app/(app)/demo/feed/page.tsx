@@ -5,7 +5,7 @@ import { Top } from "@/components/app/Top";
 
 export const metadata: Metadata = { title: "What we're talking about · ferment" };
 
-// The review fixture from design/ferment/archive/community.html. Read-only.
+// The review fixture from design/ferment/archive/gathering.html. Read-only.
 // `beyond` and `arrived` are the unbuilt platform-level spread, shown here as the concept.
 const c = (id: string, name: string, open = false, viaAdaptation = false) => ({ id, slug: id, name, open, first: null, viaAdaptation });
 const base = {
@@ -39,7 +39,7 @@ export default function DemoFeed() {
       <Top trail={[{ label: "Hillside Tables, an example" }, { label: "What we're talking about" }]} />
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
         <h1 className="display text-4xl">What we&apos;re talking about</h1>
-        <FeedList items={ITEMS} community="demo" actions={false} />
+        <FeedList items={ITEMS} gathering="demo" actions={false} />
       </main>
     </>
   );

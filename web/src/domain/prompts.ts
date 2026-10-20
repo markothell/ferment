@@ -34,7 +34,7 @@ export type PromptInput = {
   coinMax?: number;
   secondsPerNote?: number;
   reveal?: Reveal;
-  /** An adaptation: the prompt this one grew from, in the same community. */
+  /** An adaptation: the prompt this one grew from, in the same gathering. */
   adaptedFromId?: string | null;
 };
 
@@ -116,14 +116,14 @@ export function normalizePrompt(input: PromptInput) {
 
 export async function createPrompt(
   db: DB,
-  { communityId, authorId, adaptedFromId = null, ...input }: PromptInput & { communityId: string; authorId: string },
+  { gatheringId, authorId, adaptedFromId = null, ...input }: PromptInput & { gatheringId: string; authorId: string },
 ): Promise<Prompt> {
   const values = normalizePrompt(input);
   if (adaptedFromId) {
     const parent = await promptById(db, adaptedFromId);
-    if (!parent || parent.communityId !== communityId) refuse("The question you're adapting isn't in this community.");
+    if (!parent || parent.gatheringId !== gatheringId) refuse("The question you're adapting isn't in this gathering.");
   }
-  const [p] = await db.insert(prompts).values({ id: newId(), communityId, authorId, adaptedFromId, ...values }).returning();
+  const [p] = await db.insert(prompts).values({ id: newId(), gatheringId, authorId, adaptedFromId, ...values }).returning();
   return p;
 }
 

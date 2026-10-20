@@ -4,7 +4,7 @@ import type { DB } from "@/db";
 import { responses, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { runClock } from "./clock";
-import { createCommunity } from "./communities";
+import { createGathering } from "./gatherings";
 import { postOpenQuestion, respond, roundView } from "./rounds";
 import { TryLater, transcribePending, transcribeResponse, type Transcriber } from "./transcripts";
 
@@ -21,8 +21,8 @@ beforeEach(async () => {
   heard = [];
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  const community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
-  roundId = (await postOpenQuestion(db, { communityId: community.id, userId: "u_host", prompt: { question: "What fed you?", reveal: "open" }, now: t0 })).id;
+  const gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  roundId = (await postOpenQuestion(db, { gatheringId: gathering.id, userId: "u_host", prompt: { question: "What fed you?", reveal: "open" }, now: t0 })).id;
 });
 
 const record = (url = "/api/audio/local/take1.m4a", now = t0) =>

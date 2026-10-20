@@ -1,5 +1,5 @@
 // Harvests (PLAN §11; design/ferment/archive/harvests.html): a circle opens a
-// closed round to its community.
+// closed round to its gathering.
 //
 //   anyone in the circle proposes ─→ gathering (a week)
 //   gathering ─(a third yes)→ up ─(takeouts leave fewer than 3)→ down
@@ -13,7 +13,7 @@
 import { and, eq, inArray, isNull, lte } from "drizzle-orm";
 import type { DB } from "@/db";
 import {
-  communities, harvestChoices, harvestItems, harvests, prompts, responseWords, responses, rounds, user, words,
+  gatherings, harvestChoices, harvestItems, harvests, prompts, responseWords, responses, rounds, user, words,
 } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
@@ -71,7 +71,7 @@ async function copyIn(db: DB, h: Harvest, userId: string, now: Date): Promise<bo
 async function settle(db: DB, h: Harvest, actorId: string | null, now: Date): Promise<Harvest> {
   const n = await itemCount(db, h.id);
   let next = h.status;
-  if (n >= HARVEST_MIN && h.status !== "up" && (h.status === "gathering" || live(h, now))) next = "up";
+  if (n >= HARVEST_MIN && h.status !== "up" && (h.status === "collecting" || live(h, now))) next = "up";
   else if (n < HARVEST_MIN && h.status === "up") next = "down";
   if (next === h.status) return h;
 
@@ -80,7 +80,7 @@ async function settle(db: DB, h: Harvest, actorId: string | null, now: Date): Pr
     .set(next === "up" ? { status: "up", upAt: h.upAt ?? now, downAt: null } : { status: next, downAt: now })
     .where(eq(harvests.id, h.id))
     .returning();
-  const moment = { communityId: h.communityId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, actorId, now };
+  const moment = { gatheringId: h.gatheringId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, actorId, now };
   if (next === "up") {
     await notifyCircle(db, h.circleId, { ...moment, kind: "harvest_up", actorId: null });
   } else if (next === "down") {
@@ -103,7 +103,7 @@ export async function proposeHarvest(db: DB, { roundId, userId, now = new Date()
   if (!(await isCircleMember(db, round.circleId, userId))) refuse("Only people in the circle can propose this.");
 
   const [existing] = await db.select().from(harvests).where(eq(harvests.roundId, roundId)).limit(1);
-  if (existing && (existing.status === "gathering" || existing.status === "up")) refuse("This round has already been proposed.");
+  if (existing && (existing.status === "collecting" || existing.status === "up")) refuse("This round has already been proposed.");
 
   const [prompt] = await db.select().from(prompts).where(eq(prompts.id, round.promptId)).limit(1);
   const answered = (await db.select({ id: responses.id }).from(responses).where(eq(responses.roundId, roundId))).length;
@@ -114,7 +114,7 @@ export async function proposeHarvest(db: DB, { roundId, userId, now = new Date()
     const [created] = await tx
       .insert(harvests)
       .values({
-        id: newId(), communityId: round.communityId, circleId: round.circleId!, roundId, promptId: round.promptId,
+        id: newId(), gatheringId: round.gatheringId, circleId: round.circleId!, roundId, promptId: round.promptId,
         proposedBy: userId, question: prompt.question, shape: prompt.shape, axes: prompt.axes, answered,
         closesAt: new Date(now.getTime() + HARVEST_WINDOW_DAYS * DAY_MS), createdAt: now,
       })
@@ -128,7 +128,7 @@ export async function proposeHarvest(db: DB, { roundId, userId, now = new Date()
   const answerers = await db.select({ userId: responses.userId }).from(responses).where(eq(responses.roundId, roundId));
   for (const a of answerers) {
     if (await isCircleMember(db, round.circleId, a.userId)) {
-      await notifyOne(db, a.userId, { kind: "harvest_proposed", communityId: h.communityId, circleId: h.circleId, roundId, harvestId: h.id, actorId: userId, now });
+      await notifyOne(db, a.userId, { kind: "harvest_proposed", gatheringId: h.gatheringId, circleId: h.circleId, roundId, harvestId: h.id, actorId: userId, now });
     }
   }
   return settle(db, h, userId, now);
@@ -184,7 +184,7 @@ export async function tickHarvests(db: DB, now = new Date()): Promise<{ reminded
   const soon = await db
     .select()
     .from(harvests)
-    .where(and(inArray(harvests.status, ["gathering", "up"]), isNull(harvests.remindedAt), lte(harvests.closesAt, new Date(now.getTime() + REMIND_BEFORE_MS))));
+    .where(and(inArray(harvests.status, ["collecting", "up"]), isNull(harvests.remindedAt), lte(harvests.closesAt, new Date(now.getTime() + REMIND_BEFORE_MS))));
   let reminded = 0;
   for (const h of soon) {
     if (h.closesAt <= now) continue;
@@ -195,16 +195,16 @@ export async function tickHarvests(db: DB, now = new Date()): Promise<{ reminded
     const decided = new Set(chose.map((c) => c.userId));
     for (const a of answerers) {
       if (decided.has(a.userId) || !(await isCircleMember(db, h.circleId, a.userId))) continue;
-      await notifyOne(db, a.userId, { kind: "harvest_reminder", communityId: h.communityId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, now });
+      await notifyOne(db, a.userId, { kind: "harvest_reminder", gatheringId: h.gatheringId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, now });
       reminded++;
     }
     await db.update(harvests).set({ remindedAt: now }).where(eq(harvests.id, h.id));
   }
 
-  const ended = await db.select().from(harvests).where(and(eq(harvests.status, "gathering"), lte(harvests.closesAt, now)));
+  const ended = await db.select().from(harvests).where(and(eq(harvests.status, "collecting"), lte(harvests.closesAt, now)));
   for (const h of ended) {
     await db.update(harvests).set({ status: "lapsed" }).where(eq(harvests.id, h.id));
-    if (h.proposedBy) await notifyOne(db, h.proposedBy, { kind: "harvest_lapsed", communityId: h.communityId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, now });
+    if (h.proposedBy) await notifyOne(db, h.proposedBy, { kind: "harvest_lapsed", gatheringId: h.gatheringId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, now });
   }
   return { reminded, lapsed: ended.length };
 }
@@ -213,15 +213,15 @@ export async function tickHarvests(db: DB, now = new Date()): Promise<{ reminded
 export async function harvestForRound(db: DB, roundId: string, viewerId: string, now = new Date()) {
   const [h] = await db.select().from(harvests).where(eq(harvests.roundId, roundId)).limit(1);
   if (!h) return null;
-  const [[community], items, choice, proposer] = await Promise.all([
-    db.select({ name: communities.name }).from(communities).where(eq(communities.id, h.communityId)).limit(1),
+  const [[gathering], items, choice, proposer] = await Promise.all([
+    db.select({ name: gatherings.name }).from(gatherings).where(eq(gatherings.id, h.gatheringId)).limit(1),
     db.select({ userId: harvestItems.userId }).from(harvestItems).where(eq(harvestItems.harvestId, h.id)),
     db.select({ share: harvestChoices.share }).from(harvestChoices).where(and(eq(harvestChoices.harvestId, h.id), eq(harvestChoices.userId, viewerId))).limit(1),
     h.proposedBy ? db.select({ name: user.name, email: user.email }).from(user).where(eq(user.id, h.proposedBy)).limit(1) : [],
   ]);
   return {
     harvest: h,
-    communityName: community.name,
+    gatheringName: gathering.name,
     shared: items.length,
     open: live(h, now),
     mineIn: items.some((i) => i.userId === viewerId),

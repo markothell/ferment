@@ -1,10 +1,10 @@
 import type { CircleColor } from "@/lib/circleColors";
 
-// Page icons drawn from the community map's own shapes, so moving between
-// pages teaches the map: the community is a ring of people round a center;
+// Page icons drawn from the gathering map's own shapes, so moving between
+// pages teaches the map: the gathering is a ring of people round a center;
 // a circle is a circle with its core.
 
-export function CommunityGlyph({ size = 40 }: { size?: number }) {
+export function GatheringGlyph({ size = 40 }: { size?: number }) {
   const dots = Array.from({ length: 10 }, (_, k) => {
     const a = -Math.PI / 2 + (2 * Math.PI * k) / 10;
     return { x: 20 + 15 * Math.cos(a), y: 20 + 15 * Math.sin(a) };

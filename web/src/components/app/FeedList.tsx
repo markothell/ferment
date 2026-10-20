@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { FeedItem } from "@/domain/feed";
-import { suggestFromFeed } from "@/app/(app)/c/[community]/actions";
+import { suggestFromFeed } from "@/app/(app)/g/[gathering]/actions";
 import { Form } from "./Form";
 import { CircleGlyph } from "./Glyph";
 import { Ripple } from "./Ripple";
 
 function meta(item: FeedItem) {
   const bits = [item.everyone ? `asked of everyone · ${item.everyone.answered} answered` : `${item.here} of ${item.total} circles here`];
-  if (item.beyond) bits.push(`${item.beyond} ${item.beyond === 1 ? "community" : "communities"} beyond`);
+  if (item.beyond) bits.push(`${item.beyond} ${item.beyond === 1 ? "gathering" : "gatherings"} beyond`);
   return bits.join(" · ");
 }
 
@@ -16,9 +16,9 @@ function meta(item: FeedItem) {
  * <details> keeps it working without script.
  */
 export function FeedList({
-  items, community, openFirst = true, actions = true,
-}: { items: FeedItem[]; community: string; openFirst?: boolean; actions?: boolean }) {
-  const base = `/c/${community}`;
+  items, gathering, openFirst = true, actions = true,
+}: { items: FeedItem[]; gathering: string; openFirst?: boolean; actions?: boolean }) {
+  const base = `/g/${gathering}`;
   const firstCircleQuestion = items.findIndex((i) => !i.everyone);
   return (
     <ol className="feed">
@@ -79,7 +79,7 @@ export function FeedList({
 
                 {item.harvests.length > 0 && (
                   <div className="space-y-1.5">
-                    <p className="mono text-[11px] text-[var(--ink-faint)]">Opened to the community by</p>
+                    <p className="mono text-[11px] text-[var(--ink-faint)]">Opened to the gathering by</p>
                     <ul className="flex flex-wrap gap-1.5">
                       {item.harvests.map((h) => (
                         <li key={h.id}>
@@ -124,14 +124,14 @@ export function FeedList({
 
                 <p className="mono text-[11px] text-[var(--ink-faint)]">
                   {item.beyond
-                    ? `Also asked in ${item.beyond} other ${item.beyond === 1 ? "community" : "communities"}. Their answers stay with them.`
-                    : "Not asked in other communities yet."}
+                    ? `Also asked in ${item.beyond} other ${item.beyond === 1 ? "gathering" : "gatherings"}. Their answers stay with them.`
+                    : "Not asked in other gatherings yet."}
                 </p>
 
                 {actions && <div className="flex flex-wrap items-center gap-2">
                   {item.suggestable.length > 0 && (
                     <Form action={suggestFromFeed} submit="Suggest to my circle" quiet className="flex flex-wrap items-center gap-2">
-                      <input type="hidden" name="community" value={community} />
+                      <input type="hidden" name="gathering" value={gathering} />
                       <input type="hidden" name="prompt" value={item.promptId} />
                       {item.suggestable.length === 1 ? (
                         <input type="hidden" name="circle" value={item.suggestable[0].id} />

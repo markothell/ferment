@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { PROJECT_NAME } from "@/lib/brand";
 
 // Lets the app be added to a home screen. It opens on /start, which takes you
-// to your community rather than the homepage.
+// to your gathering rather than the homepage.
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: PROJECT_NAME,

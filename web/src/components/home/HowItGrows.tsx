@@ -19,12 +19,12 @@ const STEPS = [
     body: "Four to twelve people around one topic. One circle works through the early years with small kids. Another gets honest about money.",
   },
   {
-    title: "Share with the community.",
-    body: "When a circle is ready, it passes what it found to everyone else. The whole community learns from each small table.",
+    title: "Share with the gathering.",
+    body: "When a circle is ready, it passes what it found to everyone else. The whole gathering learns from each small table.",
   },
   {
     title: "Pass it on.",
-    body: "Good conversations travel to other communities growing the same way. What you said stays with your people. The question goes on.",
+    body: "Good conversations travel to other gatherings growing the same way. What you said stays with your people. The question goes on.",
   },
 ];
 
@@ -52,8 +52,8 @@ export function HowItGrows() {
     <section className="grow">
       <div className="grow-pic">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img"
-          aria-label="People invite people, gather on a community ring, form small circles around topics, share what they find to the middle, and the community becomes one of many.">
-          {/* Other communities, joined by what travels */}
+          aria-label="People invite people, meet as a gathering, form small circles around topics, share what they find to the middle, and the gathering becomes one of many.">
+          {/* Other gatherings, joined by what travels */}
           <g className="grow-fade" style={shown(step === 5)}>
             {SCENE.others.map((o, k) => (
               <g key={k}>
@@ -65,7 +65,7 @@ export function HowItGrows() {
             ))}
           </g>
 
-          {/* This community. It shrinks to one among many in the last step. */}
+          {/* This gathering. It shrinks to one among many in the last step. */}
           <g className="grow-move" style={{ transformOrigin: `${CENTER}px ${CENTER}px`, transform: step === 5 ? "scale(.42)" : "none" }}>
             <circle cx={CENTER} cy={CENTER} r={RING} fill="var(--ground)" fillOpacity={step === 5 ? 1 : 0}
               stroke="var(--rule-strong)" strokeWidth={1.2} className="grow-fade" style={shown(step >= 2)} />

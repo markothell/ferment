@@ -1,6 +1,6 @@
 // The homepage drawing, "how it grows" (design/ferment/archive/home.html).
 // One set of people moves through five arrangements: invited one by one, on the
-// community ring, gathered in circles, sharing to the middle, and the community
+// gathering ring, gathered in circles, sharing to the middle, and the gathering
 // as one ring among others. Ink and saffron only. Pure, so the server and the
 // browser draw the same thing.
 
@@ -8,7 +8,7 @@ export type Pt = [number, number];
 export type GrowPerson = { invitedBy: number; invited: Pt; ring: Pt; circle: Pt };
 export type GrowCircle = { name: string; at: Pt; r: number };
 export type GrowTopic = { label: string; at: Pt; library: boolean };
-export type OtherCommunity = { at: Pt; r: number; circles: Pt[]; seat: number };
+export type OtherGathering = { at: Pt; r: number; circles: Pt[]; seat: number };
 
 export const SIZE = 600;
 export const CENTER = 300;
@@ -79,8 +79,8 @@ export function growScene() {
 
   const people: GrowPerson[] = gen.map((_, i) => ({ invitedBy: invitedBy[i], invited: invited[i], ring: ring[i], circle: circle[i] }));
 
-  // Other communities, around this one once it has shrunk.
-  const others: OtherCommunity[] = [[-95, 190, 0.8], [-25, 225, 0.62], [40, 200, 0.74], [110, 215, 0.62], [170, 200, 0.7], [230, 225, 0.6]]
+  // Other gatherings, around this one once it has shrunk.
+  const others: OtherGathering[] = [[-95, 190, 0.8], [-25, 225, 0.62], [40, 200, 0.74], [110, 215, 0.62], [170, 200, 0.7], [230, 225, 0.6]]
     .map(([deg, d, s], k) => {
       const at = pol(d, (deg * Math.PI) / 180), r = round(54 * s), n = 3 + (k % 2);
       const circles = Array.from({ length: n }, (_, j): Pt => {

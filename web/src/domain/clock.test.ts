@@ -5,7 +5,7 @@ import { testDb } from "@/db/testing";
 import type { Mail } from "@/lib/email";
 import { createCircle, seatInCircle } from "./circles";
 import { runClock } from "./clock";
-import { createCommunity } from "./communities";
+import { createGathering } from "./gatherings";
 import { acceptInvite, createInvite } from "./invites";
 import { roundById, suggestRound, toggleSupport } from "./rounds";
 
@@ -23,15 +23,15 @@ beforeEach(async () => {
 });
 
 async function setup() {
-  const community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
-  const circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
+  const gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
   for (const n of ["amy", "ben", "cal"]) {
     await db.insert(user).values({ id: `u_${n}`, name: n, email: `${n}@example.com` });
-    const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${n}@example.com`, now: t0 })).token!;
+    const token = (await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: `${n}@example.com`, now: t0 })).token!;
     await acceptInvite(db, { token, userId: `u_${n}`, userEmail: `${n}@example.com`, now: t0 });
     await seatInCircle(db, { circleId: circle.id, userId: `u_${n}`, now: t0 });
   }
-  return { community, circle };
+  return { gathering, circle };
 }
 
 describe("the clock", () => {
@@ -60,8 +60,8 @@ describe("the clock", () => {
   });
 
   it("lapses proposals that never filled", async () => {
-    const community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Quiet" });
-    await createCircle(db, { communityId: community.id, userId: "u_host", name: "Alone", now: t0 });
+    const gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Quiet" });
+    await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Alone", now: t0 });
     expect((await runClock(db, send, hours(24 * 8))).expired).toBe(1);
   });
 });

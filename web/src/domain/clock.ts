@@ -8,7 +8,7 @@
 
 import { and, eq, isNotNull, isNull, lte } from "drizzle-orm";
 import type { DB } from "@/db";
-import { communities, rounds } from "@/db/schema";
+import { gatherings, rounds } from "@/db/schema";
 import type { Mail } from "@/lib/email";
 import { appUrl } from "@/lib/urls";
 import { expireProposals } from "./circles";
@@ -47,20 +47,20 @@ async function deliver(db: DB, send: (mail: Mail) => Promise<void>, now: Date): 
     try {
       const items = await listNotifications(db, { userId: b.userId, ids: b.ids });
       if (!items.length) continue;
-      const [community] = await db.select({ name: communities.name, slug: communities.slug }).from(communities).where(eq(communities.id, b.communityId)).limit(1);
+      const [gathering] = await db.select({ name: gatherings.name, slug: gatherings.slug }).from(gatherings).where(eq(gatherings.id, b.gatheringId)).limit(1);
       const subject = b.pref === "digest"
-        ? `Today in ${community.name}`
-        : items.length === 1 ? items[0].text.replace(/\.$/, "") : `${items.length} new in ${community.name}`;
+        ? `Today in ${gathering.name}`
+        : items.length === 1 ? items[0].text.replace(/\.$/, "") : `${items.length} new in ${gathering.name}`;
       const lines = items.map((n) => `• ${n.text}\n  ${appUrl(n.href)}`);
       await send({
         to: b.email,
         subject,
         text: [
-          `In ${community.name}:`,
+          `In ${gathering.name}:`,
           "",
           ...lines,
           "",
-          `Choose how often you hear from ${community.name}: ${appUrl(`/c/${community.slug}/settings`)}`,
+          `Choose how often you hear from ${gathering.name}: ${appUrl(`/g/${gathering.slug}/settings`)}`,
         ].join("\n"),
       });
       await markEmailed(db, b.ids, now);

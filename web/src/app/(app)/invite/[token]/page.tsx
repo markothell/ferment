@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { membershipOf } from "@/domain/communities";
+import { membershipOf } from "@/domain/gatherings";
 import { findInvite } from "@/domain/invites";
 import { currentSession } from "@/lib/auth";
 import { displayName } from "@/lib/session";
@@ -33,8 +33,8 @@ export default async function AcceptInvitePage({ params, searchParams }: PagePro
   }
 
   // Already in: straight through.
-  if (session && (await membershipOf(db, invite.community.id, session.user.id))) {
-    redirect(`/c/${invite.community.slug}`);
+  if (session && (await membershipOf(db, invite.gathering.id, session.user.id))) {
+    redirect(`/g/${invite.gathering.slug}`);
   }
 
   if (invite.state === "expired" || invite.state === "revoked") {
@@ -54,7 +54,7 @@ export default async function AcceptInvitePage({ params, searchParams }: PagePro
       <Shell>
         <h1 className="display text-3xl">You&apos;ve already come in with this invitation.</h1>
         <p className="text-[var(--ink-soft)]">
-          <Link className="underline" href={`/signin?next=${encodeURIComponent(`/c/${invite.community.slug}`)}`}>Sign in</Link> and
+          <Link className="underline" href={`/signin?next=${encodeURIComponent(`/g/${invite.gathering.slug}`)}`}>Sign in</Link> and
           we&apos;ll email you a link.
         </p>
       </Shell>
@@ -68,12 +68,12 @@ export default async function AcceptInvitePage({ params, searchParams }: PagePro
     <Shell>
       <div className="space-y-3">
         <h1 className="display text-4xl leading-tight">
-          {from} invited you to {invite.circle ? invite.circle.name : invite.community.name}.
+          {from} invited you to {invite.circle ? invite.circle.name : invite.gathering.name}.
         </h1>
-        {invite.circle && <p className="text-[var(--ink-soft)]">A circle in {invite.community.name}.</p>}
+        {invite.circle && <p className="text-[var(--ink-soft)]">A circle in {invite.gathering.name}.</p>}
         {invite.note && <blockquote className="border-l-2 border-[var(--mine)] pl-4">{invite.note}</blockquote>}
-        {invite.community.welcomeNote && (
-          <p className="whitespace-pre-line text-[var(--ink-soft)]">{invite.community.welcomeNote}</p>
+        {invite.gathering.welcomeNote && (
+          <p className="whitespace-pre-line text-[var(--ink-soft)]">{invite.gathering.welcomeNote}</p>
         )}
       </div>
 

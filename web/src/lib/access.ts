@@ -1,6 +1,6 @@
 // Who may receive a sign-in link. Ferment is invite-only (PLAN §4): a link
 // goes to someone who already has an account, holds a live invitation, or is
-// on the host allowlist (people who may start a community). Anyone else gets
+// on the host allowlist (people who may start a gathering). Anyone else gets
 // the same "check your email" screen and no mail, so the form can't be used
 // to find out who is here.
 

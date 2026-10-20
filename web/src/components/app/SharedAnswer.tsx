@@ -13,7 +13,7 @@ export function placedAt(axes: Axis[], x: number | null, y: number | null): stri
   return `${Math.round(x * 100)}% of the way to ${axes[0].poleB}`;
 }
 
-/** One answer as the community sees it in a harvest: named, with its voice, words and text. */
+/** One answer as the gathering sees it in a harvest: named, with its voice, words and text. */
 export function SharedAnswer({ a, axes = [], id, children }: { a: Shared; axes?: Axis[]; id?: string; children?: React.ReactNode }) {
   const placed = placedAt(axes, a.x, a.y);
   return (

@@ -4,7 +4,7 @@ import type { DB } from "@/db";
 import { rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { createCircle, seatInCircle, leaveCircle, type Circle } from "./circles";
-import { createCommunity, setWelcomeQuestion, updateWelcomeNote, type Community } from "./communities";
+import { createGathering, setWelcomeQuestion, updateWelcomeNote, type Gathering } from "./gatherings";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite } from "./invites";
 import { normalizePrompt } from "./prompts";
@@ -14,7 +14,7 @@ import {
 } from "./rounds";
 
 let db: DB;
-let community: Community;
+let gathering: Gathering;
 let circle: Circle;
 let people: string[]; // host + 4 members of the circle
 const t0 = new Date("2026-10-01T12:00:00Z");
@@ -23,7 +23,7 @@ const hours = (n: number) => new Date(t0.getTime() + n * 3_600_000);
 async function member(name: string) {
   const id = `u_${name}`;
   await db.insert(user).values({ id, name, email: `${name}@example.com` });
-  const token = (await createInvite(db, { communityId: community.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
+  const token = (await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 })).token!;
   await acceptInvite(db, { token, userId: id, userEmail: `${name}@example.com`, now: t0 });
   return id;
 }
@@ -34,8 +34,8 @@ beforeEach(async () => {
   db = await testDb();
   process.env.FERMENT_HOST_EMAILS = "host@example.com";
   await db.insert(user).values({ id: "u_host", name: "Host", email: "host@example.com" });
-  community = await createCommunity(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
-  circle = await createCircle(db, { communityId: community.id, userId: "u_host", name: "Bread", now: t0 });
+  gathering = await createGathering(db, { userId: "u_host", userEmail: "host@example.com", name: "Tables" });
+  circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", now: t0 });
   people = ["u_host"];
   for (const n of ["amy", "ben", "cal", "dee"]) {
     const id = await member(n);
@@ -99,7 +99,7 @@ describe("the circle machine", () => {
   });
 
   it("opens nothing while the circle is forming or has no host", async () => {
-    const forming = await createCircle(db, { communityId: community.id, userId: people[1], name: "New", firstQuestion: "First?", now: t0 });
+    const forming = await createCircle(db, { gatheringId: gathering.id, userId: people[1], name: "New", firstQuestion: "First?", now: t0 });
     const [first] = await db.select().from(rounds).where(eq(rounds.circleId, forming.id));
     expect(first.phase).toBe("queued");
     for (const p of people.slice(2)) await seatInCircle(db, { circleId: forming.id, userId: p, now: t0 });
@@ -249,20 +249,20 @@ describe("words", () => {
 });
 
 describe("open questions", () => {
-  it("open at once to the whole community, and hosts can reserve them", async () => {
+  it("open at once to the whole gathering, and hosts can reserve them", async () => {
     const eve = await member("eve");
-    const q = await postOpenQuestion(db, { communityId: community.id, userId: eve, prompt: { question: "Who cooks?", reveal: "open" }, now: t0 });
+    const q = await postOpenQuestion(db, { gatheringId: gathering.id, userId: eve, prompt: { question: "Who cooks?", reveal: "open" }, now: t0 });
     expect(q.phase).toBe("open");
     await respond(db, { roundId: q.id, userId: people[1], input: { text: "me" }, now: t0 });
     expect((await roundView(db, q.id, eve, t0)).responses).toHaveLength(1);
 
-    await db.execute(`update communities set members_post_open_questions = false`);
-    await expect(postOpenQuestion(db, { communityId: community.id, userId: eve, prompt: { question: "Again?" } })).rejects.toThrow(/hosts/);
+    await db.execute(`update gatherings set members_post_open_questions = false`);
+    await expect(postOpenQuestion(db, { gatheringId: gathering.id, userId: eve, prompt: { question: "Again?" } })).rejects.toThrow(/hosts/);
   });
 
   it("keeps the welcome question open", async () => {
-    await updateWelcomeNote(db, { communityId: community.id, userId: "u_host", note: "hi" });
-    await setWelcomeQuestion(db, { communityId: community.id, userId: "u_host", question: "What brought you?" });
+    await updateWelcomeNote(db, { gatheringId: gathering.id, userId: "u_host", note: "hi" });
+    await setWelcomeQuestion(db, { gatheringId: gathering.id, userId: "u_host", question: "What brought you?" });
     const [w] = await db.select().from(rounds).where(eq(rounds.welcome, true));
     await expect(revealNow(db, { roundId: w.id, userId: "u_host" })).rejects.toThrow(/stays open/);
   });

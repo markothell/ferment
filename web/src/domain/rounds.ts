@@ -1,9 +1,9 @@
-// Rounds: one run of a prompt, in a circle or open to the whole community
+// Rounds: one run of a prompt, in a circle or open to the whole gathering
 // (PLAN §5, §6). The rules are 08's circle machine and gather module, rebuilt:
 //
 //   circle:     nominated ─(enough support, or the host promotes)→ queued
 //               queued ─(a live slot frees, circle formed and hosted)→ open
-//   community:  open from the moment it's posted (an open question)
+//   gathering:  open from the moment it's posted (an open question)
 //   open ─(every member responded · timer · author/host reveals)→ closed
 //
 // Late responses still join after the close. After it, only text can change,
@@ -14,16 +14,16 @@
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { DB } from "@/db";
 import {
-  circleMembers, circles, communities, communityMembers, prompts, responseWords, responses,
+  circleMembers, circles, gatherings, gatheringMembers, prompts, responseWords, responses,
   roundSupports, rounds, user, words,
 } from "@/db/schema";
 import { isOurAudio, listenPath } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
 import { activeMemberCount, isCircleMember } from "./circles";
-import { membershipOf, requireMember } from "./communities";
+import { membershipOf, requireMember } from "./gatherings";
 import { refuse } from "./errors";
 import { refreshHarvestItem } from "./harvests";
-import { notifyCircle, notifyCommunity, notifyOne } from "./notifications";
+import { notifyCircle, notifyGathering, notifyOne } from "./notifications";
 import { cleanWord, createPrompt, promptById, wordKey, type Prompt, type PromptInput } from "./prompts";
 
 export type Round = typeof rounds.$inferSelect;
@@ -43,17 +43,17 @@ async function circleOf(db: DB, round: Round): Promise<Circle | null> {
   return c ?? null;
 }
 
-/** Circle rounds: an active circle member. Open questions: any community member. */
+/** Circle rounds: an active circle member. Open questions: any gathering member. */
 async function mayTakePart(db: DB, round: Round, userId: string): Promise<boolean> {
   if (round.circleId) return isCircleMember(db, round.circleId, userId);
-  return Boolean(await membershipOf(db, round.communityId, userId));
+  return Boolean(await membershipOf(db, round.gatheringId, userId));
 }
 
-/** The round's author, the circle's host, or (for open questions) a community host. */
+/** The round's author, the circle's host, or (for open questions) a gathering host. */
 async function mayConduct(db: DB, round: Round, userId: string): Promise<boolean> {
   if (round.authorId === userId) return true;
   if (round.circleId) return (await circleOf(db, round))?.hostId === userId;
-  return (await membershipOf(db, round.communityId, userId))?.role === "host";
+  return (await membershipOf(db, round.gatheringId, userId))?.role === "host";
 }
 
 function cleanTimer(hours: unknown): number | null {
@@ -72,14 +72,14 @@ function settings(s: RoundSettings) {
   };
 }
 
-/** A new prompt, or an existing one from the same community (a suggestion carried over). */
-async function promptFor(db: DB, communityId: string, userId: string, p: PromptInput | { promptId: string }): Promise<Prompt> {
+/** A new prompt, or an existing one from the same gathering (a suggestion carried over). */
+async function promptFor(db: DB, gatheringId: string, userId: string, p: PromptInput | { promptId: string }): Promise<Prompt> {
   if ("promptId" in p) {
     const existing = await promptById(db, p.promptId);
-    if (!existing || existing.communityId !== communityId) refuse("That question isn't in this community.");
+    if (!existing || existing.gatheringId !== gatheringId) refuse("That question isn't in this gathering.");
     return existing;
   }
-  return createPrompt(db, { communityId, authorId: userId, ...p });
+  return createPrompt(db, { gatheringId, authorId: userId, ...p });
 }
 
 // ── The circle machine ────────────────────────────────────────────────────
@@ -101,7 +101,7 @@ async function openRound(db: DB, round: Round, now: Date): Promise<void> {
     .set({ phase: "open", openedAt: now, closesAt: round.timerHours ? new Date(now.getTime() + round.timerHours * HOUR_MS) : null })
     .where(eq(rounds.id, round.id));
   if (round.circleId && round.phase !== "open") {
-    await notifyCircle(db, round.circleId, { kind: "round_opened", communityId: round.communityId, roundId: round.id, now });
+    await notifyCircle(db, round.circleId, { kind: "round_opened", gatheringId: round.gatheringId, roundId: round.id, now });
   }
   const prompt = (await promptById(db, round.promptId))!;
   if (prompt.shape === "words" && prompt.seedWords.length) {
@@ -119,7 +119,7 @@ async function closeRound(db: DB, roundId: string, via: "complete" | "timer" | "
     .where(and(eq(rounds.id, roundId), eq(rounds.phase, "open")))
     .returning();
   if (closed?.circleId) {
-    await notifyCircle(db, closed.circleId, { kind: "round_revealed", communityId: closed.communityId, roundId, now });
+    await notifyCircle(db, closed.circleId, { kind: "round_revealed", gatheringId: closed.gatheringId, roundId, now });
   }
 }
 
@@ -182,7 +182,7 @@ export async function suggestRound(
   if (circle.status === "closed" || circle.status === "expired") refuse("This circle isn't running.");
   if (!(await isCircleMember(db, circleId, userId))) refuse("Only members can suggest a question here.");
 
-  const p = await promptFor(db, circle.communityId, userId, prompt);
+  const p = await promptFor(db, circle.gatheringId, userId, prompt);
   const [already] = await db
     .select({ phase: rounds.phase })
     .from(rounds)
@@ -192,7 +192,7 @@ export async function suggestRound(
   const [round] = await db
     .insert(rounds)
     .values({
-      id: newId(), promptId: p.id, communityId: circle.communityId, circleId, authorId: userId,
+      id: newId(), promptId: p.id, gatheringId: circle.gatheringId, circleId, authorId: userId,
       suggestedFromRoundId, replyToRoundId, replyToResponseId, phase: "nominated", createdAt: now, ...settings(rest),
     })
     .returning();
@@ -202,7 +202,7 @@ export async function suggestRound(
   const after = (await roundById(db, round.id))!;
   // Still waiting on support: tell the circle so they can give it.
   if (after.phase === "nominated") {
-    await notifyCircle(db, circleId, { kind: "suggested", communityId: circle.communityId, actorId: userId, roundId: round.id, now });
+    await notifyCircle(db, circleId, { kind: "suggested", gatheringId: circle.gatheringId, actorId: userId, roundId: round.id, now });
   }
   return after;
 }
@@ -237,26 +237,26 @@ export async function promoteRound(db: DB, { roundId, userId, now = new Date() }
 
 // ── Open questions ────────────────────────────────────────────────────────
 
-/** A question to the whole community. Open at once; no queue. */
+/** A question to the whole gathering. Open at once; no queue. */
 export async function postOpenQuestion(
   db: DB,
-  { communityId, userId, prompt, now = new Date(), ...rest }: { communityId: string; userId: string; prompt: PromptInput | { promptId: string }; now?: Date } & RoundSettings,
+  { gatheringId, userId, prompt, now = new Date(), ...rest }: { gatheringId: string; userId: string; prompt: PromptInput | { promptId: string }; now?: Date } & RoundSettings,
 ): Promise<Round> {
-  const m = await requireMember(db, communityId, userId);
-  const [community] = await db.select().from(communities).where(eq(communities.id, communityId)).limit(1);
-  if (!community.membersPostOpenQuestions && m.role !== "host") refuse("In this community, hosts post the open questions.");
+  const m = await requireMember(db, gatheringId, userId);
+  const [gathering] = await db.select().from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  if (!gathering.membersPostOpenQuestions && m.role !== "host") refuse("In this gathering, hosts post the open questions.");
 
-  const p = await promptFor(db, communityId, userId, prompt);
+  const p = await promptFor(db, gatheringId, userId, prompt);
   const s = settings(rest);
   const [round] = await db
     .insert(rounds)
     .values({
-      id: newId(), promptId: p.id, communityId, authorId: userId, phase: "open", createdAt: now, openedAt: now,
+      id: newId(), promptId: p.id, gatheringId, authorId: userId, phase: "open", createdAt: now, openedAt: now,
       closesAt: s.timerHours ? new Date(now.getTime() + s.timerHours * HOUR_MS) : null, ...s,
     })
     .returning();
   if (p.shape === "words") await openRound(db, round, now);
-  await notifyCommunity(db, { kind: "asked_everyone", communityId, actorId: userId, roundId: round.id, now });
+  await notifyGathering(db, { kind: "asked_everyone", gatheringId, actorId: userId, roundId: round.id, now });
   return round;
 }
 
@@ -367,7 +367,7 @@ export async function respond(
 
   // Someone answered your question to everyone.
   if (!round.circleId && !existing && !round.welcome) {
-    await notifyOne(db, round.authorId, { kind: "answered", communityId: round.communityId, actorId: userId, roundId, now });
+    await notifyOne(db, round.authorId, { kind: "answered", gatheringId: round.gatheringId, actorId: userId, roundId, now });
   }
 
   // A circle round closes when every member has responded.
@@ -535,18 +535,18 @@ export async function circleRounds(db: DB, circleId: string, viewerId: string, n
   return rows;
 }
 
-/** Community members who can see an open question: used for counts on the community page. */
-export async function communityMemberTotal(db: DB, communityId: string): Promise<number> {
-  const [{ n }] = await db.select({ n: count() }).from(communityMembers).where(eq(communityMembers.communityId, communityId));
+/** Gathering members who can see an open question: used for counts on the gathering page. */
+export async function gatheringMemberTotal(db: DB, gatheringId: string): Promise<number> {
+  const [{ n }] = await db.select({ n: count() }).from(gatheringMembers).where(eq(gatheringMembers.gatheringId, gatheringId));
   return n;
 }
 
-/** Open questions to the whole community, newest first, welcome question aside. */
-export async function communityQuestions(db: DB, communityId: string, viewerId: string, now = new Date()) {
+/** Open questions to the whole gathering, newest first, welcome question aside. */
+export async function gatheringQuestions(db: DB, gatheringId: string, viewerId: string, now = new Date()) {
   await db
     .update(rounds)
     .set({ phase: "closed", closedAt: now, closedVia: "timer" })
-    .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
+    .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
   return db
     .select({
       id: rounds.id, phase: rounds.phase, welcome: rounds.welcome, question: prompts.question,
@@ -557,7 +557,7 @@ export async function communityQuestions(db: DB, communityId: string, viewerId: 
     .from(rounds)
     .innerJoin(prompts, eq(prompts.id, rounds.promptId))
     .innerJoin(user, eq(user.id, rounds.authorId))
-    .where(and(eq(rounds.communityId, communityId), isNull(rounds.circleId), inArray(rounds.phase, ["open", "closed"])))
+    .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId), inArray(rounds.phase, ["open", "closed"])))
     .orderBy(desc(rounds.welcome), desc(rounds.openedAt));
 }
 

@@ -13,12 +13,12 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, gt, inArray, lte } from "drizzle-orm";
 import * as z from "zod";
 import type { DB } from "@/db";
-import { circles, communities, communityMembers, invites, seatRequests, seatSupports, user } from "@/db/schema";
+import { circles, gatherings, gatheringMembers, invites, seatRequests, seatSupports, user } from "@/db/schema";
 import { normalizeEmail } from "@/lib/access";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
 import { activeMemberCount, circleById, isCircleMember, seatInCircle } from "./circles";
-import { memberCount, requireHost, requireMember } from "./communities";
+import { memberCount, requireHost, requireMember } from "./gatherings";
 import { Refusal, refuse } from "./errors";
 import { notifyCircle, notifyHosts, notifyOne } from "./notifications";
 import { approvalsNeeded } from "./rounds";
@@ -45,19 +45,19 @@ async function inviteById(db: DB, id: string): Promise<Invite> {
   return i ?? refuse("That invitation doesn't exist.");
 }
 
-async function requireRoom(db: DB, communityId: string) {
-  const [community] = await db.select().from(communities).where(eq(communities.id, communityId)).limit(1);
-  if ((await memberCount(db, communityId)) >= community.maxMembers) refuse("This community is full.");
+async function requireRoom(db: DB, gatheringId: string) {
+  const [gathering] = await db.select().from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  if ((await memberCount(db, gatheringId)) >= gathering.maxMembers) refuse("This gathering is full.");
 }
 
 /** The invitation or suggestion still live for this email, if any. */
-async function liveFor(db: DB, communityId: string, email: string, now: Date) {
+async function liveFor(db: DB, gatheringId: string, email: string, now: Date) {
   const [row] = await db
     .select({ invite: invites, byName: user.name, byEmail: user.email })
     .from(invites)
     .innerJoin(user, eq(user.id, invites.invitedBy))
     .where(and(
-      eq(invites.communityId, communityId), eq(invites.email, email),
+      eq(invites.gatheringId, gatheringId), eq(invites.email, email),
       inArray(invites.status, ["nominated", "pending"]), gt(invites.expiresAt, now),
     ))
     .limit(1);
@@ -80,10 +80,10 @@ async function closeSeats(db: DB, inviteId: string, status: "withdrawn" | "lapse
 export async function createInvite(
   db: DB,
   {
-    communityId, invitedBy, email, name = "", circleId = null, note = "", now = new Date(),
-  }: { communityId: string; invitedBy: string; email: string; name?: string; circleId?: string | null; note?: string; now?: Date },
+    gatheringId, invitedBy, email, name = "", circleId = null, note = "", now = new Date(),
+  }: { gatheringId: string; invitedBy: string; email: string; name?: string; circleId?: string | null; note?: string; now?: Date },
 ): Promise<{ inviteId: string; status: "nominated" | "pending"; token: string | null; email: string }> {
-  const m = await requireMember(db, communityId, invitedBy);
+  const m = await requireMember(db, gatheringId, invitedBy);
   const host = m.role === "host";
   const parsed = z.email().safeParse(email.trim());
   if (!parsed.success) refuse("That doesn't look like an email address.");
@@ -94,21 +94,21 @@ export async function createInvite(
   if (note.trim().length > NOTE_MAX) refuse("That note is too long.");
 
   const [already] = await db
-    .select({ userId: communityMembers.userId })
-    .from(communityMembers)
-    .innerJoin(user, eq(user.id, communityMembers.userId))
-    .where(and(eq(communityMembers.communityId, communityId), eq(user.email, to)))
+    .select({ userId: gatheringMembers.userId })
+    .from(gatheringMembers)
+    .innerJoin(user, eq(user.id, gatheringMembers.userId))
+    .where(and(eq(gatheringMembers.gatheringId, gatheringId), eq(user.email, to)))
     .limit(1);
-  if (already) refuse("They're already in this community.");
-  await requireRoom(db, communityId);
+  if (already) refuse("They're already in this gathering.");
+  await requireRoom(db, gatheringId);
 
   const circle = circleId ? await circleById(db, circleId) : null;
   if (circleId) {
-    if (!circle || circle.communityId !== communityId) refuse("That circle isn't in this community.");
+    if (!circle || circle.gatheringId !== gatheringId) refuse("That circle isn't in this gathering.");
     if (!(await isCircleMember(db, circleId, invitedBy))) refuse("You can only suggest people for circles you're in.");
   }
 
-  const live = await liveFor(db, communityId, to, now);
+  const live = await liveFor(db, gatheringId, to, now);
   if (live && !host) {
     const by = live.invite.invitedBy === invitedBy ? "You" : displayName({ name: live.byName, email: live.byEmail });
     refuse(live.invite.status === "nominated" ? `${by} already suggested them. A host will decide.` : "They've already been invited.");
@@ -123,7 +123,7 @@ export async function createInvite(
       await closeSeats(tx, live.invite.id, "withdrawn", now);
     }
     await tx.insert(invites).values({
-      id: inviteId, communityId, email: to, name: who, invitedBy, note: note.trim(), createdAt: now,
+      id: inviteId, gatheringId, email: to, name: who, invitedBy, note: note.trim(), createdAt: now,
       status: host ? "pending" : "nominated",
       tokenHash: sent?.tokenHash ?? null,
       expiresAt: new Date(now.getTime() + (host ? INVITE_DAYS : ASK_DAYS) * DAY_MS),
@@ -132,7 +132,7 @@ export async function createInvite(
   });
 
   if (circle) await openSeat(db, { circle, askedBy: invitedBy, inviteId, note, now });
-  if (!host) await notifyHosts(db, { kind: "invite_suggested", communityId, actorId: invitedBy, inviteId, now });
+  if (!host) await notifyHosts(db, { kind: "invite_suggested", gatheringId, actorId: invitedBy, inviteId, now });
   return { inviteId, status: host ? "pending" : "nominated", token: sent?.token ?? null, email: to };
 }
 
@@ -142,10 +142,10 @@ export async function confirmInvite(
   { inviteId, userId, now = new Date() }: { inviteId: string; userId: string; now?: Date },
 ): Promise<{ token: string; email: string }> {
   const invite = await inviteById(db, inviteId);
-  await requireHost(db, invite.communityId, userId);
+  await requireHost(db, invite.gatheringId, userId);
   if (invite.status !== "nominated") refuse("That's already been decided.");
   if (invite.expiresAt <= now) refuse("That suggestion lapsed.");
-  await requireRoom(db, invite.communityId);
+  await requireRoom(db, invite.gatheringId);
 
   const { token, tokenHash } = newToken();
   const [done] = await db
@@ -154,7 +154,7 @@ export async function confirmInvite(
     .where(and(eq(invites.id, inviteId), eq(invites.status, "nominated")))
     .returning();
   if (!done) refuse("Another host got to it first.");
-  await notifyOne(db, invite.invitedBy, { kind: "invite_confirmed", communityId: invite.communityId, actorId: userId, inviteId, now });
+  await notifyOne(db, invite.invitedBy, { kind: "invite_confirmed", gatheringId: invite.gatheringId, actorId: userId, inviteId, now });
   return { token, email: invite.email };
 }
 
@@ -164,12 +164,12 @@ export async function declineInvite(
   { inviteId, userId, note = "", now = new Date() }: { inviteId: string; userId: string; note?: string; now?: Date },
 ): Promise<void> {
   const invite = await inviteById(db, inviteId);
-  await requireHost(db, invite.communityId, userId);
+  await requireHost(db, invite.gatheringId, userId);
   if (invite.status !== "nominated") refuse("That's already been decided.");
   if (note.trim().length > NOTE_MAX) refuse("That note is too long.");
   await db.update(invites).set({ status: "declined", hostNote: note.trim() }).where(eq(invites.id, inviteId));
   await closeSeats(db, inviteId, "withdrawn", now);
-  await notifyOne(db, invite.invitedBy, { kind: "invite_declined", communityId: invite.communityId, actorId: userId, inviteId, now });
+  await notifyOne(db, invite.invitedBy, { kind: "invite_declined", gatheringId: invite.gatheringId, actorId: userId, inviteId, now });
 }
 
 /** Whoever suggested someone takes it back before a host decides. */
@@ -190,7 +190,7 @@ export async function lapseInvites(db: DB, now = new Date()): Promise<number> {
     .returning();
   for (const i of due) {
     await closeSeats(db, i.id, "lapsed", now);
-    await notifyOne(db, i.invitedBy, { kind: "ask_lapsed", communityId: i.communityId, inviteId: i.id, now });
+    await notifyOne(db, i.invitedBy, { kind: "ask_lapsed", gatheringId: i.gatheringId, inviteId: i.id, now });
   }
   return due.length;
 }
@@ -198,13 +198,13 @@ export async function lapseInvites(db: DB, now = new Date()): Promise<number> {
 // ── For hosts and suggesters ──────────────────────────────────────────────
 
 /** A host's "Waiting for you": suggestions to confirm, each with how its circle is deciding. */
-export async function invitesWaiting(db: DB, communityId: string, hostId: string, now = new Date()) {
-  await requireHost(db, communityId, hostId);
+export async function invitesWaiting(db: DB, gatheringId: string, hostId: string, now = new Date()) {
+  await requireHost(db, gatheringId, hostId);
   const rows = await db
     .select({ invite: invites, byName: user.name, byEmail: user.email })
     .from(invites)
     .innerJoin(user, eq(user.id, invites.invitedBy))
-    .where(and(eq(invites.communityId, communityId), eq(invites.status, "nominated"), gt(invites.expiresAt, now)))
+    .where(and(eq(invites.gatheringId, gatheringId), eq(invites.status, "nominated"), gt(invites.expiresAt, now)))
     .orderBy(desc(invites.createdAt));
   return Promise.all(rows.map(async (r) => ({
     id: r.invite.id, name: r.invite.name, email: r.invite.email, note: r.invite.note,
@@ -215,11 +215,11 @@ export async function invitesWaiting(db: DB, communityId: string, hostId: string
 }
 
 /** Your suggestions still waiting on a host. */
-export async function mySuggestions(db: DB, communityId: string, userId: string, now = new Date()) {
+export async function mySuggestions(db: DB, gatheringId: string, userId: string, now = new Date()) {
   const rows = await db
     .select()
     .from(invites)
-    .where(and(eq(invites.communityId, communityId), eq(invites.invitedBy, userId), eq(invites.status, "nominated"), gt(invites.expiresAt, now)))
+    .where(and(eq(invites.gatheringId, gatheringId), eq(invites.invitedBy, userId), eq(invites.status, "nominated"), gt(invites.expiresAt, now)))
     .orderBy(desc(invites.createdAt));
   return Promise.all(rows.map(async (i) => ({ id: i.id, name: i.name, createdAt: i.createdAt, expiresAt: i.expiresAt, seat: await seatState(db, i.id) })));
 }
@@ -242,7 +242,7 @@ export type InviteView = {
   state: "pending" | "accepted" | "revoked" | "expired";
   email: string;
   note: string;
-  community: { id: string; slug: string; name: string; welcomeNote: string };
+  gathering: { id: string; slug: string; name: string; welcomeNote: string };
   inviter: { name: string; email: string };
   /** a circle whose seat is already theirs */
   circle: { id: string; slug: string; name: string } | null;
@@ -252,11 +252,11 @@ export async function findInvite(db: DB, token: string, now = new Date()): Promi
   const [row] = await db
     .select({
       invite: invites,
-      community: { id: communities.id, slug: communities.slug, name: communities.name, welcomeNote: communities.welcomeNote },
+      gathering: { id: gatherings.id, slug: gatherings.slug, name: gatherings.name, welcomeNote: gatherings.welcomeNote },
       inviter: { name: user.name, email: user.email },
     })
     .from(invites)
-    .innerJoin(communities, eq(communities.id, invites.communityId))
+    .innerJoin(gatherings, eq(gatherings.id, invites.gatheringId))
     .innerJoin(user, eq(user.id, invites.invitedBy))
     .where(eq(invites.tokenHash, hashToken(token)))
     .limit(1);
@@ -274,12 +274,12 @@ export async function findInvite(db: DB, token: string, now = new Date()): Promi
     s === "pending" ? (row.invite.expiresAt <= now ? "expired" : "pending") : s === "accepted" ? "accepted" : "revoked";
   return {
     id: row.invite.id, state, email: row.invite.email, note: row.invite.note,
-    community: row.community, inviter: row.inviter, circle,
+    gathering: row.gathering, inviter: row.inviter, circle,
   };
 }
 
 /**
- * Accept: join the community, then sit down in any circle that made room.
+ * Accept: join the gathering, then sit down in any circle that made room.
  * A circle still deciding carries on, now with them as a member asking.
  * The signed-in account must be the one the invitation was sent to — its
  * email was proven by the sign-in link.
@@ -287,19 +287,19 @@ export async function findInvite(db: DB, token: string, now = new Date()): Promi
 export async function acceptInvite(
   db: DB,
   { token, userId, userEmail, now = new Date() }: { token: string; userId: string; userEmail: string; now?: Date },
-): Promise<{ communitySlug: string; circleSlug: string | null; joinedCircle: boolean }> {
+): Promise<{ gatheringSlug: string; circleSlug: string | null; joinedCircle: boolean }> {
   const view = (await findInvite(db, token, now)) ?? refuse("That invitation link isn't valid.");
   if (view.state === "revoked") refuse("That invitation was replaced by a newer one.");
   if (view.state === "expired") refuse("That invitation has expired. Ask for a new one.");
   if (normalizeEmail(userEmail) !== view.email) refuse(`This invitation is for ${view.email}.`);
 
   if (view.state === "pending") {
-    await requireRoom(db, view.community.id);
+    await requireRoom(db, view.gathering.id);
     const invite = await inviteById(db, view.id);
     await db.transaction(async (tx) => {
       await tx
-        .insert(communityMembers)
-        .values({ communityId: view.community.id, userId, invitedBy: invite.invitedBy, joinedAt: now })
+        .insert(gatheringMembers)
+        .values({ gatheringId: view.gathering.id, userId, invitedBy: invite.invitedBy, joinedAt: now })
         .onConflictDoNothing();
       await tx.update(invites).set({ status: "accepted", acceptedAt: now, acceptedBy: userId }).where(eq(invites.id, invite.id));
       // A seat still being decided is now for a member like any other.
@@ -308,7 +308,7 @@ export async function acceptInvite(
         .set({ userId, inviteId: null })
         .where(and(eq(seatRequests.inviteId, invite.id), eq(seatRequests.status, "waiting")));
     });
-    await notifyOne(db, invite.invitedBy, { kind: "arrived", communityId: view.community.id, actorId: userId, inviteId: invite.id, now });
+    await notifyOne(db, invite.invitedBy, { kind: "arrived", gatheringId: view.gathering.id, actorId: userId, inviteId: invite.id, now });
   }
 
   let joinedCircle = false;
@@ -316,13 +316,13 @@ export async function acceptInvite(
     try {
       await seatInCircle(db, { circleId: seat.circleId, userId, now });
       await db.update(seatRequests).set({ userId, inviteId: null }).where(eq(seatRequests.id, seat.id));
-      await notifyCircle(db, seat.circleId, { kind: "seat_admitted", communityId: view.community.id, actorId: userId, seatRequestId: seat.id, now });
+      await notifyCircle(db, seat.circleId, { kind: "seat_admitted", gatheringId: view.gathering.id, actorId: userId, seatRequestId: seat.id, now });
       joinedCircle = true;
     } catch (e) {
-      if (!(e instanceof Refusal)) throw e; // full, closed or expired: they still joined the community
+      if (!(e instanceof Refusal)) throw e; // full, closed or expired: they still joined the gathering
     }
   }
-  return { communitySlug: view.community.slug, circleSlug: joinedCircle ? view.circle?.slug ?? null : null, joinedCircle };
+  return { gatheringSlug: view.gathering.slug, circleSlug: joinedCircle ? view.circle?.slug ?? null : null, joinedCircle };
 }
 
 /** What the invitation email says: from whoever suggested them, naming a circle only if it made room. */
@@ -330,17 +330,17 @@ export async function invitationLetter(db: DB, inviteId: string) {
   const [row] = await db
     .select({
       invite: invites, byName: user.name, byEmail: user.email,
-      community: { name: communities.name, welcomeNote: communities.welcomeNote },
+      gathering: { name: gatherings.name, welcomeNote: gatherings.welcomeNote },
     })
     .from(invites)
     .innerJoin(user, eq(user.id, invites.invitedBy))
-    .innerJoin(communities, eq(communities.id, invites.communityId))
+    .innerJoin(gatherings, eq(gatherings.id, invites.gatheringId))
     .where(eq(invites.id, inviteId))
     .limit(1);
   const [held] = await seatsForInvite(db, inviteId, ["admitted"]);
   const circle = held ? await circleById(db, held.circleId) : null;
   return {
     to: row.invite.email, from: displayName({ name: row.byName, email: row.byEmail }), note: row.invite.note,
-    community: row.community, circle: circle?.name ?? null,
+    gathering: row.gathering, circle: circle?.name ?? null,
   };
 }

@@ -1,0 +1,3179 @@
+{
+  "id": "fee3d1a9-838c-4aaf-9ef3-3066a9cd41e4",
+  "prevId": "483e82fd-09ca-4a20-b007-318f17dfddf2",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.account": {
+      "name": "account",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "provider_id": {
+          "name": "provider_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "access_token": {
+          "name": "access_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token": {
+          "name": "refresh_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "id_token": {
+          "name": "id_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "access_token_expires_at": {
+          "name": "access_token_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "refresh_token_expires_at": {
+          "name": "refresh_token_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "account_user_id_user_id_fk": {
+          "name": "account_user_id_user_id_fk",
+          "tableFrom": "account",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.session": {
+      "name": "session",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token": {
+          "name": "token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_user_id_user_id_fk": {
+          "name": "session_user_id_user_id_fk",
+          "tableFrom": "session",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "session_token_unique": {
+          "name": "session_token_unique",
+          "columns": [
+            "token"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user": {
+      "name": "user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_verified": {
+          "name": "email_verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "image": {
+          "name": "image",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "opened_by_invite": {
+          "name": "opened_by_invite",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "user_email_unique": {
+          "name": "user_email_unique",
+          "columns": [
+            "email"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.verification": {
+      "name": "verification",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "identifier": {
+          "name": "identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.circle_members": {
+      "name": "circle_members",
+      "schema": "",
+      "columns": {
+        "circle_id": {
+          "name": "circle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "left_at": {
+          "name": "left_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "circle_members_user_id_index": {
+          "name": "circle_members_user_id_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "circle_members_circle_id_circles_id_fk": {
+          "name": "circle_members_circle_id_circles_id_fk",
+          "tableFrom": "circle_members",
+          "columnsFrom": [
+            "circle_id"
+          ],
+          "tableTo": "circles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "circle_members_user_id_user_id_fk": {
+          "name": "circle_members_user_id_user_id_fk",
+          "tableFrom": "circle_members",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "circle_members_circle_id_user_id_pk": {
+          "name": "circle_members_circle_id_user_id_pk",
+          "columns": [
+            "circle_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.circles": {
+      "name": "circles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "host_id": {
+          "name": "host_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposed_by": {
+          "name": "proposed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "circle_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'forming'"
+        },
+        "color": {
+          "name": "color",
+          "type": "circle_color",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'saffron'"
+        },
+        "forming_expires_at": {
+          "name": "forming_expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "origin_prompt_id": {
+          "name": "origin_prompt_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "approvals_to_start": {
+          "name": "approvals_to_start",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_live": {
+          "name": "max_live",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 3
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "formed_at": {
+          "name": "formed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "circles_gathering_id_slug_index": {
+          "name": "circles_gathering_id_slug_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "circles_gathering_id_status_index": {
+          "name": "circles_gathering_id_status_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "circles_gathering_id_gatherings_id_fk": {
+          "name": "circles_gathering_id_gatherings_id_fk",
+          "tableFrom": "circles",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "circles_host_id_user_id_fk": {
+          "name": "circles_host_id_user_id_fk",
+          "tableFrom": "circles",
+          "columnsFrom": [
+            "host_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "circles_proposed_by_user_id_fk": {
+          "name": "circles_proposed_by_user_id_fk",
+          "tableFrom": "circles",
+          "columnsFrom": [
+            "proposed_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "circles_origin_prompt_id_prompts_id_fk": {
+          "name": "circles_origin_prompt_id_prompts_id_fk",
+          "tableFrom": "circles",
+          "columnsFrom": [
+            "origin_prompt_id"
+          ],
+          "tableTo": "prompts",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "circles_max_live": {
+          "name": "circles_max_live",
+          "value": "\"circles\".\"max_live\" between 1 and 10"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.gatherings": {
+      "name": "gatherings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "welcome_note": {
+          "name": "welcome_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "proposal_expiry_days": {
+          "name": "proposal_expiry_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 7
+        },
+        "members_post_open_questions": {
+          "name": "members_post_open_questions",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "max_members": {
+          "name": "max_members",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 100
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "gatherings_created_by_user_id_fk": {
+          "name": "gatherings_created_by_user_id_fk",
+          "tableFrom": "gatherings",
+          "columnsFrom": [
+            "created_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "gatherings_slug_unique": {
+          "name": "gatherings_slug_unique",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gathering_members": {
+      "name": "gathering_members",
+      "schema": "",
+      "columns": {
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "member_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'member'"
+        },
+        "invited_by": {
+          "name": "invited_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "email_pref",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'each'"
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "gathering_members_gathering_id_gatherings_id_fk": {
+          "name": "gathering_members_gathering_id_gatherings_id_fk",
+          "tableFrom": "gathering_members",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "gathering_members_user_id_user_id_fk": {
+          "name": "gathering_members_user_id_user_id_fk",
+          "tableFrom": "gathering_members",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "gathering_members_invited_by_user_id_fk": {
+          "name": "gathering_members_invited_by_user_id_fk",
+          "tableFrom": "gathering_members",
+          "columnsFrom": [
+            "invited_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {
+        "gathering_members_gathering_id_user_id_pk": {
+          "name": "gathering_members_gathering_id_user_id_pk",
+          "columns": [
+            "gathering_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contact_messages": {
+      "name": "contact_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "delivery": {
+          "name": "delivery",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "contact_messages_email_created_at_index": {
+          "name": "contact_messages_email_created_at_index",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "contact_messages_user_id_user_id_fk": {
+          "name": "contact_messages_user_id_user_id_fk",
+          "tableFrom": "contact_messages",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.harvest_choices": {
+      "name": "harvest_choices",
+      "schema": "",
+      "columns": {
+        "harvest_id": {
+          "name": "harvest_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "share": {
+          "name": "share",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "harvest_choices_harvest_id_harvests_id_fk": {
+          "name": "harvest_choices_harvest_id_harvests_id_fk",
+          "tableFrom": "harvest_choices",
+          "columnsFrom": [
+            "harvest_id"
+          ],
+          "tableTo": "harvests",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "harvest_choices_user_id_user_id_fk": {
+          "name": "harvest_choices_user_id_user_id_fk",
+          "tableFrom": "harvest_choices",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "harvest_choices_harvest_id_user_id_pk": {
+          "name": "harvest_choices_harvest_id_user_id_pk",
+          "columns": [
+            "harvest_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.harvest_items": {
+      "name": "harvest_items",
+      "schema": "",
+      "columns": {
+        "harvest_id": {
+          "name": "harvest_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "transcript": {
+          "name": "transcript",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audio_url": {
+          "name": "audio_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audio_seconds": {
+          "name": "audio_seconds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "x": {
+          "name": "x",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "y": {
+          "name": "y",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "words": {
+          "name": "words",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "shared_at": {
+          "name": "shared_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "harvest_items_harvest_id_harvests_id_fk": {
+          "name": "harvest_items_harvest_id_harvests_id_fk",
+          "tableFrom": "harvest_items",
+          "columnsFrom": [
+            "harvest_id"
+          ],
+          "tableTo": "harvests",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "harvest_items_user_id_user_id_fk": {
+          "name": "harvest_items_user_id_user_id_fk",
+          "tableFrom": "harvest_items",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "harvest_items_harvest_id_user_id_pk": {
+          "name": "harvest_items_harvest_id_user_id_pk",
+          "columns": [
+            "harvest_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.harvests": {
+      "name": "harvests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "circle_id": {
+          "name": "circle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prompt_id": {
+          "name": "prompt_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "proposed_by": {
+          "name": "proposed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "harvest_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'collecting'"
+        },
+        "question": {
+          "name": "question",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shape": {
+          "name": "shape",
+          "type": "shape",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "axes": {
+          "name": "axes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "answered": {
+          "name": "answered",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closes_at": {
+          "name": "closes_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reminded_at": {
+          "name": "reminded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "up_at": {
+          "name": "up_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "down_at": {
+          "name": "down_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "harvests_gathering_id_status_index": {
+          "name": "harvests_gathering_id_status_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "harvests_circle_id_status_index": {
+          "name": "harvests_circle_id_status_index",
+          "columns": [
+            {
+              "expression": "circle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "harvests_prompt_id_index": {
+          "name": "harvests_prompt_id_index",
+          "columns": [
+            {
+              "expression": "prompt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "harvests_gathering_id_gatherings_id_fk": {
+          "name": "harvests_gathering_id_gatherings_id_fk",
+          "tableFrom": "harvests",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "harvests_circle_id_circles_id_fk": {
+          "name": "harvests_circle_id_circles_id_fk",
+          "tableFrom": "harvests",
+          "columnsFrom": [
+            "circle_id"
+          ],
+          "tableTo": "circles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "harvests_round_id_rounds_id_fk": {
+          "name": "harvests_round_id_rounds_id_fk",
+          "tableFrom": "harvests",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "harvests_prompt_id_prompts_id_fk": {
+          "name": "harvests_prompt_id_prompts_id_fk",
+          "tableFrom": "harvests",
+          "columnsFrom": [
+            "prompt_id"
+          ],
+          "tableTo": "prompts",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "harvests_proposed_by_user_id_fk": {
+          "name": "harvests_proposed_by_user_id_fk",
+          "tableFrom": "harvests",
+          "columnsFrom": [
+            "proposed_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "harvests_roundId_unique": {
+          "name": "harvests_roundId_unique",
+          "columns": [
+            "round_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.invites": {
+      "name": "invites",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_by": {
+          "name": "invited_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "invite_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "confirmed_by": {
+          "name": "confirmed_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "host_note": {
+          "name": "host_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accepted_by": {
+          "name": "accepted_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "invites_gathering_id_email_index": {
+          "name": "invites_gathering_id_email_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "invites_gathering_id_status_index": {
+          "name": "invites_gathering_id_status_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "invites_gathering_id_gatherings_id_fk": {
+          "name": "invites_gathering_id_gatherings_id_fk",
+          "tableFrom": "invites",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "invites_invited_by_user_id_fk": {
+          "name": "invites_invited_by_user_id_fk",
+          "tableFrom": "invites",
+          "columnsFrom": [
+            "invited_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "invites_confirmed_by_user_id_fk": {
+          "name": "invites_confirmed_by_user_id_fk",
+          "tableFrom": "invites",
+          "columnsFrom": [
+            "confirmed_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "invites_accepted_by_user_id_fk": {
+          "name": "invites_accepted_by_user_id_fk",
+          "tableFrom": "invites",
+          "columnsFrom": [
+            "accepted_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "invites_tokenHash_unique": {
+          "name": "invites_tokenHash_unique",
+          "columns": [
+            "token_hash"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "invites_token_once_sent": {
+          "name": "invites_token_once_sent",
+          "value": "\"invites\".\"status\"::text not in ('pending', 'accepted') or \"invites\".\"token_hash\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.notifications": {
+      "name": "notifications",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "circle_id": {
+          "name": "circle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invite_id": {
+          "name": "invite_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seat_request_id": {
+          "name": "seat_request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "harvest_id": {
+          "name": "harvest_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "read_at": {
+          "name": "read_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emailed_at": {
+          "name": "emailed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "notifications_user_id_read_at_index": {
+          "name": "notifications_user_id_read_at_index",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "read_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "notifications_emailed_at_index": {
+          "name": "notifications_emailed_at_index",
+          "columns": [
+            {
+              "expression": "emailed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "notifications_user_id_user_id_fk": {
+          "name": "notifications_user_id_user_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "notifications_gathering_id_gatherings_id_fk": {
+          "name": "notifications_gathering_id_gatherings_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "notifications_actor_id_user_id_fk": {
+          "name": "notifications_actor_id_user_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "actor_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "notifications_circle_id_circles_id_fk": {
+          "name": "notifications_circle_id_circles_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "circle_id"
+          ],
+          "tableTo": "circles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "notifications_round_id_rounds_id_fk": {
+          "name": "notifications_round_id_rounds_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "notifications_invite_id_invites_id_fk": {
+          "name": "notifications_invite_id_invites_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "invite_id"
+          ],
+          "tableTo": "invites",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "notifications_seat_request_id_seat_requests_id_fk": {
+          "name": "notifications_seat_request_id_seat_requests_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "seat_request_id"
+          ],
+          "tableTo": "seat_requests",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "notifications_harvest_id_harvests_id_fk": {
+          "name": "notifications_harvest_id_harvests_id_fk",
+          "tableFrom": "notifications",
+          "columnsFrom": [
+            "harvest_id"
+          ],
+          "tableTo": "harvests",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.prompts": {
+      "name": "prompts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "adapted_from_id": {
+          "name": "adapted_from_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "question": {
+          "name": "question",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "context": {
+          "name": "context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "shape": {
+          "name": "shape",
+          "type": "shape",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "axes": {
+          "name": "axes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "placing": {
+          "name": "placing",
+          "type": "placing",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "telling": {
+          "name": "telling",
+          "type": "telling",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seed_words": {
+          "name": "seed_words",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "pick_max": {
+          "name": "pick_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coin_max": {
+          "name": "coin_max",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "seconds_per_note": {
+          "name": "seconds_per_note",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reveal": {
+          "name": "reveal",
+          "type": "reveal",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sealed'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "prompts_gathering_id_index": {
+          "name": "prompts_gathering_id_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "prompts_adapted_from_id_index": {
+          "name": "prompts_adapted_from_id_index",
+          "columns": [
+            {
+              "expression": "adapted_from_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "prompts_gathering_id_gatherings_id_fk": {
+          "name": "prompts_gathering_id_gatherings_id_fk",
+          "tableFrom": "prompts",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "prompts_author_id_user_id_fk": {
+          "name": "prompts_author_id_user_id_fk",
+          "tableFrom": "prompts",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "prompts_adapted_from_id_prompts_id_fk": {
+          "name": "prompts_adapted_from_id_prompts_id_fk",
+          "tableFrom": "prompts",
+          "columnsFrom": [
+            "adapted_from_id"
+          ],
+          "tableTo": "prompts",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.response_words": {
+      "name": "response_words",
+      "schema": "",
+      "columns": {
+        "response_id": {
+          "name": "response_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "word_id": {
+          "name": "word_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "response_words_response_id_responses_id_fk": {
+          "name": "response_words_response_id_responses_id_fk",
+          "tableFrom": "response_words",
+          "columnsFrom": [
+            "response_id"
+          ],
+          "tableTo": "responses",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "response_words_word_id_words_id_fk": {
+          "name": "response_words_word_id_words_id_fk",
+          "tableFrom": "response_words",
+          "columnsFrom": [
+            "word_id"
+          ],
+          "tableTo": "words",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "response_words_response_id_word_id_pk": {
+          "name": "response_words_response_id_word_id_pk",
+          "columns": [
+            "response_id",
+            "word_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.responses": {
+      "name": "responses",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "audio_url": {
+          "name": "audio_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "audio_seconds": {
+          "name": "audio_seconds",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transcript": {
+          "name": "transcript",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "transcript_status": {
+          "name": "transcript_status",
+          "type": "transcript_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'none'"
+        },
+        "x": {
+          "name": "x",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "y": {
+          "name": "y",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "responses_round_id_user_id_index": {
+          "name": "responses_round_id_user_id_index",
+          "columns": [
+            {
+              "expression": "round_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "responses_round_id_rounds_id_fk": {
+          "name": "responses_round_id_rounds_id_fk",
+          "tableFrom": "responses",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "responses_user_id_user_id_fk": {
+          "name": "responses_user_id_user_id_fk",
+          "tableFrom": "responses",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "responses_x_unit": {
+          "name": "responses_x_unit",
+          "value": "\"responses\".\"x\" is null or \"responses\".\"x\" between 0 and 1"
+        },
+        "responses_y_unit": {
+          "name": "responses_y_unit",
+          "value": "\"responses\".\"y\" is null or \"responses\".\"y\" between 0 and 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.round_supports": {
+      "name": "round_supports",
+      "schema": "",
+      "columns": {
+        "round_id": {
+          "name": "round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "round_supports_round_id_rounds_id_fk": {
+          "name": "round_supports_round_id_rounds_id_fk",
+          "tableFrom": "round_supports",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "round_supports_user_id_user_id_fk": {
+          "name": "round_supports_user_id_user_id_fk",
+          "tableFrom": "round_supports",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "round_supports_round_id_user_id_pk": {
+          "name": "round_supports_round_id_user_id_pk",
+          "columns": [
+            "round_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.rounds": {
+      "name": "rounds",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "prompt_id": {
+          "name": "prompt_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gathering_id": {
+          "name": "gathering_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "circle_id": {
+          "name": "circle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "suggested_from_round_id": {
+          "name": "suggested_from_round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reply_to_round_id": {
+          "name": "reply_to_round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reply_to_response_id": {
+          "name": "reply_to_response_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "welcome": {
+          "name": "welcome",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "phase": {
+          "name": "phase",
+          "type": "round_phase",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timer_hours": {
+          "name": "timer_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closes_at": {
+          "name": "closes_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "edit_after_close": {
+          "name": "edit_after_close",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "promoted_at": {
+          "name": "promoted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "queued_at": {
+          "name": "queued_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "opened_at": {
+          "name": "opened_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_via": {
+          "name": "closed_via",
+          "type": "closed_via",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "rounds_circle_id_phase_index": {
+          "name": "rounds_circle_id_phase_index",
+          "columns": [
+            {
+              "expression": "circle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "phase",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "rounds_gathering_id_phase_index": {
+          "name": "rounds_gathering_id_phase_index",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "phase",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "rounds_prompt_id_index": {
+          "name": "rounds_prompt_id_index",
+          "columns": [
+            {
+              "expression": "prompt_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "rounds_reply_to_round_id_index": {
+          "name": "rounds_reply_to_round_id_index",
+          "columns": [
+            {
+              "expression": "reply_to_round_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "rounds_one_welcome": {
+          "name": "rounds_one_welcome",
+          "columns": [
+            {
+              "expression": "gathering_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"rounds\".\"welcome\"",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "rounds_prompt_id_prompts_id_fk": {
+          "name": "rounds_prompt_id_prompts_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "prompt_id"
+          ],
+          "tableTo": "prompts",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        },
+        "rounds_gathering_id_gatherings_id_fk": {
+          "name": "rounds_gathering_id_gatherings_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "gathering_id"
+          ],
+          "tableTo": "gatherings",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rounds_circle_id_circles_id_fk": {
+          "name": "rounds_circle_id_circles_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "circle_id"
+          ],
+          "tableTo": "circles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rounds_author_id_user_id_fk": {
+          "name": "rounds_author_id_user_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rounds_suggested_from_round_id_rounds_id_fk": {
+          "name": "rounds_suggested_from_round_id_rounds_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "suggested_from_round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "rounds_reply_to_round_id_rounds_id_fk": {
+          "name": "rounds_reply_to_round_id_rounds_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "reply_to_round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rounds_reply_to_response_id_responses_id_fk": {
+          "name": "rounds_reply_to_response_id_responses_id_fk",
+          "tableFrom": "rounds",
+          "columnsFrom": [
+            "reply_to_response_id"
+          ],
+          "tableTo": "responses",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "rounds_reply_not_self": {
+          "name": "rounds_reply_not_self",
+          "value": "\"rounds\".\"reply_to_round_id\" is distinct from \"rounds\".\"id\""
+        },
+        "rounds_reply_in_circle": {
+          "name": "rounds_reply_in_circle",
+          "value": "\"rounds\".\"reply_to_round_id\" is null or \"rounds\".\"circle_id\" is not null"
+        },
+        "rounds_answer_needs_round": {
+          "name": "rounds_answer_needs_round",
+          "value": "\"rounds\".\"reply_to_response_id\" is null or \"rounds\".\"reply_to_round_id\" is not null"
+        },
+        "rounds_welcome_is_open_question": {
+          "name": "rounds_welcome_is_open_question",
+          "value": "not \"rounds\".\"welcome\" or \"rounds\".\"circle_id\" is null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.seat_requests": {
+      "name": "seat_requests",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "circle_id": {
+          "name": "circle_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invite_id": {
+          "name": "invite_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "asked_by": {
+          "name": "asked_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "status": {
+          "name": "status",
+          "type": "seat_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'waiting'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "decided_at": {
+          "name": "decided_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "decided_by": {
+          "name": "decided_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "seat_requests_circle_id_status_index": {
+          "name": "seat_requests_circle_id_status_index",
+          "columns": [
+            {
+              "expression": "circle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "seat_requests_invite_id_index": {
+          "name": "seat_requests_invite_id_index",
+          "columns": [
+            {
+              "expression": "invite_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "seat_one_waiting_per_person": {
+          "name": "seat_one_waiting_per_person",
+          "columns": [
+            {
+              "expression": "circle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"seat_requests\".\"status\" = 'waiting'",
+          "concurrently": false
+        },
+        "seat_one_per_invite": {
+          "name": "seat_one_per_invite",
+          "columns": [
+            {
+              "expression": "circle_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "invite_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"seat_requests\".\"status\" in ('waiting', 'admitted')",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "seat_requests_circle_id_circles_id_fk": {
+          "name": "seat_requests_circle_id_circles_id_fk",
+          "tableFrom": "seat_requests",
+          "columnsFrom": [
+            "circle_id"
+          ],
+          "tableTo": "circles",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "seat_requests_user_id_user_id_fk": {
+          "name": "seat_requests_user_id_user_id_fk",
+          "tableFrom": "seat_requests",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "seat_requests_invite_id_invites_id_fk": {
+          "name": "seat_requests_invite_id_invites_id_fk",
+          "tableFrom": "seat_requests",
+          "columnsFrom": [
+            "invite_id"
+          ],
+          "tableTo": "invites",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "seat_requests_asked_by_user_id_fk": {
+          "name": "seat_requests_asked_by_user_id_fk",
+          "tableFrom": "seat_requests",
+          "columnsFrom": [
+            "asked_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "seat_requests_decided_by_user_id_fk": {
+          "name": "seat_requests_decided_by_user_id_fk",
+          "tableFrom": "seat_requests",
+          "columnsFrom": [
+            "decided_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "seat_for_someone": {
+          "name": "seat_for_someone",
+          "value": "num_nonnulls(\"seat_requests\".\"user_id\", \"seat_requests\".\"invite_id\") = 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.seat_supports": {
+      "name": "seat_supports",
+      "schema": "",
+      "columns": {
+        "request_id": {
+          "name": "request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "seat_supports_request_id_seat_requests_id_fk": {
+          "name": "seat_supports_request_id_seat_requests_id_fk",
+          "tableFrom": "seat_supports",
+          "columnsFrom": [
+            "request_id"
+          ],
+          "tableTo": "seat_requests",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "seat_supports_user_id_user_id_fk": {
+          "name": "seat_supports_user_id_user_id_fk",
+          "tableFrom": "seat_supports",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "seat_supports_request_id_user_id_pk": {
+          "name": "seat_supports_request_id_user_id_pk",
+          "columns": [
+            "request_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.words": {
+      "name": "words",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "round_id": {
+          "name": "round_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin": {
+          "name": "origin",
+          "type": "word_origin",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coined_by": {
+          "name": "coined_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {
+        "words_round_id_key_index": {
+          "name": "words_round_id_key_index",
+          "columns": [
+            {
+              "expression": "round_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "words_round_id_rounds_id_fk": {
+          "name": "words_round_id_rounds_id_fk",
+          "tableFrom": "words",
+          "columnsFrom": [
+            "round_id"
+          ],
+          "tableTo": "rounds",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "words_coined_by_user_id_fk": {
+          "name": "words_coined_by_user_id_fk",
+          "tableFrom": "words",
+          "columnsFrom": [
+            "coined_by"
+          ],
+          "tableTo": "user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.circle_color": {
+      "name": "circle_color",
+      "schema": "public",
+      "values": [
+        "saffron",
+        "clay",
+        "moss",
+        "slate",
+        "plum"
+      ]
+    },
+    "public.circle_status": {
+      "name": "circle_status",
+      "schema": "public",
+      "values": [
+        "forming",
+        "active",
+        "idle",
+        "closed",
+        "expired"
+      ]
+    },
+    "public.closed_via": {
+      "name": "closed_via",
+      "schema": "public",
+      "values": [
+        "complete",
+        "timer",
+        "manual"
+      ]
+    },
+    "public.email_pref": {
+      "name": "email_pref",
+      "schema": "public",
+      "values": [
+        "each",
+        "digest",
+        "off"
+      ]
+    },
+    "public.harvest_status": {
+      "name": "harvest_status",
+      "schema": "public",
+      "values": [
+        "collecting",
+        "up",
+        "down",
+        "lapsed"
+      ]
+    },
+    "public.invite_status": {
+      "name": "invite_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "accepted",
+        "revoked",
+        "nominated",
+        "declined",
+        "lapsed"
+      ]
+    },
+    "public.member_role": {
+      "name": "member_role",
+      "schema": "public",
+      "values": [
+        "host",
+        "member"
+      ]
+    },
+    "public.placing": {
+      "name": "placing",
+      "schema": "public",
+      "values": [
+        "free",
+        "quadrants"
+      ]
+    },
+    "public.reveal": {
+      "name": "reveal",
+      "schema": "public",
+      "values": [
+        "open",
+        "after_share",
+        "sealed"
+      ]
+    },
+    "public.round_phase": {
+      "name": "round_phase",
+      "schema": "public",
+      "values": [
+        "nominated",
+        "queued",
+        "open",
+        "closed",
+        "skipped"
+      ]
+    },
+    "public.seat_status": {
+      "name": "seat_status",
+      "schema": "public",
+      "values": [
+        "waiting",
+        "admitted",
+        "declined",
+        "withdrawn",
+        "lapsed"
+      ]
+    },
+    "public.shape": {
+      "name": "shape",
+      "schema": "public",
+      "values": [
+        "story",
+        "placement",
+        "story_placement",
+        "words"
+      ]
+    },
+    "public.telling": {
+      "name": "telling",
+      "schema": "public",
+      "values": [
+        "voice",
+        "text"
+      ]
+    },
+    "public.transcript_status": {
+      "name": "transcript_status",
+      "schema": "public",
+      "values": [
+        "none",
+        "pending",
+        "ready",
+        "failed"
+      ]
+    },
+    "public.word_origin": {
+      "name": "word_origin",
+      "schema": "public",
+      "values": [
+        "seeded",
+        "coined"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

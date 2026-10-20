@@ -7,7 +7,7 @@ import { RisingMark } from "./Logo";
 export type Crumb = { label: string; href?: string };
 
 /**
- * The bar at the top of every app screen: ferment / community / circle / here.
+ * The bar at the top of every app screen: ferment / gathering / circle / here.
  * Signed in, ••• opens your settings, or `menu` when a screen has its own.
  */
 export async function Top({ trail = [], links = [], menu }: { trail?: Crumb[]; links?: { label: string; href: string }[]; menu?: string }) {
