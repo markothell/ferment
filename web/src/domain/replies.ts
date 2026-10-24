@@ -28,15 +28,15 @@ export async function suggestReply(
   }: { roundId: string; userId: string; prompt: PromptInput | { promptId: string }; responseId?: string | null; now?: Date } & Settings,
 ): Promise<Round> {
   const parent = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
-  if (!parent.circleId) refuse("Open questions don't take replies yet.");
   if (parent.phase !== "open" && parent.phase !== "closed") refuse("Nobody has answered this one yet.");
 
   const view = await roundView(db, roundId, userId, now);
+  if (!view.circle) refuse("Open questions don't take replies yet.");
   if (!view.canTakePart) refuse("Only members can reply here.");
   if (view.visibility !== "all") refuse(view.visibility === "own" ? "You can reply once this one closes." : "Share yours first, then reply.");
   if (responseId && !view.responses.some((r) => r.id === responseId)) refuse("That answer isn't part of this round.");
 
-  return suggestRound(db, { circleId: parent.circleId, userId, prompt, replyToRoundId: roundId, replyToResponseId: responseId, now, ...rest });
+  return suggestRound(db, { circleId: view.circle.id, userId, prompt, replyToRoundId: roundId, replyToResponseId: responseId, now, ...rest });
 }
 
 /** The replies to a round, oldest first, for its page. Withdrawn ones are left out. */

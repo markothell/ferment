@@ -6,28 +6,27 @@
 //   gathering:  open from the moment it's posted (an open question)
 //   open ─(every member responded · timer · author/host reveals)→ closed
 //
-// Late responses still join after the close. After it, only text can change,
+// A round runs in a group (rounds.group_id): a circle, or a gathering for a
+// question to everyone; which machine applies is the group's kind. Late
+// responses still join after the close. After it, only text can change,
 // and only when the round allows it; placements freeze, audio never changes.
 // Everything is named. Transitions happen in the request that causes them;
 // the only clock is a round's timer, settled on read and by the cron.
 
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { DB } from "@/db";
-import {
-  circleMembers, circles, gatherings, gatheringMembers, prompts, responseWords, responses,
-  roundSupports, rounds, user, words,
-} from "@/db/schema";
+import { members, prompts, responseWords, responses, roundSupports, rounds, user, words } from "@/db/schema";
 import { isOurAudio, listenPath } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
 import { activeMemberCount, CIRCLE_MIN, isCircleMember } from "./circles";
-import { membershipOf, requireMember } from "./gatherings";
+import { groupById, membershipOf, requireMember, type Group } from "./gatherings";
 import { refuse } from "./errors";
 import { refreshHarvestItem } from "./harvests";
 import { notifyCircle, notifyGathering, notifyOne } from "./notifications";
 import { cleanWord, createPrompt, promptById, wordKey, type Prompt, type PromptInput } from "./prompts";
 
 export type Round = typeof rounds.$inferSelect;
-type Circle = typeof circles.$inferSelect;
+type Circle = Group;
 const HOUR_MS = 3_600_000;
 
 // ── Reading helpers ───────────────────────────────────────────────────────
@@ -37,23 +36,30 @@ export async function roundById(db: DB, id: string): Promise<Round | null> {
   return r ?? null;
 }
 
+/** The group a round runs in. */
+async function groupOf(db: DB, round: Round): Promise<Group> {
+  return (await groupById(db, round.groupId)) ?? refuse("That question's group is gone.");
+}
+
+/** The circle a round runs in, or null for a question to everyone. */
 async function circleOf(db: DB, round: Round): Promise<Circle | null> {
-  if (!round.circleId) return null;
-  const [c] = await db.select().from(circles).where(eq(circles.id, round.circleId)).limit(1);
-  return c ?? null;
+  const g = await groupOf(db, round);
+  return g.kind === "circle" ? g : null;
 }
 
 /** Circle rounds: an active circle member. Open questions: any gathering member. */
 async function mayTakePart(db: DB, round: Round, userId: string): Promise<boolean> {
-  if (round.circleId) return isCircleMember(db, round.circleId, userId);
-  return Boolean(await membershipOf(db, round.gatheringId, userId));
+  const g = await groupOf(db, round);
+  if (g.kind === "circle") return isCircleMember(db, g.id, userId);
+  return Boolean(await membershipOf(db, round.rootId, userId));
 }
 
 /** The round's author, the circle's host, or (for open questions) a gathering host. */
 async function mayConduct(db: DB, round: Round, userId: string): Promise<boolean> {
   if (round.authorId === userId) return true;
-  if (round.circleId) return (await circleOf(db, round))?.hostId === userId;
-  return (await membershipOf(db, round.gatheringId, userId))?.role === "host";
+  const g = await groupOf(db, round);
+  if (g.kind === "circle") return g.hostId === userId;
+  return (await membershipOf(db, round.rootId, userId))?.role === "host";
 }
 
 function cleanTimer(hours: unknown): number | null {
@@ -72,14 +78,14 @@ function settings(s: RoundSettings) {
   };
 }
 
-/** A new prompt, or an existing one from the same gathering (a suggestion carried over). */
-async function promptFor(db: DB, gatheringId: string, userId: string, p: PromptInput | { promptId: string }): Promise<Prompt> {
+/** A new prompt, or an existing one from the same tree (a suggestion carried over). */
+async function promptFor(db: DB, rootId: string, userId: string, p: PromptInput | { promptId: string }): Promise<Prompt> {
   if ("promptId" in p) {
     const existing = await promptById(db, p.promptId);
-    if (!existing || existing.gatheringId !== gatheringId) refuse("That question isn't in this gathering.");
+    if (!existing || existing.rootId !== rootId) refuse("That question isn't in this gathering.");
     return existing;
   }
-  return createPrompt(db, { gatheringId, authorId: userId, ...p });
+  return createPrompt(db, { rootId, authorId: userId, ...p });
 }
 
 // ── The circle machine ────────────────────────────────────────────────────
@@ -105,13 +111,14 @@ export function questionApprovals(circle: Pick<Circle, "approvalsToStart" | "sta
   return approvalsNeeded(circle, circle.status === "forming" ? Math.max(members, CIRCLE_MIN) : members, opts);
 }
 
-async function openRound(db: DB, round: Round, now: Date): Promise<void> {
+/** Open a round. `inCircle` says whether the circle is told. */
+async function openRound(db: DB, round: Round, now: Date, inCircle: boolean): Promise<void> {
   await db
     .update(rounds)
     .set({ phase: "open", openedAt: now, closesAt: round.timerHours ? new Date(now.getTime() + round.timerHours * HOUR_MS) : null })
     .where(eq(rounds.id, round.id));
-  if (round.circleId && round.phase !== "open") {
-    await notifyCircle(db, round.circleId, { kind: "round_opened", gatheringId: round.gatheringId, roundId: round.id, now });
+  if (inCircle && round.phase !== "open") {
+    await notifyCircle(db, round.groupId, { kind: "round_opened", gatheringId: round.rootId, roundId: round.id, now });
   }
   const prompt = (await promptById(db, round.promptId))!;
   if (prompt.shape === "words" && prompt.seedWords.length) {
@@ -122,14 +129,14 @@ async function openRound(db: DB, round: Round, now: Date): Promise<void> {
   }
 }
 
-async function closeRound(db: DB, roundId: string, via: "complete" | "timer" | "manual", now: Date): Promise<void> {
+async function closeRound(db: DB, roundId: string, via: "complete" | "timer" | "manual", now: Date, inCircle: boolean): Promise<void> {
   const [closed] = await db
     .update(rounds)
     .set({ phase: "closed", closedAt: now, closedVia: via })
     .where(and(eq(rounds.id, roundId), eq(rounds.phase, "open")))
     .returning();
-  if (closed?.circleId) {
-    await notifyCircle(db, closed.circleId, { kind: "round_revealed", gatheringId: closed.gatheringId, roundId, now });
+  if (closed && inCircle) {
+    await notifyCircle(db, closed.groupId, { kind: "round_revealed", gatheringId: closed.rootId, roundId, now });
   }
 }
 
@@ -142,16 +149,16 @@ export async function settleCircle(db: DB, circleId: string, now = new Date()): 
   const due = await db
     .select({ id: rounds.id })
     .from(rounds)
-    .where(and(eq(rounds.circleId, circleId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
-  for (const r of due) await closeRound(db, r.id, "timer", now);
+    .where(and(eq(rounds.groupId, circleId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
+  for (const r of due) await closeRound(db, r.id, "timer", now, true);
 
-  const [circle] = await db.select().from(circles).where(eq(circles.id, circleId)).limit(1);
+  const circle = await groupById(db, circleId);
   if (!circle || circle.status !== "active" || !circle.hostId) return;
 
   const [{ live }] = await db
     .select({ live: count() })
     .from(rounds)
-    .where(and(eq(rounds.circleId, circleId), eq(rounds.phase, "open")));
+    .where(and(eq(rounds.groupId, circleId), eq(rounds.phase, "open")));
   const free = circle.maxLive - live;
   if (free <= 0) return;
 
@@ -159,19 +166,20 @@ export async function settleCircle(db: DB, circleId: string, now = new Date()): 
   const next = await db
     .select()
     .from(rounds)
-    .where(and(eq(rounds.circleId, circleId), eq(rounds.phase, "queued")))
+    .where(and(eq(rounds.groupId, circleId), eq(rounds.phase, "queued")))
     .orderBy(sql`${rounds.promotedAt} desc nulls last`, desc(supportCount), asc(rounds.queuedAt))
     .limit(free);
-  for (const r of next) await openRound(db, r, now);
+  for (const r of next) await openRound(db, r, now, true);
 }
 
 /** Queue a nominated round once it has enough support. */
 async function maybeQueue(db: DB, round: Round, now: Date): Promise<void> {
-  if (round.phase !== "nominated" || !round.circleId) return;
-  const [circle] = await db.select().from(circles).where(eq(circles.id, round.circleId)).limit(1);
-  const members = await activeMemberCount(db, circle.id);
+  if (round.phase !== "nominated") return;
+  const circle = await circleOf(db, round);
+  if (!circle) return;
+  const n_members = await activeMemberCount(db, circle.id);
   const [{ n }] = await db.select({ n: count() }).from(roundSupports).where(eq(roundSupports.roundId, round.id));
-  if (n >= questionApprovals(circle, members, { reply: round.replyToRoundId !== null })) {
+  if (n >= questionApprovals(circle, n_members, { reply: round.replyToRoundId !== null })) {
     await db.update(rounds).set({ phase: "queued", queuedAt: now }).where(eq(rounds.id, round.id));
   }
 }
@@ -187,22 +195,22 @@ export async function suggestRound(
     replyToRoundId?: string | null; replyToResponseId?: string | null; now?: Date;
   } & RoundSettings,
 ): Promise<Round> {
-  const [circle] = await db.select().from(circles).where(eq(circles.id, circleId)).limit(1);
-  if (!circle) refuse("That circle doesn't exist.");
+  const circle = await groupById(db, circleId);
+  if (!circle || circle.kind !== "circle") refuse("That circle doesn't exist.");
   if (circle.status === "closed" || circle.status === "expired") refuse("This circle isn't running.");
   if (!(await isCircleMember(db, circleId, userId))) refuse("Only members can suggest a question here.");
 
-  const p = await promptFor(db, circle.gatheringId, userId, prompt);
+  const p = await promptFor(db, circle.rootId, userId, prompt);
   const [already] = await db
     .select({ phase: rounds.phase })
     .from(rounds)
-    .where(and(eq(rounds.circleId, circleId), eq(rounds.promptId, p.id), inArray(rounds.phase, ["nominated", "queued", "open"])))
+    .where(and(eq(rounds.groupId, circleId), eq(rounds.promptId, p.id), inArray(rounds.phase, ["nominated", "queued", "open"])))
     .limit(1);
   if (already) refuse(already.phase === "open" ? "That question is open in this circle right now." : "That question is already waiting in this circle.");
   const [round] = await db
     .insert(rounds)
     .values({
-      id: newId(), promptId: p.id, gatheringId: circle.gatheringId, circleId, authorId: userId,
+      id: newId(), promptId: p.id, groupId: circleId, rootId: circle.rootId, authorId: userId,
       suggestedFromRoundId, replyToRoundId, replyToResponseId, phase: "nominated", createdAt: now, ...settings(rest),
     })
     .returning();
@@ -212,7 +220,7 @@ export async function suggestRound(
   const after = (await roundById(db, round.id))!;
   // Still waiting on support: tell the circle so they can give it.
   if (after.phase === "nominated") {
-    await notifyCircle(db, circleId, { kind: "suggested", gatheringId: circle.gatheringId, actorId: userId, roundId: round.id, now });
+    await notifyCircle(db, circleId, { kind: "suggested", gatheringId: circle.rootId, actorId: userId, roundId: round.id, now });
   }
   return after;
 }
@@ -220,9 +228,9 @@ export async function suggestRound(
 /** One support toggle per member, while a suggestion is waiting. */
 export async function toggleSupport(db: DB, { roundId, userId, now = new Date() }: { roundId: string; userId: string; now?: Date }): Promise<boolean> {
   const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
-  if (!round.circleId) refuse("Open questions don't need support.");
+  const circle = (await circleOf(db, round)) ?? refuse("Open questions don't need support.");
   if (round.phase !== "nominated") refuse("This one is already on its way.");
-  if (!(await isCircleMember(db, round.circleId, userId))) refuse("Only members can support a question here.");
+  if (!(await isCircleMember(db, circle.id, userId))) refuse("Only members can support a question here.");
 
   const removed = await db
     .delete(roundSupports)
@@ -231,7 +239,7 @@ export async function toggleSupport(db: DB, { roundId, userId, now = new Date() 
   if (removed.length) return false;
   await db.insert(roundSupports).values({ roundId, userId, createdAt: now });
   await maybeQueue(db, round, now);
-  await settleCircle(db, round.circleId, now);
+  await settleCircle(db, circle.id, now);
   return true;
 }
 
@@ -253,19 +261,20 @@ export async function postOpenQuestion(
   { gatheringId, userId, prompt, now = new Date(), ...rest }: { gatheringId: string; userId: string; prompt: PromptInput | { promptId: string }; now?: Date } & RoundSettings,
 ): Promise<Round> {
   const m = await requireMember(db, gatheringId, userId);
-  const [gathering] = await db.select().from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  const gathering = (await groupById(db, gatheringId)) ?? refuse("That gathering isn't here.");
+  if (gathering.kind !== "gathering") refuse("Questions to everyone are asked in a gathering.");
   if (!gathering.membersPostOpenQuestions && m.role !== "host") refuse("In this gathering, hosts post the open questions.");
 
-  const p = await promptFor(db, gatheringId, userId, prompt);
+  const p = await promptFor(db, gathering.rootId, userId, prompt);
   const s = settings(rest);
   const [round] = await db
     .insert(rounds)
     .values({
-      id: newId(), promptId: p.id, gatheringId, authorId: userId, phase: "open", createdAt: now, openedAt: now,
+      id: newId(), promptId: p.id, groupId: gatheringId, rootId: gathering.rootId, authorId: userId, phase: "open", createdAt: now, openedAt: now,
       closesAt: s.timerHours ? new Date(now.getTime() + s.timerHours * HOUR_MS) : null, ...s,
     })
     .returning();
-  if (p.shape === "words") await openRound(db, round, now);
+  if (p.shape === "words") await openRound(db, round, now, false);
   await notifyGathering(db, { kind: "asked_everyone", gatheringId, actorId: userId, roundId: round.id, now });
   return round;
 }
@@ -293,6 +302,7 @@ export async function respond(
 ): Promise<string> {
   const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
   if (round.phase !== "open" && round.phase !== "closed") refuse("This question hasn't opened yet.");
+  const circle = await circleOf(db, round);
   if (!(await mayTakePart(db, round, userId))) refuse("You're not part of this one.");
   const prompt = (await promptById(db, round.promptId))!;
   const closed = round.phase === "closed";
@@ -376,20 +386,20 @@ export async function respond(
   });
 
   // Someone answered your question to everyone.
-  if (!round.circleId && !existing && !round.welcome) {
-    await notifyOne(db, round.authorId, { kind: "answered", gatheringId: round.gatheringId, actorId: userId, roundId, now });
+  if (!circle && !existing && !round.welcome) {
+    await notifyOne(db, round.authorId, { kind: "answered", gatheringId: round.rootId, actorId: userId, roundId, now });
   }
 
   // A circle round closes when every member has responded.
-  if (round.circleId && round.phase === "open" && !existing) {
+  if (circle && round.phase === "open" && !existing) {
     const [{ m }] = await db
       .select({ m: count() })
-      .from(circleMembers)
-      .innerJoin(responses, and(eq(responses.userId, circleMembers.userId), eq(responses.roundId, roundId)))
-      .where(and(eq(circleMembers.circleId, round.circleId), isNull(circleMembers.leftAt)));
-    const members = await activeMemberCount(db, round.circleId);
-    if (m >= members) await closeRound(db, roundId, "complete", now);
-    await settleCircle(db, round.circleId, now);
+      .from(members)
+      .innerJoin(responses, and(eq(responses.userId, members.userId), eq(responses.roundId, roundId)))
+      .where(and(eq(members.groupId, circle.id), isNull(members.leftAt)));
+    const n_members = await activeMemberCount(db, circle.id);
+    if (m >= n_members) await closeRound(db, roundId, "complete", now, true);
+    await settleCircle(db, circle.id, now);
   }
   return responseId;
 }
@@ -400,8 +410,9 @@ export async function revealNow(db: DB, { roundId, userId, now = new Date() }: {
   if (round.phase !== "open") refuse("It isn't open.");
   if (round.welcome) refuse("The welcome question stays open.");
   if (!(await mayConduct(db, round, userId))) refuse("Only its author or the host can reveal it early.");
-  await closeRound(db, roundId, "manual", now);
-  if (round.circleId) await settleCircle(db, round.circleId, now);
+  const circle = await circleOf(db, round);
+  await closeRound(db, roundId, "manual", now, Boolean(circle));
+  if (circle) await settleCircle(db, circle.id, now);
 }
 
 // ── What a person sees ────────────────────────────────────────────────────
@@ -427,11 +438,12 @@ function stats(values: number[]) {
 
 export async function roundView(db: DB, roundId: string, viewerId: string, now = new Date()) {
   let round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
-  if (round.circleId) {
-    await settleCircle(db, round.circleId, now);
+  const circle = await circleOf(db, round);
+  if (circle) {
+    await settleCircle(db, circle.id, now);
     round = (await roundById(db, roundId))!;
   } else if (round.phase === "open" && round.closesAt && round.closesAt <= now) {
-    await closeRound(db, roundId, "timer", now);
+    await closeRound(db, roundId, "timer", now, false);
     round = (await roundById(db, roundId))!;
   }
   const prompt = (await promptById(db, round.promptId))!;
@@ -486,9 +498,11 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
     };
   }
 
-  const expected = round.circleId ? await activeMemberCount(db, round.circleId) : null;
+  const expected = circle ? await activeMemberCount(db, circle.id) : null;
   return {
     round, prompt, canTakePart, visibility: vis,
+    /** The circle it runs in, or null for a question to everyone. */
+    circle,
     mayConduct: await mayConduct(db, round, viewerId),
     mine: mine ? shown.find((r) => r.id === mine.id) ?? { ...mine, words: [] } : null,
     responses: shown,
@@ -540,23 +554,23 @@ export async function circleRounds(db: DB, circleId: string, viewerId: string, n
     .from(rounds)
     .innerJoin(prompts, eq(prompts.id, rounds.promptId))
     .innerJoin(user, eq(user.id, rounds.authorId))
-    .where(eq(rounds.circleId, circleId))
+    .where(eq(rounds.groupId, circleId))
     .orderBy(asc(rounds.createdAt));
   return rows;
 }
 
 /** Gathering members who can see an open question: used for counts on the gathering page. */
 export async function gatheringMemberTotal(db: DB, gatheringId: string): Promise<number> {
-  const [{ n }] = await db.select({ n: count() }).from(gatheringMembers).where(eq(gatheringMembers.gatheringId, gatheringId));
+  const [{ n }] = await db.select({ n: count() }).from(members).where(and(eq(members.groupId, gatheringId), isNull(members.leftAt)));
   return n;
 }
 
-/** Open questions to the whole gathering, newest first, welcome question aside. */
+/** Open questions to the whole gathering, newest first, welcome question first. */
 export async function gatheringQuestions(db: DB, gatheringId: string, viewerId: string, now = new Date()) {
   await db
     .update(rounds)
     .set({ phase: "closed", closedAt: now, closedVia: "timer" })
-    .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
+    .where(and(eq(rounds.groupId, gatheringId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
   return db
     .select({
       id: rounds.id, phase: rounds.phase, welcome: rounds.welcome, question: prompts.question,
@@ -567,7 +581,7 @@ export async function gatheringQuestions(db: DB, gatheringId: string, viewerId: 
     .from(rounds)
     .innerJoin(prompts, eq(prompts.id, rounds.promptId))
     .innerJoin(user, eq(user.id, rounds.authorId))
-    .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId), inArray(rounds.phase, ["open", "closed"])))
+    .where(and(eq(rounds.groupId, gatheringId), inArray(rounds.phase, ["open", "closed"])))
     .orderBy(desc(rounds.welcome), desc(rounds.openedAt));
 }
 
@@ -577,7 +591,7 @@ export async function circleResponders(db: DB, circleId: string): Promise<Record
     .select({ roundId: responses.roundId, userId: responses.userId })
     .from(responses)
     .innerJoin(rounds, eq(rounds.id, responses.roundId))
-    .where(eq(rounds.circleId, circleId))
+    .where(eq(rounds.groupId, circleId))
     .orderBy(asc(responses.createdAt));
   const out: Record<string, string[]> = {};
   for (const r of rows) (out[r.roundId] ??= []).push(r.userId);

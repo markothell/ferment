@@ -5,14 +5,14 @@
 
 import { and, asc, count, desc, eq, gte, inArray } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circles, gatheringMembers, harvestItems, harvests } from "@/db/schema";
+import { groups, harvestItems, harvests, members } from "@/db/schema";
 import { listenPath } from "@/lib/audioStore";
 
 const MIN = 3; // HARVEST_MIN in harvests.ts; repeated so this file imports nothing from the write side.
 
 const card = {
   id: harvests.id, question: harvests.question, shape: harvests.shape, answered: harvests.answered, upAt: harvests.upAt,
-  promptId: harvests.promptId, circleName: circles.name, circleSlug: circles.slug, circleColor: circles.color,
+  promptId: harvests.promptId, circleName: groups.name, circleSlug: groups.slug, circleColor: groups.color,
   shared: count(harvestItems.userId),
 };
 
@@ -21,13 +21,13 @@ async function cards(db: DB, where: { gatheringId: string; circleId?: string }) 
   return db
     .select(card)
     .from(harvests)
-    .innerJoin(circles, eq(circles.id, harvests.circleId))
+    .innerJoin(groups, eq(groups.id, harvests.groupId))
     .innerJoin(harvestItems, eq(harvestItems.harvestId, harvests.id))
     .where(and(
-      eq(harvests.gatheringId, where.gatheringId), eq(harvests.status, "up"),
-      where.circleId ? eq(harvests.circleId, where.circleId) : undefined,
+      eq(harvests.toGroupId, where.gatheringId), eq(harvests.status, "up"),
+      where.circleId ? eq(harvests.groupId, where.circleId) : undefined,
     ))
-    .groupBy(harvests.id, circles.id)
+    .groupBy(harvests.id, groups.id)
     .having(({ shared }) => gte(shared, MIN))
     .orderBy(desc(harvests.upAt));
 }
@@ -50,12 +50,12 @@ export async function harvestsByPrompt(db: DB, gatheringId: string): Promise<Map
 /** One harvest with what was shared in it, or null if it isn't up. */
 export async function readHarvest(db: DB, gatheringId: string, harvestId: string) {
   const [h] = await db
-    .select({ ...card, axes: harvests.axes, circleId: harvests.circleId })
+    .select({ ...card, axes: harvests.axes, circleId: harvests.groupId })
     .from(harvests)
-    .innerJoin(circles, eq(circles.id, harvests.circleId))
+    .innerJoin(groups, eq(groups.id, harvests.groupId))
     .innerJoin(harvestItems, eq(harvestItems.harvestId, harvests.id))
-    .where(and(eq(harvests.id, harvestId), eq(harvests.gatheringId, gatheringId), eq(harvests.status, "up")))
-    .groupBy(harvests.id, circles.id)
+    .where(and(eq(harvests.id, harvestId), eq(harvests.toGroupId, gatheringId), eq(harvests.status, "up")))
+    .groupBy(harvests.id, groups.id)
     .having(({ shared }) => gte(shared, MIN));
   if (!h) return null;
   const items = await db
@@ -75,12 +75,12 @@ export async function readHarvest(db: DB, gatheringId: string, harvestId: string
  * and the viewer in its gathering.
  */
 export async function harvestAudio(db: DB, harvestId: string, userId: string, viewerId: string): Promise<string | null> {
-  const [h] = await db.select({ gatheringId: harvests.gatheringId }).from(harvests).where(eq(harvests.id, harvestId)).limit(1);
+  const [h] = await db.select({ gatheringId: harvests.toGroupId }).from(harvests).where(eq(harvests.id, harvestId)).limit(1);
   if (!h) return null;
   const [member] = await db
-    .select({ userId: gatheringMembers.userId })
-    .from(gatheringMembers)
-    .where(and(eq(gatheringMembers.gatheringId, h.gatheringId), eq(gatheringMembers.userId, viewerId)))
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.groupId, h.gatheringId), eq(members.userId, viewerId)))
     .limit(1);
   if (!member || !(await readHarvest(db, h.gatheringId, harvestId))) return null;
   const [item] = await db

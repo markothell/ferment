@@ -101,7 +101,7 @@ export default async function CirclePage({ params }: Props) {
               <h1 className="display truncate text-4xl leading-tight">{circle.name}</h1>
             </div>
           </div>
-          {circle.description && <p className="text-[var(--ink-soft)]">{circle.description}</p>}
+          {circle.note && <p className="text-[var(--ink-soft)]">{circle.note}</p>}
           {forming && (
             <p className="text-[var(--ink-soft)]">
               {need > 0 ? `Needs ${need} more to begin.` : "Ready to begin."}

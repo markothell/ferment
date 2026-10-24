@@ -12,12 +12,11 @@
 
 import { and, eq, inArray, isNull, lte } from "drizzle-orm";
 import type { DB } from "@/db";
-import {
-  gatherings, harvestChoices, harvestItems, harvests, prompts, responseWords, responses, rounds, user, words,
-} from "@/db/schema";
+import { groups, harvestChoices, harvestItems, harvests, prompts, responseWords, responses, rounds, user, words } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
 import { isCircleMember } from "./circles";
+import { groupById } from "./gatherings";
 import { refuse } from "./errors";
 import { notifyCircle, notifyOne } from "./notifications";
 
@@ -80,9 +79,9 @@ async function settle(db: DB, h: Harvest, actorId: string | null, now: Date): Pr
     .set(next === "up" ? { status: "up", upAt: h.upAt ?? now, downAt: null } : { status: next, downAt: now })
     .where(eq(harvests.id, h.id))
     .returning();
-  const moment = { gatheringId: h.gatheringId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, actorId, now };
+  const moment = { gatheringId: h.toGroupId, circleId: h.groupId, roundId: h.roundId, harvestId: h.id, actorId, now };
   if (next === "up") {
-    await notifyCircle(db, h.circleId, { ...moment, kind: "harvest_up", actorId: null });
+    await notifyCircle(db, h.groupId, { ...moment, kind: "harvest_up", actorId: null });
   } else if (next === "down") {
     const still = await db.select({ userId: harvestItems.userId }).from(harvestItems).where(eq(harvestItems.harvestId, h.id));
     for (const s of still) await notifyOne(db, s.userId, { ...moment, kind: "harvest_down" });
@@ -98,9 +97,11 @@ async function settle(db: DB, h: Harvest, actorId: string | null, now: Date): Pr
 export async function proposeHarvest(db: DB, { roundId, userId, now = new Date() }: { roundId: string; userId: string; now?: Date }): Promise<Harvest> {
   const [round] = await db.select().from(rounds).where(eq(rounds.id, roundId)).limit(1);
   if (!round) refuse("That question doesn't exist.");
-  if (!round.circleId) refuse("Open questions are already open to everyone.");
+  const circle = await groupById(db, round.groupId);
+  if (!circle || circle.kind !== "circle") refuse("Open questions are already open to everyone.");
+  const toGroupId = circle.parentId ?? refuse("This circle isn't in a gathering, so there's no one to open it to.");
   if (round.phase !== "closed") refuse("A round can be opened once it has closed.");
-  if (!(await isCircleMember(db, round.circleId, userId))) refuse("Only people in the circle can propose this.");
+  if (!(await isCircleMember(db, circle.id, userId))) refuse("Only people in the circle can propose this.");
 
   const [existing] = await db.select().from(harvests).where(eq(harvests.roundId, roundId)).limit(1);
   if (existing && (existing.status === "collecting" || existing.status === "up")) refuse("This round has already been proposed.");
@@ -114,7 +115,7 @@ export async function proposeHarvest(db: DB, { roundId, userId, now = new Date()
     const [created] = await tx
       .insert(harvests)
       .values({
-        id: newId(), gatheringId: round.gatheringId, circleId: round.circleId!, roundId, promptId: round.promptId,
+        id: newId(), groupId: circle.id, toGroupId, roundId, promptId: round.promptId,
         proposedBy: userId, question: prompt.question, shape: prompt.shape, axes: prompt.axes, answered,
         closesAt: new Date(now.getTime() + HARVEST_WINDOW_DAYS * DAY_MS), createdAt: now,
       })
@@ -127,8 +128,8 @@ export async function proposeHarvest(db: DB, { roundId, userId, now = new Date()
   }
   const answerers = await db.select({ userId: responses.userId }).from(responses).where(eq(responses.roundId, roundId));
   for (const a of answerers) {
-    if (await isCircleMember(db, round.circleId, a.userId)) {
-      await notifyOne(db, a.userId, { kind: "harvest_proposed", gatheringId: h.gatheringId, circleId: h.circleId, roundId, harvestId: h.id, actorId: userId, now });
+    if (await isCircleMember(db, circle.id, a.userId)) {
+      await notifyOne(db, a.userId, { kind: "harvest_proposed", gatheringId: h.toGroupId, circleId: h.groupId, roundId, harvestId: h.id, actorId: userId, now });
     }
   }
   return settle(db, h, userId, now);
@@ -145,7 +146,7 @@ export async function chooseHarvest(
   const h = (await harvestById(db, harvestId)) ?? refuse("That harvest isn't here.");
   if (!share) return withdrawFromHarvest(db, { harvestId, userId, now, keep: true });
   if (!live(h, now)) refuse("The week for sharing has ended.");
-  if (!(await isCircleMember(db, h.circleId, userId))) refuse("Only people in the circle can share into this.");
+  if (!(await isCircleMember(db, h.groupId, userId))) refuse("Only people in the circle can share into this.");
   if (!(await copyIn(db, h, userId, now))) refuse("You didn't answer this round, so there's nothing of yours to share.");
   await db
     .insert(harvestChoices)
@@ -194,8 +195,8 @@ export async function tickHarvests(db: DB, now = new Date()): Promise<{ reminded
     ]);
     const decided = new Set(chose.map((c) => c.userId));
     for (const a of answerers) {
-      if (decided.has(a.userId) || !(await isCircleMember(db, h.circleId, a.userId))) continue;
-      await notifyOne(db, a.userId, { kind: "harvest_reminder", gatheringId: h.gatheringId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, now });
+      if (decided.has(a.userId) || !(await isCircleMember(db, h.groupId, a.userId))) continue;
+      await notifyOne(db, a.userId, { kind: "harvest_reminder", gatheringId: h.toGroupId, circleId: h.groupId, roundId: h.roundId, harvestId: h.id, now });
       reminded++;
     }
     await db.update(harvests).set({ remindedAt: now }).where(eq(harvests.id, h.id));
@@ -204,7 +205,7 @@ export async function tickHarvests(db: DB, now = new Date()): Promise<{ reminded
   const ended = await db.select().from(harvests).where(and(eq(harvests.status, "collecting"), lte(harvests.closesAt, now)));
   for (const h of ended) {
     await db.update(harvests).set({ status: "lapsed" }).where(eq(harvests.id, h.id));
-    if (h.proposedBy) await notifyOne(db, h.proposedBy, { kind: "harvest_lapsed", gatheringId: h.gatheringId, circleId: h.circleId, roundId: h.roundId, harvestId: h.id, now });
+    if (h.proposedBy) await notifyOne(db, h.proposedBy, { kind: "harvest_lapsed", gatheringId: h.toGroupId, circleId: h.groupId, roundId: h.roundId, harvestId: h.id, now });
   }
   return { reminded, lapsed: ended.length };
 }
@@ -214,7 +215,7 @@ export async function harvestForRound(db: DB, roundId: string, viewerId: string,
   const [h] = await db.select().from(harvests).where(eq(harvests.roundId, roundId)).limit(1);
   if (!h) return null;
   const [[gathering], items, choice, proposer] = await Promise.all([
-    db.select({ name: gatherings.name }).from(gatherings).where(eq(gatherings.id, h.gatheringId)).limit(1),
+    db.select({ name: groups.name }).from(groups).where(eq(groups.id, h.toGroupId)).limit(1),
     db.select({ userId: harvestItems.userId }).from(harvestItems).where(eq(harvestItems.harvestId, h.id)),
     db.select({ share: harvestChoices.share }).from(harvestChoices).where(and(eq(harvestChoices.harvestId, h.id), eq(harvestChoices.userId, viewerId))).limit(1),
     h.proposedBy ? db.select({ name: user.name, email: user.email }).from(user).where(eq(user.id, h.proposedBy)).limit(1) : [],

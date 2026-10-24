@@ -1,9 +1,11 @@
-// Ferment's own tables — docs/plan/ferment/PLAN.md §8.
+// Ferment's own tables — docs/plan/ferment/PLAN.md §8, GROUPS.md.
 //
-// Gathering → circles → rounds, with the Prompt split out as its own record so
-// a conversation structure can travel between circles and carry its lineage.
-// Rules that must always hold are constraints here, not checks in code: one
-// response per member per round, one membership per person per circle.
+// Groups hold people; a group may hold groups. A circle and a gathering are two
+// kinds of one thing (lib/kinds.ts says what each may do). Rounds run in a
+// group, with the Prompt split out as its own record so a conversation
+// structure can travel between circles and carry its lineage. Rules that must
+// always hold are constraints here, not checks in code: one response per
+// member per round, one membership per person per group.
 
 import { sql } from "drizzle-orm";
 import {
@@ -33,6 +35,7 @@ export const seatStatus = pgEnum("seat_status", ["waiting", "admitted", "decline
 export const circleStatus = pgEnum("circle_status", ["forming", "active", "idle", "closed", "expired"]);
 // lib/circleColors.ts; saffron is "shared", the default.
 export const circleColor = pgEnum("circle_color", ["saffron", "clay", "moss", "slate", "plum"]);
+export const groupKind = pgEnum("group_kind", ["circle", "gathering"]);
 export const shape = pgEnum("shape", ["story", "placement", "story_placement", "words"]);
 export const reveal = pgEnum("reveal", ["open", "after_share", "sealed"]);
 export const telling = pgEnum("telling", ["voice", "text"]);
@@ -44,39 +47,78 @@ export const wordOrigin = pgEnum("word_origin", ["seeded", "coined"]);
 
 const userRef = () => text().references(() => user.id, { onDelete: "cascade" });
 
-// ── Gathering ──────────────────────────────────────────────────────────────
+// ── Groups: a circle, a gathering (GROUPS.md §2) ───────────────────────────
 
-export const gatherings = pgTable("gatherings", {
-  id: text().primaryKey(),
-  slug: text().notNull().unique(),
-  name: text().notNull(),
-  welcomeNote: text().notNull().default(""),
-  // Settings (PLAN §2, §5)
-  proposalExpiryDays: integer().notNull().default(7),
-  membersPostOpenQuestions: boolean().notNull().default(true),
-  maxMembers: integer().notNull().default(100),
-  createdBy: userRef().notNull(),
-  createdAt: timestamp().notNull().defaultNow(),
-  // The starter it was started from, or the first one added to it (STARTERS.md §4).
-  starterId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
-});
-
-export const gatheringMembers = pgTable(
-  "gathering_members",
+// Some people, with a parent group or without one. The kind says what rules
+// apply (lib/kinds.ts); the columns a kind doesn't use stay null or at their
+// default. root_id is the top of the tree, itself for a root, so "everything
+// in this gathering" is one lookup; it is rewritten when a circle is promoted.
+export const groups = pgTable(
+  "groups",
   {
-    gatheringId: text()
+    id: text().primaryKey(),
+    // Unique across the site, so a promoted circle keeps its address.
+    slug: text().notNull().unique(),
+    kind: groupKind().notNull(),
+    parentId: text().references((): AnyPgColumn => groups.id, { onDelete: "cascade" }),
+    rootId: text()
       .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
+      .references((): AnyPgColumn => groups.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    // A gathering's welcome note; a circle's description.
+    note: text().notNull().default(""),
+    // Circles: picked by the host, the header tint and the core on the gathering map.
+    color: circleColor().notNull().default("saffron"),
+    createdBy: userRef().notNull(),
+    // Circles: null = the seat is vacant, and a circle with no host opens nothing new.
+    hostId: text().references(() => user.id, { onDelete: "set null" }),
+    // Circles form; a gathering is always active.
+    status: circleStatus().notNull().default("active"),
+    formingExpiresAt: timestamp(),
+    formedAt: timestamp(),
+    closedAt: timestamp(),
+    // Circles: "start a circle around this", the prompt it was proposed with.
+    originPromptId: text().references((): AnyPgColumn => prompts.id, { onDelete: "set null" }),
+    // Circles: null = derived, a third of the members, at least 2.
+    approvalsToStart: integer(),
+    maxLive: integer().notNull().default(3),
+    // Gatherings (PLAN §2, §5)
+    maxMembers: integer().notNull().default(100),
+    proposalExpiryDays: integer().notNull().default(7),
+    membersPostOpenQuestions: boolean().notNull().default(true),
+    // The starter it was started from, or the first one added to it (STARTERS.md §4).
+    starterId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [
+    index().on(t.parentId, t.status),
+    index().on(t.rootId),
+    check("groups_max_live", sql`${t.maxLive} between 1 and 10`),
+    // A root is its own root; anything with a parent isn't.
+    check("groups_root_or_child", sql`(${t.parentId} is null) = (${t.rootId} = ${t.id})`),
+  ],
+);
+
+// One row per group a person is in. Someone in a circle is also in its
+// gathering, as a row of its own (GROUPS.md §4). Leaving keeps the row: what
+// they shared stays named in the record.
+export const members = pgTable(
+  "members",
+  {
+    groupId: text()
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
     userId: userRef().notNull(),
     role: memberRole().notNull().default("member"),
     invitedBy: text().references(() => user.id, { onDelete: "set null" }),
-    // How this member hears about this gathering (PLAN §7).
+    // How this member hears about this group (PLAN §7). Read on the root's row.
     email: emailPref().notNull().default("each"),
     joinedAt: timestamp().notNull().defaultNow(),
-    // Set when this member moves the gathering off their own list. Nobody else sees a change.
+    leftAt: timestamp(),
+    // Set when this member moves the group off their own list. Nobody else sees a change.
     archivedAt: timestamp(),
   },
-  (t) => [primaryKey({ columns: [t.gatheringId, t.userId] })],
+  (t) => [primaryKey({ columns: [t.groupId, t.userId] }), index().on(t.userId)],
 );
 
 // An invitation comes from a person (PLAN §4, §11): a member suggests someone
@@ -87,9 +129,9 @@ export const invites = pgTable(
   "invites",
   {
     id: text().primaryKey(),
-    gatheringId: text()
+    groupId: text()
       .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
+      .references(() => groups.id, { onDelete: "cascade" }),
     // Who the suggester says they are; hosts alone see the email.
     name: text().notNull().default(""),
     email: text().notNull(),
@@ -108,60 +150,10 @@ export const invites = pgTable(
     acceptedBy: text().references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    index().on(t.gatheringId, t.email),
-    index().on(t.gatheringId, t.status),
+    index().on(t.groupId, t.email),
+    index().on(t.groupId, t.status),
     check("invites_token_once_sent", sql`${t.status}::text not in ('pending', 'accepted') or ${t.tokenHash} is not null`),
   ],
-);
-
-// ── Circle ─────────────────────────────────────────────────────────────────
-
-export const circles = pgTable(
-  "circles",
-  {
-    id: text().primaryKey(),
-    gatheringId: text()
-      .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
-    slug: text().notNull(),
-    name: text().notNull(),
-    description: text().notNull().default(""),
-    // null = the seat is vacant, and a circle with no host opens nothing new.
-    hostId: text().references(() => user.id, { onDelete: "set null" }),
-    proposedBy: userRef().notNull(),
-    status: circleStatus().notNull().default("forming"),
-    // Picked by the host: the header tint and the core on the gathering map.
-    color: circleColor().notNull().default("saffron"),
-    // A forming circle that hasn't reached its minimum by this time expires.
-    formingExpiresAt: timestamp(),
-    // "Start a circle around this" — the prompt it was proposed with.
-    originPromptId: text().references((): AnyPgColumn => prompts.id, { onDelete: "set null" }),
-    // null = derived: a third of the members, at least 2.
-    approvalsToStart: integer(),
-    maxLive: integer().notNull().default(3),
-    createdAt: timestamp().notNull().defaultNow(),
-    formedAt: timestamp(),
-    closedAt: timestamp(),
-  },
-  (t) => [
-    uniqueIndex().on(t.gatheringId, t.slug),
-    index().on(t.gatheringId, t.status),
-    check("circles_max_live", sql`${t.maxLive} between 1 and 10`),
-  ],
-);
-
-export const circleMembers = pgTable(
-  "circle_members",
-  {
-    circleId: text()
-      .notNull()
-      .references(() => circles.id, { onDelete: "cascade" }),
-    userId: userRef().notNull(),
-    joinedAt: timestamp().notNull().defaultNow(),
-    // Leaving keeps the row: what they shared stays named in the record.
-    leftAt: timestamp(),
-  },
-  (t) => [primaryKey({ columns: [t.circleId, t.userId] }), index().on(t.userId)],
 );
 
 // ── Prompt: the structure that travels (PLAN §5, "on the Prompt") ──────────
@@ -177,9 +169,9 @@ export const seatRequests = pgTable(
   "seat_requests",
   {
     id: text().primaryKey(),
-    circleId: text()
+    groupId: text()
       .notNull()
-      .references(() => circles.id, { onDelete: "cascade" }),
+      .references(() => groups.id, { onDelete: "cascade" }),
     userId: text().references(() => user.id, { onDelete: "cascade" }),
     inviteId: text().references(() => invites.id, { onDelete: "cascade" }),
     askedBy: userRef().notNull(),
@@ -191,11 +183,11 @@ export const seatRequests = pgTable(
     decidedBy: text().references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
-    index().on(t.circleId, t.status),
+    index().on(t.groupId, t.status),
     index().on(t.inviteId),
     check("seat_for_someone", sql`num_nonnulls(${t.userId}, ${t.inviteId}) = 1`),
-    uniqueIndex("seat_one_waiting_per_person").on(t.circleId, t.userId).where(sql`${t.status} = 'waiting'`),
-    uniqueIndex("seat_one_per_invite").on(t.circleId, t.inviteId).where(sql`${t.status} in ('waiting', 'admitted')`),
+    uniqueIndex("seat_one_waiting_per_person").on(t.groupId, t.userId).where(sql`${t.status} = 'waiting'`),
+    uniqueIndex("seat_one_per_invite").on(t.groupId, t.inviteId).where(sql`${t.status} in ('waiting', 'admitted')`),
   ],
 );
 
@@ -215,9 +207,10 @@ export const prompts = pgTable(
   "prompts",
   {
     id: text().primaryKey(),
-    gatheringId: text()
+    // A prompt belongs to the tree it travels in: a gathering, or a circle on its own.
+    rootId: text()
       .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
+      .references(() => groups.id, { onDelete: "cascade" }),
     authorId: userRef().notNull(),
     adaptedFromId: text().references((): AnyPgColumn => prompts.id, { onDelete: "set null" }),
     // Seeded from a starter: which one, and the key of its question there (STARTERS.md §4).
@@ -236,7 +229,7 @@ export const prompts = pgTable(
     reveal: reveal().notNull().default("sealed"),
     createdAt: timestamp().notNull().defaultNow(),
   },
-  (t) => [index().on(t.gatheringId), index().on(t.adaptedFromId), index().on(t.starterId)],
+  (t) => [index().on(t.rootId), index().on(t.adaptedFromId), index().on(t.starterId)],
 );
 
 // ── Round: one run of a prompt (PLAN §5, "on the Round") ───────────────────
@@ -248,11 +241,13 @@ export const rounds = pgTable(
     promptId: text()
       .notNull()
       .references(() => prompts.id, { onDelete: "restrict" }),
-    gatheringId: text()
+    // Where it runs: a circle, or a gathering for a question to everyone.
+    groupId: text()
       .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
-    // null = an open question to the whole gathering.
-    circleId: text().references(() => circles.id, { onDelete: "cascade" }),
+      .references(() => groups.id, { onDelete: "cascade" }),
+    rootId: text()
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
     authorId: userRef().notNull(),
     // Where a suggestion came from, when it was carried over from another round.
     suggestedFromRoundId: text().references((): AnyPgColumn => rounds.id, { onDelete: "set null" }),
@@ -274,16 +269,15 @@ export const rounds = pgTable(
     closedVia: closedVia(),
   },
   (t) => [
-    index().on(t.circleId, t.phase),
-    index().on(t.gatheringId, t.phase),
+    index().on(t.groupId, t.phase),
+    index().on(t.rootId, t.phase),
     index().on(t.promptId),
     index().on(t.replyToRoundId),
     check("rounds_reply_not_self", sql`${t.replyToRoundId} is distinct from ${t.id}`),
-    check("rounds_reply_in_circle", sql`${t.replyToRoundId} is null or ${t.circleId} is not null`),
     check("rounds_answer_needs_round", sql`${t.replyToResponseId} is null or ${t.replyToRoundId} is not null`),
     // One welcome question per gathering, and it is always gathering-wide.
-    uniqueIndex("rounds_one_welcome").on(t.gatheringId).where(sql`${t.welcome}`),
-    check("rounds_welcome_is_open_question", sql`not ${t.welcome} or ${t.circleId} is null`),
+    uniqueIndex("rounds_one_welcome").on(t.rootId).where(sql`${t.welcome}`),
+    check("rounds_welcome_is_open_question", sql`not ${t.welcome} or ${t.groupId} = ${t.rootId}`),
   ],
 );
 
@@ -364,12 +358,13 @@ export const notifications = pgTable(
   {
     id: text().primaryKey(),
     userId: userRef().notNull(),
-    gatheringId: text()
+    // The gathering (or lone circle) it happened in, and the circle, if one.
+    rootId: text()
       .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
+      .references(() => groups.id, { onDelete: "cascade" }),
     kind: text().notNull(),
     actorId: text().references(() => user.id, { onDelete: "set null" }),
-    circleId: text().references(() => circles.id, { onDelete: "cascade" }),
+    groupId: text().references(() => groups.id, { onDelete: "cascade" }),
     roundId: text().references(() => rounds.id, { onDelete: "cascade" }),
     inviteId: text().references(() => invites.id, { onDelete: "cascade" }),
     seatRequestId: text().references(() => seatRequests.id, { onDelete: "cascade" }),
@@ -397,12 +392,13 @@ export const harvests = pgTable(
   "harvests",
   {
     id: text().primaryKey(),
-    gatheringId: text()
+    // From the circle, to its parent.
+    groupId: text()
       .notNull()
-      .references(() => gatherings.id, { onDelete: "cascade" }),
-    circleId: text()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    toGroupId: text()
       .notNull()
-      .references(() => circles.id, { onDelete: "cascade" }),
+      .references(() => groups.id, { onDelete: "cascade" }),
     // One harvest per round; proposing again after a lapse replaces it.
     roundId: text()
       .notNull()
@@ -425,7 +421,7 @@ export const harvests = pgTable(
     upAt: timestamp(),
     downAt: timestamp(),
   },
-  (t) => [index().on(t.gatheringId, t.status), index().on(t.circleId, t.status), index().on(t.promptId)],
+  (t) => [index().on(t.toGroupId, t.status), index().on(t.groupId, t.status), index().on(t.promptId)],
 );
 
 export const harvestChoices = pgTable(
@@ -539,7 +535,7 @@ export const starters = pgTable(
     // title is kept so the link still reads when the other starter is gone.
     forkedFromId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
     forkedFromTitle: text(),
-    madeFromGatheringId: text().references((): AnyPgColumn => gatherings.id, { onDelete: "set null" }),
+    madeFromGroupId: text().references((): AnyPgColumn => groups.id, { onDelete: "set null" }),
     content: jsonb().$type<StarterContent>().notNull(),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
@@ -549,7 +545,7 @@ export const starters = pgTable(
     index().on(t.visibility),
     index().on(t.authorId),
     index().on(t.forkedFromId),
-    index().on(t.madeFromGatheringId),
+    index().on(t.madeFromGroupId),
   ],
 );
 

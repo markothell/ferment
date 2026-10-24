@@ -15,7 +15,7 @@ export default async function AdaptPage({ params }: PageProps<"/g/[gathering]/ad
   const p = await params;
   const { me, gathering, isHost } = await loadGathering(p.gathering);
   const parent = await promptById(db, p.prompt);
-  if (!parent || parent.gatheringId !== gathering.id) notFound();
+  if (!parent || parent.rootId !== gathering.id) notFound();
   const home = await gatheringHome(db, gathering, me.id);
   const mine = home.circles.filter((c) => c.isMember);
   const mayAsk = gathering.membersPostOpenQuestions || isHost;

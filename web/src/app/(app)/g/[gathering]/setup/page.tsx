@@ -66,10 +66,10 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
           <p className="text-[var(--ink-soft)]" role="status">Added <em>{justAdded.title}</em>: its circles are below, and its questions to everyone are open.</p>
         )}
 
-        <Step n={1} title="A welcome note" done={Boolean(gathering.welcomeNote)}>
+        <Step n={1} title="A welcome note" done={Boolean(gathering.note)}>
           <Form action={saveWelcomeNote} submit="Save note" quiet>
             {hidden}
-            <Field label="What this group is, and why it's here" name="note" multiline maxLength={2000} defaultValue={gathering.welcomeNote} />
+            <Field label="What this group is, and why it's here" name="note" multiline maxLength={2000} defaultValue={gathering.note} />
           </Form>
         </Step>
 

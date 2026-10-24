@@ -344,7 +344,7 @@ export async function adapt(_prev: ActionState, form: FormData): Promise<ActionS
       href = `/g/${gathering.slug}/r/${r.id}`;
     } else {
       const r = await suggestRound(db, { circleId: to, userId: me.id, prompt, timerHours: str(form, "timer") || null });
-      const circle = await circleById(db, r.circleId!);
+      const circle = await circleById(db, r.groupId);
       href = `/g/${gathering.slug}/circles/${circle!.slug}`;
     }
   });

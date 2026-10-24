@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { circles, gatherings, notifications, prompts, roundSupports, rounds, starters, user, words, type StarterContent } from "@/db/schema";
+import { groups, notifications, prompts, roundSupports, rounds, starters, user, words, type StarterContent } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { curatedFiles } from "@/lib/curated";
 import { createCircle, joinCircle } from "./circles";
@@ -98,15 +98,15 @@ describe("starting a gathering from a starter", () => {
   it("proposes each circle with its first question queued and the rest suggested, in order", async () => {
     const s = await published();
     const g = await startFromStarter(db, { starterId: s.id, viewer: host, name: "Our bread", now: t0 });
-    expect(g).toMatchObject({ starterId: s.id, welcomeNote: DESIGN.welcomeNote, createdBy: host.id });
+    expect(g).toMatchObject({ starterId: s.id, note: DESIGN.welcomeNote, createdBy: host.id });
 
-    const cs = await db.select().from(circles).where(eq(circles.gatheringId, g.id));
+    const cs = await db.select().from(groups).where(eq(groups.parentId, g.id)).orderBy(groups.createdAt);
     expect(cs.map((c) => [c.name, c.status, c.hostId, c.color])).toEqual([["Starters", "forming", host.id, "moss"], ["Ovens", "forming", host.id, "saffron"]]);
     const starter = cs.find((c) => c.name === "Starters")!;
     const rs = await db
       .select({ id: rounds.id, phase: rounds.phase, question: prompts.question, timer: rounds.timerHours, key: prompts.starterKey, from: prompts.starterId })
       .from(rounds).innerJoin(prompts, eq(prompts.id, rounds.promptId))
-      .where(eq(rounds.circleId, starter.id)).orderBy(rounds.createdAt);
+      .where(eq(rounds.groupId, starter.id)).orderBy(rounds.createdAt);
     expect(rs.map((r) => [r.question, r.phase, r.timer, r.key, r.from])).toEqual([
       ["What did you bake first?", "queued", null, "s1", s.id],
       ["How sure are you of your loaf?", "nominated", null, "s2", s.id],
@@ -116,22 +116,22 @@ describe("starting a gathering from a starter", () => {
 
     // The circle still paces itself: forming opens the first question and nothing else.
     for (const n of ["ben", "cal", "dee"]) await joinCircle(db, { circleId: starter.id, userId: await memberOf(g, n), now: hours(1) });
-    const phases = await db.select({ phase: rounds.phase }).from(rounds).where(eq(rounds.circleId, starter.id)).orderBy(rounds.createdAt);
+    const phases = await db.select({ phase: rounds.phase }).from(rounds).where(eq(rounds.groupId, starter.id)).orderBy(rounds.createdAt);
     expect(phases.map((p) => p.phase)).toEqual(["open", "nominated", "nominated"]);
   });
 
   it("opens the welcome question and the questions to everyone, words and all", async () => {
     const s = await published();
     const g = await startFromStarter(db, { starterId: s.id, viewer: host, name: "Our bread", welcomeNote: "Our own note.", now: t0 });
-    expect(g.welcomeNote).toBe("Our own note.");
+    expect(g.note).toBe("Our own note.");
     const open = await db
       .select({ welcome: rounds.welcome, phase: rounds.phase, question: prompts.question })
       .from(rounds).innerJoin(prompts, eq(prompts.id, rounds.promptId))
-      .where(and(eq(rounds.gatheringId, g.id), eq(rounds.phase, "open")));
+      .where(and(eq(rounds.rootId, g.id), eq(rounds.phase, "open")));
     expect(open.map((r) => [r.question, r.welcome])).toEqual(
       expect.arrayContaining([["What bread did you grow up with?", true], ["Which words go with bread?", false]]),
     );
-    const everyone = (await db.select().from(rounds).where(and(eq(rounds.gatheringId, g.id), eq(rounds.welcome, false), eq(rounds.phase, "open"))))[0];
+    const everyone = (await db.select().from(rounds).where(and(eq(rounds.rootId, g.id), eq(rounds.welcome, false), eq(rounds.phase, "open"))))[0];
     expect((await db.select().from(words).where(eq(words.roundId, everyone.id))).map((w) => w.label).sort()).toEqual(["crumb", "crust", "rise"]);
   });
 
@@ -153,7 +153,7 @@ describe("saving a gathering as a starter", () => {
     const c = await createCircle(db, { gatheringId: g.id, userId: host.id, name: "Soup", firstQuestion: "What soup do you make?", now: t0 });
     const ids = [];
     for (const n of ["ben", "cal", "dee"]) { const id = await memberOf(g, n); ids.push(id); await joinCircle(db, { circleId: c.id, userId: id, now: t0 }); }
-    const first = (await db.select().from(rounds).where(eq(rounds.circleId, c.id)))[0];
+    const first = (await db.select().from(rounds).where(eq(rounds.groupId, c.id)))[0];
     await respond(db, { roundId: first.id, userId: ids[0], input: { text: "Leek and potato." }, now: hours(1) });
     await revealNow(db, { roundId: first.id, userId: host.id, now: hours(2) });
     await suggestReply(db, { roundId: first.id, userId: host.id, prompt: { question: "Whose leek soup?" }, now: hours(3) });
@@ -161,7 +161,7 @@ describe("saving a gathering as a starter", () => {
     await postOpenQuestion(db, { gatheringId: g.id, userId: host.id, prompt: { question: "Best soup in town?" }, now: hours(5) });
 
     const s = await saveStarter(db, { gatheringId: g.id, userId: host.id, title: "  Soup  nights ", summary: "Talk over soup.", now: hours(6) });
-    expect(s).toMatchObject({ title: "Soup nights", slug: "soup-nights", visibility: "private", authorId: host.id, forkedFromId: null, madeFromGatheringId: g.id });
+    expect(s).toMatchObject({ title: "Soup nights", slug: "soup-nights", visibility: "private", authorId: host.id, forkedFromId: null, madeFromGroupId: g.id });
     expect(s.content.welcomeNote).toBe("Hello.");
     expect(s.content.circles.map((k) => [k.name, k.questions.map((x) => [x.question, x.timerHours])])).toEqual([
       ["Soup", [["What soup do you make?", null], ["Hot or cold?", 24]]],
@@ -180,7 +180,7 @@ describe("saving a gathering as a starter", () => {
   it("records lineage: a copy of the starter it came from, each question from the one it grew out of", async () => {
     const s = await published();
     const g = await startFromStarter(db, { starterId: s.id, viewer: host, name: "Our bread", now: t0 });
-    const circle = (await db.select().from(circles).where(and(eq(circles.gatheringId, g.id), eq(circles.name, "Ovens"))))[0];
+    const circle = (await db.select().from(groups).where(and(eq(groups.parentId, g.id), eq(groups.name, "Ovens"))))[0];
     await suggestRound(db, { circleId: circle.id, userId: host.id, prompt: { question: "A new one of ours" }, now: hours(1) });
 
     const fork = await saveStarter(db, { gatheringId: g.id, userId: host.id, title: "Our bread", now: hours(2) });
@@ -190,7 +190,7 @@ describe("saving a gathering as a starter", () => {
     expect(fork.content.welcomeQuestion?.from).toEqual({ starterId: s.id, key: "welcome" });
 
     // Saving over it keeps its own keys, and what they came from.
-    await db.update(gatherings).set({ welcomeNote: "Changed." }).where(eq(gatherings.id, g.id));
+    await db.update(groups).set({ note: "Changed." }).where(eq(groups.id, g.id));
     const updated = await saveStarter(db, { gatheringId: g.id, userId: host.id, title: "Our bread, v2", replaceId: fork.id, now: hours(5) });
     expect(updated.id).toBe(fork.id);
     expect(updated.content.welcomeNote).toBe("Changed.");
@@ -280,11 +280,11 @@ describe("adding a starter to a gathering", () => {
     await expect(addStarter(db, { gatheringId: g.id, starterId: s.id, viewer: { id: ben, email: "ben@example.com" } })).rejects.toThrow(/host/);
 
     await addStarter(db, { gatheringId: g.id, starterId: s.id, viewer: host, now: hours(1) });
-    const after = (await db.select().from(gatherings).where(eq(gatherings.id, g.id)))[0];
-    expect(after).toMatchObject({ welcomeNote: "Ours.", starterId: s.id });
-    const names = (await db.select({ slug: circles.slug }).from(circles).where(eq(circles.gatheringId, g.id))).map((c) => c.slug).sort();
+    const after = (await db.select().from(groups).where(eq(groups.id, g.id)))[0];
+    expect(after).toMatchObject({ note: "Ours.", starterId: s.id });
+    const names = (await db.select({ slug: groups.slug }).from(groups).where(eq(groups.parentId, g.id))).map((c) => c.slug).sort();
     expect(names).toEqual(["ovens", "starters", "starters-2"]);
-    const welcome = await db.select().from(rounds).where(and(eq(rounds.gatheringId, g.id), eq(rounds.welcome, true)));
+    const welcome = await db.select().from(rounds).where(and(eq(rounds.rootId, g.id), eq(rounds.welcome, true)));
     expect(welcome).toHaveLength(1);
     const told = await db.select().from(notifications).where(and(eq(notifications.userId, ben), eq(notifications.kind, "asked_everyone")));
     expect(told).toHaveLength(1);

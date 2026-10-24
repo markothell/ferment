@@ -5,9 +5,7 @@
 import { and, asc, desc, eq, inArray, isNull, lte, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { DB } from "@/db";
-import {
-  circleMembers, circles, gatherings, gatheringMembers, invites, notifications, prompts, rounds, seatRequests, user,
-} from "@/db/schema";
+import { groups, invites, members, notifications, prompts, rounds, seatRequests, user } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
 
@@ -35,6 +33,7 @@ export const KINDS = {
 } as const;
 export type Kind = keyof typeof KINDS;
 
+// A moment names the gathering it happened in (the root group) and the circle, if one.
 type Moment = {
   kind: Kind; gatheringId: string; actorId?: string | null; circleId?: string | null; roundId?: string | null;
   inviteId?: string | null; seatRequestId?: string | null; harvestId?: string | null; detail?: string | null; now?: Date;
@@ -45,8 +44,8 @@ async function insertFor(db: DB, userIds: string[], m: Moment) {
   if (!to.length) return;
   await db.insert(notifications).values(
     to.map((userId) => ({
-      id: newId(), userId, gatheringId: m.gatheringId, kind: m.kind,
-      actorId: m.actorId ?? null, circleId: m.circleId ?? null, roundId: m.roundId ?? null,
+      id: newId(), userId, rootId: m.gatheringId, kind: m.kind,
+      actorId: m.actorId ?? null, groupId: m.circleId ?? null, roundId: m.roundId ?? null,
       inviteId: m.inviteId ?? null, seatRequestId: m.seatRequestId ?? null, harvestId: m.harvestId ?? null, detail: m.detail ?? null, createdAt: m.now ?? new Date(),
     })),
   );
@@ -59,25 +58,25 @@ export async function notifyPeople(db: DB, userIds: string[], m: Moment) {
 
 /** Everyone active in a circle, minus whoever caused the moment. */
 export async function notifyCircle(db: DB, circleId: string, m: Omit<Moment, "circleId">) {
-  const members = await db
-    .select({ userId: circleMembers.userId })
-    .from(circleMembers)
-    .where(and(eq(circleMembers.circleId, circleId), isNull(circleMembers.leftAt)));
-  await insertFor(db, members.map((r) => r.userId), { ...m, circleId });
+  const rows = await db
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.groupId, circleId), isNull(members.leftAt)));
+  await insertFor(db, rows.map((r) => r.userId), { ...m, circleId });
 }
 
 /** Everyone in a gathering, minus whoever caused the moment. */
 export async function notifyGathering(db: DB, m: Moment) {
-  const members = await db.select({ userId: gatheringMembers.userId }).from(gatheringMembers).where(eq(gatheringMembers.gatheringId, m.gatheringId));
-  await insertFor(db, members.map((r) => r.userId), m);
+  const rows = await db.select({ userId: members.userId }).from(members).where(and(eq(members.groupId, m.gatheringId), isNull(members.leftAt)));
+  await insertFor(db, rows.map((r) => r.userId), m);
 }
 
 /** The gathering's hosts, minus whoever caused the moment. */
 export async function notifyHosts(db: DB, m: Moment) {
   const hosts = await db
-    .select({ userId: gatheringMembers.userId })
-    .from(gatheringMembers)
-    .where(and(eq(gatheringMembers.gatheringId, m.gatheringId), eq(gatheringMembers.role, "host")));
+    .select({ userId: members.userId })
+    .from(members)
+    .where(and(eq(members.groupId, m.gatheringId), eq(members.role, "host"), isNull(members.leftAt)));
   await insertFor(db, hosts.map((r) => r.userId), m);
 }
 
@@ -145,6 +144,8 @@ function describe(r: {
 
 const candidate = alias(user, "candidate");
 const seatInvite = alias(invites, "seat_invite");
+const root = alias(groups, "root");
+const circle = alias(groups, "circle");
 
 export async function listNotifications(db: DB, where: { userId: string; ids?: string[]; limit?: number }): Promise<NotificationView[]> {
   const rows = await db
@@ -153,16 +154,16 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
       seatUserId: seatRequests.userId, seatAskedBy: seatRequests.askedBy,
       candidateName: candidate.name, candidateEmail: candidate.email, seatInviteName: seatInvite.name,
       id: notifications.id, kind: notifications.kind, createdAt: notifications.createdAt, readAt: notifications.readAt,
-      emailedAt: notifications.emailedAt, gatheringId: notifications.gatheringId,
-      gatheringName: gatherings.name, gatheringSlug: gatherings.slug,
+      emailedAt: notifications.emailedAt, gatheringId: notifications.rootId,
+      gatheringName: root.name, gatheringSlug: root.slug,
       actorName: user.name, actorEmail: user.email,
-      circleName: circles.name, circleSlug: circles.slug, roundId: notifications.roundId, question: prompts.question,
+      circleName: circle.name, circleSlug: circle.slug, roundId: notifications.roundId, question: prompts.question,
       harvestId: notifications.harvestId, detail: notifications.detail,
     })
     .from(notifications)
-    .innerJoin(gatherings, eq(gatherings.id, notifications.gatheringId))
+    .innerJoin(root, eq(root.id, notifications.rootId))
     .leftJoin(user, eq(user.id, notifications.actorId))
-    .leftJoin(circles, eq(circles.id, notifications.circleId))
+    .leftJoin(circle, eq(circle.id, notifications.groupId))
     .leftJoin(rounds, eq(rounds.id, notifications.roundId))
     .leftJoin(prompts, eq(prompts.id, rounds.promptId))
     .leftJoin(invites, eq(invites.id, notifications.inviteId))
@@ -214,11 +215,11 @@ const DAY_MS = 86_400_000;
 export async function dueEmails(db: DB, now = new Date()) {
   const pending = await db
     .select({
-      id: notifications.id, userId: notifications.userId, gatheringId: notifications.gatheringId,
-      createdAt: notifications.createdAt, pref: gatheringMembers.email, email: user.email, name: user.name,
+      id: notifications.id, userId: notifications.userId, gatheringId: notifications.rootId,
+      createdAt: notifications.createdAt, pref: members.email, email: user.email, name: user.name,
     })
     .from(notifications)
-    .innerJoin(gatheringMembers, and(eq(gatheringMembers.gatheringId, notifications.gatheringId), eq(gatheringMembers.userId, notifications.userId)))
+    .innerJoin(members, and(eq(members.groupId, notifications.rootId), eq(members.userId, notifications.userId)))
     .innerJoin(user, eq(user.id, notifications.userId))
     .where(and(isNull(notifications.emailedAt), isNull(notifications.readAt), lte(notifications.createdAt, now)))
     .orderBy(asc(notifications.createdAt));
@@ -243,7 +244,7 @@ export async function markEmailed(db: DB, ids: string[], now = new Date()) {
 
 export async function setEmailPref(db: DB, { gatheringId, userId, pref }: { gatheringId: string; userId: string; pref: "each" | "digest" | "off" }) {
   await db
-    .update(gatheringMembers)
+    .update(members)
     .set({ email: pref })
-    .where(and(eq(gatheringMembers.gatheringId, gatheringId), eq(gatheringMembers.userId, userId), ne(gatheringMembers.email, pref)));
+    .where(and(eq(members.groupId, gatheringId), eq(members.userId, userId), ne(members.email, pref)));
 }

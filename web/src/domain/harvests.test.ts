@@ -40,8 +40,8 @@ beforeEach(async () => {
   for (const n of ["amy", "ben", "cal", "dee"]) await seatInCircle(db, { circleId: circle.id, userId: await member(n), now: t0 });
   promptId = newId();
   roundId = newId();
-  await db.insert(prompts).values({ id: promptId, gatheringId: gathering.id, authorId: host, question: "What's a meal you remember?", shape: "story", telling: "text" });
-  await db.insert(rounds).values({ id: roundId, promptId, gatheringId: gathering.id, circleId: circle.id, authorId: host, phase: "closed", openedAt: t0, closedAt: t0 });
+  await db.insert(prompts).values({ id: promptId, rootId: gathering.id, authorId: host, question: "What's a meal you remember?", shape: "story", telling: "text" });
+  await db.insert(rounds).values({ id: roundId, promptId, groupId: circle.id, rootId: gathering.id, authorId: host, phase: "closed", openedAt: t0, closedAt: t0 });
   for (const u of [host, amy, ben, cal]) {
     await db.insert(responses).values({ id: newId(), roundId, userId: u, text: `${u}'s meal`, createdAt: t0, updatedAt: t0 });
   }

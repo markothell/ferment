@@ -28,7 +28,9 @@ elsewhere, run `npm run starters:load` after `npm run db:migrate`.
 
 ## Layout
 
-- `src/db/schema/` — every table. `auth.ts` is Better Auth's; `app.ts` is Ferment's.
+- `src/db/schema/` — every table. `auth.ts` is Better Auth's; `app.ts` is Ferment's. A circle and a
+  gathering are two kinds of one `groups` row (`docs/plan/ferment/GROUPS.md`); `src/lib/kinds.ts`
+  says what each kind may do.
 - `drizzle/` — generated SQL migrations. After changing the schema: `npm run db:generate`.
 - `src/db/testing.ts` — `testDb()`: a fresh migrated in-memory database per test.
 - `src/lib/auth.ts` — Better Auth, email link only. `src/lib/access.ts` decides who may get a

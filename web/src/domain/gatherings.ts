@@ -1,8 +1,11 @@
-// Gatherings: the social home and the outermost circle (PLAN §1, §4).
+// Gatherings: a group of kind "gathering", the social home and the outermost
+// circle (PLAN §1, §4; GROUPS.md). A gathering is a root group; its circles
+// are the groups under it. The functions here keep their old names, so the
+// pages and tests read as before.
 
 import { and, asc, count, eq, gt, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circleMembers, circles, gatherings, gatheringMembers, prompts, responses, rounds, user } from "@/db/schema";
+import { groups, members, prompts, responses, rounds, user } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { refuse } from "./errors";
 import { normalizePrompt } from "./prompts";
@@ -12,8 +15,9 @@ export const NAME_MAX = 60;
 export const NOTE_MAX = 2000;
 const DAY_MS = 86_400_000;
 
-export type Gathering = typeof gatherings.$inferSelect;
-export type Membership = typeof gatheringMembers.$inferSelect;
+export type Group = typeof groups.$inferSelect;
+export type Gathering = Group;
+export type Membership = typeof members.$inferSelect;
 
 function cleanName(raw: string): string {
   const name = raw.trim().replace(/\s+/g, " ");
@@ -24,6 +28,16 @@ function cleanName(raw: string): string {
 
 /** How many gatherings one person can start in a day: open to anyone, so capped. */
 export const STARTS_PER_DAY = 5;
+
+/** Is this slug taken by any group? Slugs are unique across the site (GROUPS.md §2). */
+export async function slugTaken(db: DB, slug: string): Promise<boolean> {
+  return Boolean((await db.select({ id: groups.id }).from(groups).where(eq(groups.slug, slug)).limit(1))[0]);
+}
+
+export async function groupById(db: DB, id: string): Promise<Group | null> {
+  const [g] = await db.select().from(groups).where(eq(groups.id, id)).limit(1);
+  return g ?? null;
+}
 
 export async function createGathering(
   db: DB,
@@ -41,72 +55,73 @@ export async function createGathering(
   if (note.length > NOTE_MAX) refuse("That welcome note is too long.");
   const [{ started }] = await db
     .select({ started: count() })
-    .from(gatherings)
-    .where(and(eq(gatherings.createdBy, userId), gt(gatherings.createdAt, new Date(now.getTime() - DAY_MS))));
+    .from(groups)
+    .where(and(eq(groups.createdBy, userId), isNull(groups.parentId), gt(groups.createdAt, new Date(now.getTime() - DAY_MS))));
   if (started >= STARTS_PER_DAY) refuse(`That's ${STARTS_PER_DAY} gatherings started today. Try again tomorrow.`);
 
-  const slug = await uniqueSlug(clean, async (s) =>
-    Boolean((await db.select({ id: gatherings.id }).from(gatherings).where(eq(gatherings.slug, s)).limit(1))[0]),
-  );
+  const slug = await uniqueSlug(clean, (s) => slugTaken(db, s));
+  const id = newId();
 
   return db.transaction(async (tx) => {
     const [gathering] = await tx
-      .insert(gatherings)
-      .values({ id: newId(), slug, name: clean, welcomeNote: note, createdBy: userId, createdAt: now, starterId })
+      .insert(groups)
+      .values({ id, slug, kind: "gathering", parentId: null, rootId: id, name: clean, note, createdBy: userId, createdAt: now, starterId })
       .returning();
-    await tx.insert(gatheringMembers).values({ gatheringId: gathering.id, userId, role: "host", joinedAt: now });
+    await tx.insert(members).values({ groupId: gathering.id, userId, role: "host", joinedAt: now });
     if (seed) await seed(tx as unknown as DB, gathering);
     return gathering;
   });
 }
 
+/** A root group by its address: a gathering, or (later) a circle on its own. */
 export async function gatheringBySlug(db: DB, slug: string): Promise<Gathering | null> {
-  const [c] = await db.select().from(gatherings).where(eq(gatherings.slug, slug)).limit(1);
-  return c ?? null;
+  const [g] = await db.select().from(groups).where(and(eq(groups.slug, slug), isNull(groups.parentId))).limit(1);
+  return g ?? null;
 }
 
-export async function membershipOf(db: DB, gatheringId: string, userId: string): Promise<Membership | null> {
+/** Someone's place in a group, if they're in it and haven't left. */
+export async function membershipOf(db: DB, groupId: string, userId: string): Promise<Membership | null> {
   const [m] = await db
     .select()
-    .from(gatheringMembers)
-    .where(and(eq(gatheringMembers.gatheringId, gatheringId), eq(gatheringMembers.userId, userId)))
+    .from(members)
+    .where(and(eq(members.groupId, groupId), eq(members.userId, userId), isNull(members.leftAt)))
     .limit(1);
   return m ?? null;
 }
 
-export async function requireMember(db: DB, gatheringId: string, userId: string): Promise<Membership> {
-  return (await membershipOf(db, gatheringId, userId)) ?? refuse("You're not a member of this gathering.");
+export async function requireMember(db: DB, groupId: string, userId: string): Promise<Membership> {
+  return (await membershipOf(db, groupId, userId)) ?? refuse("You're not a member of this gathering.");
 }
 
-export async function requireHost(db: DB, gatheringId: string, userId: string): Promise<Membership> {
-  const m = await requireMember(db, gatheringId, userId);
+export async function requireHost(db: DB, groupId: string, userId: string): Promise<Membership> {
+  const m = await requireMember(db, groupId, userId);
   if (m.role !== "host") refuse("Only a host can do that.");
   return m;
 }
 
-export async function memberCount(db: DB, gatheringId: string): Promise<number> {
-  const [{ n }] = await db.select({ n: count() }).from(gatheringMembers).where(eq(gatheringMembers.gatheringId, gatheringId));
+export async function memberCount(db: DB, groupId: string): Promise<number> {
+  const [{ n }] = await db.select({ n: count() }).from(members).where(and(eq(members.groupId, groupId), isNull(members.leftAt)));
   return n;
 }
 
-/** Your gatherings, without the ones you've archived. */
+/** Your gatherings (the root groups you're in), without the ones you've archived. */
 export async function listMyGatherings(db: DB, userId: string) {
   return db
-    .select({ id: gatherings.id, slug: gatherings.slug, name: gatherings.name, role: gatheringMembers.role })
-    .from(gatheringMembers)
-    .innerJoin(gatherings, eq(gatherings.id, gatheringMembers.gatheringId))
-    .where(and(eq(gatheringMembers.userId, userId), isNull(gatheringMembers.archivedAt)))
-    .orderBy(asc(gatherings.name));
+    .select({ id: groups.id, slug: groups.slug, name: groups.name, kind: groups.kind, role: members.role })
+    .from(members)
+    .innerJoin(groups, eq(groups.id, members.groupId))
+    .where(and(eq(members.userId, userId), isNull(groups.parentId), isNull(members.leftAt), isNull(members.archivedAt)))
+    .orderBy(asc(groups.name));
 }
 
 /** The ones you've archived, so you can bring them back. */
 export async function listMyArchived(db: DB, userId: string) {
   return db
-    .select({ id: gatherings.id, slug: gatherings.slug, name: gatherings.name })
-    .from(gatheringMembers)
-    .innerJoin(gatherings, eq(gatherings.id, gatheringMembers.gatheringId))
-    .where(and(eq(gatheringMembers.userId, userId), isNotNull(gatheringMembers.archivedAt)))
-    .orderBy(asc(gatherings.name));
+    .select({ id: groups.id, slug: groups.slug, name: groups.name, kind: groups.kind })
+    .from(members)
+    .innerJoin(groups, eq(groups.id, members.groupId))
+    .where(and(eq(members.userId, userId), isNull(groups.parentId), isNull(members.leftAt), isNotNull(members.archivedAt)))
+    .orderBy(asc(groups.name));
 }
 
 /**
@@ -119,9 +134,9 @@ export async function setArchived(
 ): Promise<void> {
   await requireMember(db, gatheringId, userId);
   await db
-    .update(gatheringMembers)
+    .update(members)
     .set({ archivedAt: archived ? now : null })
-    .where(and(eq(gatheringMembers.gatheringId, gatheringId), eq(gatheringMembers.userId, userId)));
+    .where(and(eq(members.groupId, gatheringId), eq(members.userId, userId)));
 }
 
 export async function updateWelcomeNote(
@@ -131,7 +146,7 @@ export async function updateWelcomeNote(
   await requireHost(db, gatheringId, userId);
   const clean = note.trim();
   if (clean.length > NOTE_MAX) refuse("That welcome note is too long.");
-  await db.update(gatherings).set({ welcomeNote: clean }).where(eq(gatherings.id, gatheringId));
+  await db.update(groups).set({ note: clean }).where(eq(groups.id, gatheringId));
 }
 
 /**
@@ -152,7 +167,7 @@ export async function setWelcomeQuestion(
     const [current] = await tx
       .select({ roundId: rounds.id, promptId: rounds.promptId })
       .from(rounds)
-      .where(and(eq(rounds.gatheringId, gatheringId), eq(rounds.welcome, true)))
+      .where(and(eq(rounds.rootId, gatheringId), eq(rounds.welcome, true)))
       .limit(1);
 
     if (current) {
@@ -168,50 +183,52 @@ export async function setWelcomeQuestion(
     }
 
     const promptId = newId();
-    await tx.insert(prompts).values({ id: promptId, gatheringId, authorId: userId, ...prompt });
+    await tx.insert(prompts).values({ id: promptId, rootId: gatheringId, authorId: userId, ...prompt });
     await tx.insert(rounds).values({
-      id: newId(), promptId, gatheringId, authorId: userId,
+      id: newId(), promptId, groupId: gatheringId, rootId: gatheringId, authorId: userId,
       welcome: true, phase: "open", openedAt: now, editAfterClose: true,
     });
   });
 }
 
+/** The circles a gathering holds, as its pages list them. */
+const circleColumns = {
+  id: groups.id, slug: groups.slug, name: groups.name, description: groups.note,
+  status: groups.status, color: groups.color, hostId: groups.hostId, formingExpiresAt: groups.formingExpiresAt,
+};
+
 /** Everything the gathering page shows, for a member. */
 export async function gatheringHome(db: DB, gathering: Gathering, viewerId: string) {
-  const [members, welcome, circleRows, mine] = await Promise.all([
+  const [memberRows, welcome, circleRows, mine] = await Promise.all([
     db
-      .select({ userId: user.id, name: user.name, email: user.email, role: gatheringMembers.role, joinedAt: gatheringMembers.joinedAt })
-      .from(gatheringMembers)
-      .innerJoin(user, eq(user.id, gatheringMembers.userId))
-      .where(eq(gatheringMembers.gatheringId, gathering.id))
-      .orderBy(asc(gatheringMembers.joinedAt)),
+      .select({ userId: user.id, name: user.name, email: user.email, role: members.role, joinedAt: members.joinedAt })
+      .from(members)
+      .innerJoin(user, eq(user.id, members.userId))
+      .where(and(eq(members.groupId, gathering.id), isNull(members.leftAt)))
+      .orderBy(asc(members.joinedAt)),
     db
       .select({ roundId: rounds.id, question: prompts.question })
       .from(rounds)
       .innerJoin(prompts, eq(prompts.id, rounds.promptId))
-      .where(and(eq(rounds.gatheringId, gathering.id), eq(rounds.welcome, true)))
+      .where(and(eq(rounds.rootId, gathering.id), eq(rounds.welcome, true)))
       .limit(1),
     db
-      .select({
-        id: circles.id, slug: circles.slug, name: circles.name, description: circles.description,
-        status: circles.status, color: circles.color, hostId: circles.hostId, formingExpiresAt: circles.formingExpiresAt,
-        members: count(circleMembers.userId),
-      })
-      .from(circles)
-      .leftJoin(circleMembers, and(eq(circleMembers.circleId, circles.id), isNull(circleMembers.leftAt)))
-      .where(and(eq(circles.gatheringId, gathering.id), notInArray(circles.status, ["closed", "expired"])))
-      .groupBy(circles.id)
-      .orderBy(asc(circles.createdAt)),
+      .select({ ...circleColumns, members: count(members.userId) })
+      .from(groups)
+      .leftJoin(members, and(eq(members.groupId, groups.id), isNull(members.leftAt)))
+      .where(and(eq(groups.parentId, gathering.id), notInArray(groups.status, ["closed", "expired"])))
+      .groupBy(groups.id)
+      .orderBy(asc(groups.createdAt)),
     db
-      .select({ circleId: circleMembers.circleId })
-      .from(circleMembers)
-      .innerJoin(circles, eq(circles.id, circleMembers.circleId))
-      .where(and(eq(circleMembers.userId, viewerId), isNull(circleMembers.leftAt), eq(circles.gatheringId, gathering.id))),
+      .select({ circleId: members.groupId })
+      .from(members)
+      .innerJoin(groups, eq(groups.id, members.groupId))
+      .where(and(eq(members.userId, viewerId), isNull(members.leftAt), eq(groups.parentId, gathering.id))),
   ]);
 
   const myCircleIds = new Set(mine.map((m) => m.circleId));
   return {
-    members,
+    members: memberRows,
     welcome: welcome[0] ?? null,
     circles: circleRows.map((c) => ({ ...c, isMember: myCircleIds.has(c.id) })),
   };
@@ -221,30 +238,30 @@ export async function gatheringHome(db: DB, gathering: Gathering, viewerId: stri
 export async function gatheringMapData(db: DB, gatheringId: string) {
   const [circleRows, memberRows, roundRows, answerRows] = await Promise.all([
     db
-      .select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status, color: circles.color })
-      .from(circles)
-      .where(and(eq(circles.gatheringId, gatheringId), notInArray(circles.status, ["closed", "expired"])))
-      .orderBy(asc(circles.createdAt)),
+      .select({ id: groups.id, slug: groups.slug, name: groups.name, status: groups.status, color: groups.color })
+      .from(groups)
+      .where(and(eq(groups.parentId, gatheringId), notInArray(groups.status, ["closed", "expired"])))
+      .orderBy(asc(groups.createdAt)),
     db
-      .select({ circleId: circleMembers.circleId, userId: circleMembers.userId })
-      .from(circleMembers)
-      .innerJoin(circles, eq(circles.id, circleMembers.circleId))
-      .where(and(eq(circles.gatheringId, gatheringId), isNull(circleMembers.leftAt)))
-      .orderBy(asc(circleMembers.joinedAt)),
+      .select({ circleId: members.groupId, userId: members.userId })
+      .from(members)
+      .innerJoin(groups, eq(groups.id, members.groupId))
+      .where(and(eq(groups.parentId, gatheringId), isNull(members.leftAt)))
+      .orderBy(asc(members.joinedAt)),
     db
-      .select({ circleId: rounds.circleId, phase: rounds.phase, n: count() })
+      .select({ groupId: rounds.groupId, phase: rounds.phase, n: count() })
       .from(rounds)
-      .where(and(eq(rounds.gatheringId, gatheringId), inArray(rounds.phase, ["open", "closed"])))
-      .groupBy(rounds.circleId, rounds.phase),
+      .where(and(eq(rounds.rootId, gatheringId), inArray(rounds.phase, ["open", "closed"])))
+      .groupBy(rounds.groupId, rounds.phase),
     db
       .selectDistinct({ userId: responses.userId })
       .from(responses)
       .innerJoin(rounds, eq(rounds.id, responses.roundId))
-      .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId), eq(rounds.phase, "open"))),
+      .where(and(eq(rounds.groupId, gatheringId), eq(rounds.phase, "open"))),
   ]);
 
-  const tally = (circleId: string | null, phase: "open" | "closed") =>
-    roundRows.find((r) => r.circleId === circleId && r.phase === phase)?.n ?? 0;
+  const tally = (groupId: string, phase: "open" | "closed") =>
+    roundRows.find((r) => r.groupId === groupId && r.phase === phase)?.n ?? 0;
 
   return {
     circles: circleRows.map((c) => ({
@@ -252,7 +269,7 @@ export async function gatheringMapData(db: DB, gatheringId: string) {
       members: memberRows.filter((m) => m.circleId === c.id).map((m) => m.userId),
       explored: tally(c.id, "closed"), open: tally(c.id, "open"),
     })),
-    openQuestions: tally(null, "open"),
+    openQuestions: tally(gatheringId, "open"),
     answerers: answerRows.map((r) => r.userId),
   };
 }

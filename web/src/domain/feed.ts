@@ -13,14 +13,14 @@
 
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circleMembers, circles, prompts, responses, rounds, user } from "@/db/schema";
+import { groups, members, prompts, responses, rounds, user } from "@/db/schema";
 import { displayName } from "@/lib/names";
 import { harvestsByPrompt } from "./harvests.read";
 
 export type FeedItem = Awaited<ReturnType<typeof feed>>[number];
 
 export async function feed(db: DB, gatheringId: string, viewerId: string) {
-  const [promptRows, runRows, circleRows, mine, answered] = await Promise.all([
+  const [promptRows, runRaw, circleRows, mine, answered] = await Promise.all([
     db
       .select({
         id: prompts.id, question: prompts.question, context: prompts.context, shape: prompts.shape, reveal: prompts.reveal,
@@ -28,26 +28,28 @@ export async function feed(db: DB, gatheringId: string, viewerId: string) {
       })
       .from(prompts)
       .innerJoin(user, eq(user.id, prompts.authorId))
-      .where(eq(prompts.gatheringId, gatheringId)),
+      .where(eq(prompts.rootId, gatheringId)),
     db
       .select({
-        id: rounds.id, promptId: rounds.promptId, circleId: rounds.circleId, phase: rounds.phase, openedAt: rounds.openedAt, closedAt: rounds.closedAt,
+        id: rounds.id, promptId: rounds.promptId, groupId: rounds.groupId, phase: rounds.phase, openedAt: rounds.openedAt, closedAt: rounds.closedAt,
         replyToRoundId: rounds.replyToRoundId,
       })
       .from(rounds)
-      .where(and(eq(rounds.gatheringId, gatheringId), inArray(rounds.phase, ["open", "closed", "nominated", "queued"]))),
-    db.select({ id: circles.id, slug: circles.slug, name: circles.name, status: circles.status }).from(circles).where(eq(circles.gatheringId, gatheringId)),
+      .where(and(eq(rounds.rootId, gatheringId), inArray(rounds.phase, ["open", "closed", "nominated", "queued"]))),
+    db.select({ id: groups.id, slug: groups.slug, name: groups.name, status: groups.status }).from(groups).where(eq(groups.parentId, gatheringId)),
     db
-      .select({ circleId: circleMembers.circleId })
-      .from(circleMembers)
-      .innerJoin(circles, eq(circles.id, circleMembers.circleId))
-      .where(and(eq(circles.gatheringId, gatheringId), eq(circleMembers.userId, viewerId), isNull(circleMembers.leftAt))),
+      .select({ circleId: members.groupId })
+      .from(members)
+      .innerJoin(groups, eq(groups.id, members.groupId))
+      .where(and(eq(groups.parentId, gatheringId), eq(members.userId, viewerId), isNull(members.leftAt))),
     db
       .select({ roundId: responses.roundId })
       .from(responses)
       .innerJoin(rounds, eq(rounds.id, responses.roundId))
-      .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.circleId))),
+      .where(eq(rounds.groupId, gatheringId)),
   ]);
+  // A run in the gathering itself is a question to everyone; any other is a circle's.
+  const runRows = runRaw.map((r) => ({ ...r, circleId: r.groupId === gatheringId ? null : r.groupId }));
 
   // Harvests show on their question and filter the feed; they never move the ranking.
   const harvested = await harvestsByPrompt(db, gatheringId);

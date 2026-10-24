@@ -6,9 +6,9 @@
 // get one. Idempotent; run every 15 minutes. Takes the database, the mail
 // sender and the transcriber so tests can pass their own.
 
-import { and, eq, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 import type { DB } from "@/db";
-import { gatherings, rounds } from "@/db/schema";
+import { groups, rounds } from "@/db/schema";
 import type { Mail } from "@/lib/email";
 import { appUrl } from "@/lib/urls";
 import { expireProposals } from "./circles";
@@ -22,22 +22,27 @@ import { transcribePending, type Transcriber } from "./transcripts";
 export async function runClock(db: DB, send: (mail: Mail) => Promise<void>, now = new Date(), transcribe: Transcriber | null = null) {
   const expired = await expireProposals(db, now);
 
+  // Rounds whose timer ran out: in a circle, settle the circle (it may open the next); to everyone, just close.
   const due = await db
-    .selectDistinct({ circleId: rounds.circleId })
+    .selectDistinct({ groupId: rounds.groupId, kind: groups.kind })
     .from(rounds)
-    .where(and(eq(rounds.phase, "open"), isNotNull(rounds.circleId), lte(rounds.closesAt, now)));
-  for (const { circleId } of due) await settleCircle(db, circleId!, now);
-
-  await db
-    .update(rounds)
-    .set({ phase: "closed", closedAt: now, closedVia: "timer" })
-    .where(and(eq(rounds.phase, "open"), isNull(rounds.circleId), lte(rounds.closesAt, now)));
+    .innerJoin(groups, eq(groups.id, rounds.groupId))
+    .where(and(eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
+  for (const { groupId, kind } of due) {
+    if (kind === "circle") await settleCircle(db, groupId, now);
+    else {
+      await db
+        .update(rounds)
+        .set({ phase: "closed", closedAt: now, closedVia: "timer" })
+        .where(and(eq(rounds.groupId, groupId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
+    }
+  }
 
   const harvested = await tickHarvests(db, now);
   const lapsed = (await lapseInvites(db, now)) + (await lapseSeats(db, now)) + harvested.lapsed;
   const sent = await deliver(db, send, now);
   const transcribed = transcribe ? await transcribePending(db, transcribe, now) : 0;
-  return { expired: expired.length, settled: due.length, lapsed, emails: sent, transcribed };
+  return { expired: expired.length, settled: due.filter((d) => d.kind === "circle").length, lapsed, emails: sent, transcribed };
 }
 
 async function deliver(db: DB, send: (mail: Mail) => Promise<void>, now: Date): Promise<number> {
@@ -47,7 +52,7 @@ async function deliver(db: DB, send: (mail: Mail) => Promise<void>, now: Date): 
     try {
       const items = await listNotifications(db, { userId: b.userId, ids: b.ids });
       if (!items.length) continue;
-      const [gathering] = await db.select({ name: gatherings.name, slug: gatherings.slug }).from(gatherings).where(eq(gatherings.id, b.gatheringId)).limit(1);
+      const [gathering] = await db.select({ name: groups.name, slug: groups.slug }).from(groups).where(eq(groups.id, b.gatheringId)).limit(1);
       const subject = b.pref === "digest"
         ? `Today in ${gathering.name}`
         : items.length === 1 ? items[0].text.replace(/\.$/, "") : `${items.length} new in ${gathering.name}`;

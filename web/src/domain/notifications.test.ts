@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { gatheringMembers, notifications, user } from "@/db/schema";
+import { members, notifications, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { createCircle, seatInCircle, type Circle } from "./circles";
 import { createGathering, type Gathering } from "./gatherings";
@@ -90,7 +90,7 @@ describe("email", () => {
   it("never emails what's already been read", async () => {
     await markAllRead(db, "u_amy");
     expect((await dueEmails(db, hours(1))).map((b) => b.userId)).not.toContain("u_amy");
-    const [m] = await db.select().from(gatheringMembers).where(eq(gatheringMembers.userId, "u_amy"));
+    const [m] = await db.select().from(members).where(and(eq(members.userId, "u_amy"), eq(members.groupId, gathering.id)));
     expect(m.email).toBe("each");
   });
 });

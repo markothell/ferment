@@ -7,7 +7,7 @@
 //
 // Lineage is recorded as things are made and never rewritten:
 //   starter → starter    forked_from_id (+ its title, in case it goes)
-//   starter → gathering  gatherings.starter_id
+//   starter → gathering  groups.starter_id
 //   question → question  each question's key; a prompt keeps (starter_id, starter_key);
 //                        a question saved again records `from` the one it came from.
 //
@@ -18,7 +18,7 @@
 import { and, asc, count, desc, eq, getTableColumns, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import type { DB } from "@/db";
 import {
-  circleMembers, circles, gatherings, prompts, roundSupports, rounds, starters, user, words,
+  groups, members, prompts, roundSupports, rounds, starters, user, words,
   type StarterCircle, type StarterContent, type StarterQuestion,
 } from "@/db/schema";
 import { isCurator } from "@/lib/access";
@@ -26,7 +26,7 @@ import { isCircleColor } from "@/lib/circleColors";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
 import { refuse } from "./errors";
-import { createGathering, NOTE_MAX, requireHost, requireMember, type Gathering } from "./gatherings";
+import { createGathering, groupById, NOTE_MAX, requireHost, requireMember, slugTaken, type Gathering } from "./gatherings";
 import { notifyGathering } from "./notifications";
 import { normalizePrompt, wordKey, type PromptInput } from "./prompts";
 import { slugify, uniqueSlug } from "./slug";
@@ -174,10 +174,10 @@ const byWhom = (s: { authorId: string | null; authorName: string | null; authorE
 async function startedCounts(db: DB, ids: string[]): Promise<Map<string, number>> {
   if (!ids.length) return new Map();
   const rows = await db
-    .select({ id: gatherings.starterId, n: count() })
-    .from(gatherings)
-    .where(inArray(gatherings.starterId, ids))
-    .groupBy(gatherings.starterId);
+    .select({ id: groups.starterId, n: count() })
+    .from(groups)
+    .where(inArray(groups.starterId, ids))
+    .groupBy(groups.starterId);
   return new Map(rows.map((r) => [r.id!, r.n]));
 }
 
@@ -259,7 +259,7 @@ export async function starterLineage(db: DB, s: Starter, viewer: Viewer) {
     .where(eq(starters.forkedFromId, s.id))
     .orderBy(asc(starters.createdAt));
   const shown = copies.filter((c) => mayView(c, viewer));
-  const [{ started }] = await db.select({ started: count() }).from(gatherings).where(eq(gatherings.starterId, s.id));
+  const [{ started }] = await db.select({ started: count() }).from(groups).where(eq(groups.starterId, s.id));
   // Questions that have actually opened somewhere: seeded suggestions a circle never took up don't count.
   const [{ opened }] = await db
     .select({ opened: count() })
@@ -287,7 +287,7 @@ export async function savedFrom(db: DB, gatheringId: string, userId: string) {
   return db
     .select({ id: starters.id, slug: starters.slug, title: starters.title, summary: starters.summary })
     .from(starters)
-    .where(and(eq(starters.madeFromGatheringId, gatheringId), eq(starters.authorId, userId)))
+    .where(and(eq(starters.madeFromGroupId, gatheringId), eq(starters.authorId, userId)))
     .orderBy(desc(starters.updatedAt));
 }
 
@@ -302,17 +302,17 @@ type PromptRow = typeof prompts.$inferSelect;
  * question that came from that starter keeps its key there (an update).
  */
 export async function starterFromGathering(db: DB, gatheringId: string, keep: Starter | null = null): Promise<StarterContent> {
-  const [g] = await db.select().from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  const g = await groupById(db, gatheringId);
   if (!g) refuse("That gathering isn't here.");
 
   const [circleRows, roundRows] = await Promise.all([
-    db.select().from(circles)
-      .where(and(eq(circles.gatheringId, gatheringId), notInArray(circles.status, ["closed", "expired"])))
-      .orderBy(asc(circles.createdAt)),
+    db.select().from(groups)
+      .where(and(eq(groups.parentId, gatheringId), notInArray(groups.status, ["closed", "expired"])))
+      .orderBy(asc(groups.createdAt)),
     db.select({ round: rounds, prompt: prompts })
       .from(rounds)
       .innerJoin(prompts, eq(prompts.id, rounds.promptId))
-      .where(and(eq(rounds.gatheringId, gatheringId), isNull(rounds.replyToRoundId), notInArray(rounds.phase, ["skipped"]))),
+      .where(and(eq(rounds.rootId, gatheringId), isNull(rounds.replyToRoundId), notInArray(rounds.phase, ["skipped"]))),
   ]);
 
   // Updating: each question keeps its key in `keep`, so copies made from it
@@ -358,15 +358,15 @@ export async function starterFromGathering(db: DB, gatheringId: string, keep: St
 
   const welcome = roundRows.find((r) => r.round.welcome);
   const content: StarterContent = {
-    welcomeNote: g.welcomeNote,
+    welcomeNote: g.note,
     welcomeQuestion: welcome ? { ...lineage(welcome.prompt), question: welcome.prompt.question } : null,
     circles: circleRows.map((c) => ({
-      key: newId(), name: c.name, description: c.description, color: c.color,
-      questions: onceEach(roundRows.filter((r) => r.round.circleId === c.id).sort((a, b) => earlier(rank(a.round), rank(b.round))))
+      key: newId(), name: c.name, description: c.note, color: c.color,
+      questions: onceEach(roundRows.filter((r) => r.round.groupId === c.id).sort((a, b) => earlier(rank(a.round), rank(b.round))))
         .map((r) => question(r.prompt, r.round.timerHours)),
     })),
     openQuestions: onceEach(
-      roundRows.filter((r) => !r.round.circleId && !r.round.welcome).sort((a, b) => a.round.createdAt.getTime() - b.round.createdAt.getTime()),
+      roundRows.filter((r) => r.round.groupId === gatheringId && !r.round.welcome).sort((a, b) => a.round.createdAt.getTime() - b.round.createdAt.getTime()),
     ).map((r) => question(r.prompt, r.round.timerHours)),
   };
   if (!questionCount(content)) refuse("There's nothing to save yet. Add a welcome question, or a circle with a question.");
@@ -390,7 +390,7 @@ export async function saveStarter(
 
   if (replaceId) {
     const existing = await starterById(db, replaceId);
-    if (!existing || existing.authorId !== userId || existing.madeFromGatheringId !== gatheringId) {
+    if (!existing || existing.authorId !== userId || existing.madeFromGroupId !== gatheringId) {
       refuse("You can only update a starter you saved from this gathering.");
     }
     const content = await starterFromGathering(db, gatheringId, existing);
@@ -403,14 +403,14 @@ export async function saveStarter(
   }
 
   const content = await starterFromGathering(db, gatheringId);
-  const [g] = await db.select({ starterId: gatherings.starterId }).from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  const [g] = await db.select({ starterId: groups.starterId }).from(groups).where(eq(groups.id, gatheringId)).limit(1);
   const parent = g.starterId ? await starterById(db, g.starterId) : null;
   const [s] = await db
     .insert(starters)
     .values({
       id: newId(), slug: await freeSlug(db, cleanT), title: cleanT, summary: cleanS, authorId: userId,
       visibility: "private", forkedFromId: parent?.id ?? null, forkedFromTitle: parent?.title ?? null,
-      madeFromGatheringId: gatheringId, content, createdAt: now, updatedAt: now,
+      madeFromGroupId: gatheringId, content, createdAt: now, updatedAt: now,
     })
     .returning();
   return s;
@@ -501,46 +501,43 @@ async function seed(
     const id = newId();
     const { question, context, shape, axes, placing, telling, seedWords, pickMax, coinMax, secondsPerNote, reveal } = q;
     await tx.insert(prompts).values({
-      id, gatheringId: gathering.id, authorId: hostId, starterId: starter.id, starterKey: key,
+      id, rootId: gathering.rootId, authorId: hostId, starterId: starter.id, starterKey: key,
       question, context, shape, axes, placing, telling, seedWords, pickMax, coinMax, secondsPerNote, reveal, createdAt: now,
     });
     return id;
   };
 
-  if (!gathering.welcomeNote && content.welcomeNote) {
-    await tx.update(gatherings).set({ welcomeNote: content.welcomeNote }).where(eq(gatherings.id, gathering.id));
+  if (!gathering.note && content.welcomeNote) {
+    await tx.update(groups).set({ note: content.welcomeNote }).where(eq(groups.id, gathering.id));
   }
   if (content.welcomeQuestion) {
-    const [has] = await tx.select({ id: rounds.id }).from(rounds).where(and(eq(rounds.gatheringId, gathering.id), eq(rounds.welcome, true))).limit(1);
+    const [has] = await tx.select({ id: rounds.id }).from(rounds).where(and(eq(rounds.rootId, gathering.id), eq(rounds.welcome, true))).limit(1);
     if (!has) {
       const w = normalizePrompt({ question: content.welcomeQuestion.question, shape: "story", telling: "voice", reveal: "open" });
       const promptId = await makePrompt(w, content.welcomeQuestion.key);
       await tx.insert(rounds).values({
-        id: newId(), promptId, gatheringId: gathering.id, authorId: hostId, welcome: true, phase: "open", openedAt: now, createdAt: now,
+        id: newId(), promptId, groupId: gathering.id, rootId: gathering.rootId, authorId: hostId, welcome: true, phase: "open", openedAt: now, createdAt: now,
       });
     }
   }
 
-  const slugs = new Set(
-    (await tx.select({ slug: circles.slug }).from(circles).where(eq(circles.gatheringId, gathering.id))).map((r) => r.slug),
-  );
+  // Slugs are unique across the site; the ones made here are seen by slugTaken inside the transaction.
   for (const c of content.circles) {
-    const slug = await uniqueSlug(c.name, async (s) => slugs.has(s));
-    slugs.add(slug);
+    const slug = await uniqueSlug(c.name, (s) => slugTaken(tx, s));
     const promptIds: string[] = [];
     for (const q of c.questions) promptIds.push(await makePrompt(q, q.key));
     const circleId = newId();
-    await tx.insert(circles).values({
-      id: circleId, gatheringId: gathering.id, slug, name: c.name, description: c.description, color: c.color,
-      hostId, proposedBy: hostId, status: "forming", originPromptId: promptIds[0] ?? null, createdAt: at(),
+    await tx.insert(groups).values({
+      id: circleId, kind: "circle", parentId: gathering.id, rootId: gathering.rootId, slug, name: c.name, note: c.description, color: c.color,
+      hostId, createdBy: hostId, status: "forming", originPromptId: promptIds[0] ?? null, createdAt: at(),
       formingExpiresAt: new Date(now.getTime() + gathering.proposalExpiryDays * DAY_MS),
     });
-    await tx.insert(circleMembers).values({ circleId, userId: hostId, joinedAt: now });
+    await tx.insert(members).values({ groupId: circleId, userId: hostId, joinedAt: now });
     for (const [i, q] of c.questions.entries()) {
       const when = at();
       const roundId = newId();
       await tx.insert(rounds).values({
-        id: roundId, promptId: promptIds[i], gatheringId: gathering.id, circleId, authorId: hostId,
+        id: roundId, promptId: promptIds[i], groupId: circleId, rootId: gathering.rootId, authorId: hostId,
         phase: i === 0 ? "queued" : "nominated", createdAt: when, queuedAt: i === 0 ? when : null, timerHours: q.timerHours,
       });
       if (i > 0) await tx.insert(roundSupports).values({ roundId, userId: hostId, createdAt: when });
@@ -552,7 +549,7 @@ async function seed(
     const roundId = newId();
     const opened = at();
     await tx.insert(rounds).values({
-      id: roundId, promptId, gatheringId: gathering.id, authorId: hostId, phase: "open", createdAt: opened, openedAt: opened,
+      id: roundId, promptId, groupId: gathering.id, rootId: gathering.rootId, authorId: hostId, phase: "open", createdAt: opened, openedAt: opened,
       timerHours: q.timerHours, closesAt: q.timerHours ? new Date(opened.getTime() + q.timerHours * HOUR_MS) : null,
     });
     if (q.shape === "words" && q.seedWords.length) {
@@ -588,10 +585,10 @@ export async function addStarter(
 ): Promise<void> {
   await requireHost(db, gatheringId, viewer.id);
   const starter = await usable(db, starterId, viewer);
-  const [gathering] = await db.select().from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  const gathering = (await groupById(db, gatheringId)) ?? refuse("That gathering isn't here.");
   const seeded = await db.transaction(async (tx) => {
     const out = await seed(tx as unknown as DB, { gathering, hostId: viewer.id, starter, now });
-    if (!gathering.starterId) await tx.update(gatherings).set({ starterId: starter.id }).where(eq(gatherings.id, gatheringId));
+    if (!gathering.starterId) await tx.update(groups).set({ starterId: starter.id }).where(eq(groups.id, gatheringId));
     return out;
   });
   for (const roundId of seeded.openRounds) {
@@ -602,7 +599,7 @@ export async function addStarter(
 /** Where a gathering came from, for its own pages: the starter's title, linked when the viewer may open it. */
 export async function gatheringOrigin(db: DB, gatheringId: string, viewer: Viewer) {
   await requireMember(db, gatheringId, viewer!.id);
-  const [g] = await db.select({ starterId: gatherings.starterId }).from(gatherings).where(eq(gatherings.id, gatheringId)).limit(1);
+  const [g] = await db.select({ starterId: groups.starterId }).from(groups).where(eq(groups.id, gatheringId)).limit(1);
   const s = g?.starterId ? await starterById(db, g.starterId) : null;
   if (!s) return null;
   return { title: s.title, slug: mayView(s, viewer) ? s.slug : null };

@@ -14,7 +14,7 @@ export default async function NewCirclePage({ params, searchParams }: PageProps<
   const { gathering } = await loadGathering((await params).gathering);
   const { prompt: promptId } = await searchParams;
   const around = typeof promptId === "string" ? await promptById(db, promptId) : null;
-  const prompt = around && around.gatheringId === gathering.id ? around : null;
+  const prompt = around && around.rootId === gathering.id ? around : null;
   return (
     <>
       <Top trail={[{ label: gathering.name, href: `/g/${gathering.slug}` }, { label: "Propose a circle" }]} />

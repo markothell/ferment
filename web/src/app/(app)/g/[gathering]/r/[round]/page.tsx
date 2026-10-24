@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
-import { circleById } from "@/domain/circles";
 import { Refusal } from "@/domain/errors";
 import { harvestForRound } from "@/domain/harvests";
 import { replyContext, repliesTo } from "@/domain/replies";
@@ -36,8 +35,8 @@ async function load(params: Props["params"]) {
     if (e instanceof Refusal) notFound();
     throw e;
   });
-  if (view.round.gatheringId !== ctx.gathering.id) notFound();
-  const circle = view.round.circleId ? await circleById(db, view.round.circleId) : null;
+  if (view.round.rootId !== ctx.gathering.id) notFound();
+  const circle = view.circle;
   const [replies, context] = circle && view.canTakePart
     ? await Promise.all([repliesTo(db, view.round.id, ctx.me.id), replyContext(db, view.round, ctx.me.id)])
     : [[], null];

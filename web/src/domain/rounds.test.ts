@@ -109,7 +109,7 @@ describe("the circle machine", () => {
 
   it("opens nothing while the circle is forming or has no host", async () => {
     const forming = await createCircle(db, { gatheringId: gathering.id, userId: people[1], name: "New", firstQuestion: "First?", now: t0 });
-    const [first] = await db.select().from(rounds).where(eq(rounds.circleId, forming.id));
+    const [first] = await db.select().from(rounds).where(eq(rounds.groupId, forming.id));
     expect(first.phase).toBe("queued");
     for (const p of people.slice(2)) await seatInCircle(db, { circleId: forming.id, userId: p, now: t0 });
     expect(await phase(first.id)).toBe("open"); // formed at 4 → opened
@@ -265,7 +265,7 @@ describe("open questions", () => {
     await respond(db, { roundId: q.id, userId: people[1], input: { text: "me" }, now: t0 });
     expect((await roundView(db, q.id, eve, t0)).responses).toHaveLength(1);
 
-    await db.execute(`update gatherings set members_post_open_questions = false`);
+    await db.execute(`update groups set members_post_open_questions = false`);
     await expect(postOpenQuestion(db, { gatheringId: gathering.id, userId: eve, prompt: { question: "Again?" } })).rejects.toThrow(/hosts/);
   });
 

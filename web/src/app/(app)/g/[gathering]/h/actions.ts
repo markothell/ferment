@@ -14,7 +14,7 @@ const str = (form: FormData, key: string) => String(form.get(key) ?? "");
 async function load(form: FormData) {
   const { me, gathering } = await loadGathering(str(form, "gathering"));
   const harvest = await harvestById(db, str(form, "harvest"));
-  return { me, gathering, harvest: harvest && harvest.gatheringId === gathering.id ? harvest : null };
+  return { me, gathering, harvest: harvest && harvest.toGroupId === gathering.id ? harvest : null };
 }
 
 export async function proposeHarvestAction(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -42,6 +42,6 @@ export async function withdrawHarvestAction(_prev: ActionState, form: FormData):
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
   // From the harvest itself, go back to the circle: the harvest may have come down.
-  if (str(form, "from") === "harvest") redirect(`/g/${gathering.slug}/circles/${(await circleById(db, harvest.circleId))!.slug}`);
+  if (str(form, "from") === "harvest") redirect(`/g/${gathering.slug}/circles/${(await circleById(db, harvest.groupId))!.slug}`);
   return { ok: "Taken out. Inside the circle, nothing changed." };
 }

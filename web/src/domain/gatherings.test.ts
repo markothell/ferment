@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { circles, invites, prompts, responses, rounds, user } from "@/db/schema";
+import { groups, invites, prompts, responses, rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { newId } from "@/lib/id";
 import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle, seatInCircle, setCircleColor } from "./circles";
@@ -117,7 +117,7 @@ describe("circles", () => {
     const amy = await member("amy", plain.id);
     await expect(setCircleColor(db, { circleId: plain.id, userId: amy, color: "plum" })).rejects.toThrow(Refusal);
     await setCircleColor(db, { circleId: plain.id, userId: "u_host", color: "plum" });
-    const [after] = await db.select().from(circles).where(eq(circles.id, plain.id));
+    const [after] = await db.select().from(groups).where(eq(groups.id, plain.id));
     expect(after.color).toBe("plum");
   });
 
@@ -125,7 +125,7 @@ describe("circles", () => {
     const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
     expect(circle.status).toBe("forming");
     expect(circle.formingExpiresAt).toEqual(days(7));
-    const [first] = await db.select().from(rounds).where(eq(rounds.circleId, circle.id));
+    const [first] = await db.select().from(rounds).where(eq(rounds.groupId, circle.id));
     expect(first.phase).toBe("queued");
     const [prompt] = await db.select().from(prompts).where(eq(prompts.id, first.promptId));
     expect(prompt.question).toBe("What fed you?");
@@ -134,7 +134,7 @@ describe("circles", () => {
     expect((await joinCircle(db, { circleId: circle.id, userId: a, now: t0 })).formed).toBe(false);
     expect((await joinCircle(db, { circleId: circle.id, userId: b, now: t0 })).formed).toBe(false);
     expect((await joinCircle(db, { circleId: circle.id, userId: c, now: t0 })).formed).toBe(true);
-    const [after] = await db.select().from(circles).where(eq(circles.id, circle.id));
+    const [after] = await db.select().from(groups).where(eq(groups.id, circle.id));
     expect(after.status).toBe("active");
     expect(after.formingExpiresAt).toBeNull();
   });
@@ -158,7 +158,7 @@ describe("circles", () => {
     const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", now: t0 });
     const amy = await member("amy", circle.id);
     await leaveCircle(db, { circleId: circle.id, userId: "u_host" });
-    const [after] = await db.select().from(circles).where(eq(circles.id, circle.id));
+    const [after] = await db.select().from(groups).where(eq(groups.id, circle.id));
     expect(after.hostId).toBeNull();
     await leaveCircle(db, { circleId: circle.id, userId: amy });
     await joinCircle(db, { circleId: circle.id, userId: amy, now: t0 });

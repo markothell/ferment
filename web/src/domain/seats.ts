@@ -13,7 +13,7 @@
 
 import { and, count, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { DB } from "@/db";
-import { circleMembers, invites, seatRequests, seatSupports, user } from "@/db/schema";
+import { invites, members, seatRequests, seatSupports, user } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
 import { CIRCLE_MAX, activeMemberCount, circleById, isCircleMember, seatInCircle, type Circle } from "./circles";
@@ -41,7 +41,7 @@ export async function seatsSpoken(db: DB, circleId: string): Promise<number> {
     .select({ held: count() })
     .from(seatRequests)
     .innerJoin(invites, eq(invites.id, seatRequests.inviteId))
-    .where(and(eq(seatRequests.circleId, circleId), eq(seatRequests.status, "admitted"), eq(invites.status, "pending")));
+    .where(and(eq(seatRequests.groupId, circleId), eq(seatRequests.status, "admitted"), eq(invites.status, "pending")));
   return (await activeMemberCount(db, circleId)) + held;
 }
 
@@ -60,7 +60,7 @@ export async function openSeat(
   const [req] = await db
     .insert(seatRequests)
     .values({
-      id: newId(), circleId: circle.id, userId, inviteId, askedBy, note: note.trim(), createdAt: now,
+      id: newId(), groupId: circle.id, userId, inviteId, askedBy, note: note.trim(), createdAt: now,
       expiresAt: new Date(now.getTime() + ASK_DAYS * DAY_MS),
       ...(forming ? { status: "admitted" as const, decidedAt: now, decidedBy: askedBy } : {}),
     })
@@ -72,7 +72,7 @@ export async function openSeat(
   }
   const after = await maybeAdmit(db, req, askedBy, now);
   if (after.status === "waiting") {
-    await notifyCircle(db, circle.id, { kind: "seat_requested", gatheringId: circle.gatheringId, actorId: askedBy, seatRequestId: req.id, now });
+    await notifyCircle(db, circle.id, { kind: "seat_requested", gatheringId: circle.rootId, actorId: askedBy, seatRequestId: req.id, now });
   }
   return after;
 }
@@ -84,7 +84,7 @@ export async function askForSeat(
   { circleId: string; userId: string; forUserId?: string; note?: string; now?: Date },
 ): Promise<SeatRequest> {
   const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
-  await requireMember(db, circle.gatheringId, userId);
+  if (circle.parentId) await requireMember(db, circle.parentId, userId);
   if (circle.status === "forming") refuse("It's still forming, so anyone can join: say I'm in.");
   if (!running(circle)) refuse("This circle isn't running.");
   if (note.trim().length > NOTE_MAX) refuse("That note is too long.");
@@ -92,14 +92,14 @@ export async function askForSeat(
   const self = forUserId === userId;
   if (!self) {
     if (!(await isCircleMember(db, circleId, userId))) refuse("Only members can suggest someone for this circle.");
-    if (!(await membershipOf(db, circle.gatheringId, forUserId))) refuse("They're not in the gathering yet. Suggest inviting them instead.");
+    if (!circle.parentId || !(await membershipOf(db, circle.parentId, forUserId))) refuse("They're not in the gathering yet. Suggest inviting them instead.");
   }
   if (await isCircleMember(db, circleId, forUserId)) refuse(self ? "You're already in this circle." : "They're already in this circle.");
 
   const [already] = await db
     .select({ id: seatRequests.id })
     .from(seatRequests)
-    .where(and(eq(seatRequests.circleId, circleId), eq(seatRequests.userId, forUserId), eq(seatRequests.status, "waiting")))
+    .where(and(eq(seatRequests.groupId, circleId), eq(seatRequests.userId, forUserId), eq(seatRequests.status, "waiting")))
     .limit(1);
   if (already) refuse(self ? "You've already asked. The circle is deciding." : "Someone has already asked for them. Support that instead.");
 
@@ -109,10 +109,10 @@ export async function askForSeat(
 /** Admit when support reaches the circle's threshold and there's room. */
 async function maybeAdmit(db: DB, req: SeatRequest, actorId: string | null, now: Date): Promise<SeatRequest> {
   if (req.status !== "waiting") return req;
-  const circle = (await circleById(db, req.circleId))!;
-  const members = await activeMemberCount(db, circle.id);
+  const circle = (await circleById(db, req.groupId))!;
+  const seated = await activeMemberCount(db, circle.id);
   const [{ n }] = await db.select({ n: count() }).from(seatSupports).where(eq(seatSupports.requestId, req.id));
-  if (n < approvalsNeeded(circle, members)) return req;
+  if (n < approvalsNeeded(circle, seated)) return req;
   if ((await seatsSpoken(db, circle.id)) >= CIRCLE_MAX) return req; // full: it waits for a seat to free
   return admit(db, req, circle, actorId, now);
 }
@@ -127,7 +127,7 @@ async function admit(db: DB, req: SeatRequest, circle: Circle, decidedBy: string
   // Someone already here sits down now; someone on their way, when they arrive.
   if (done.userId) {
     await seatInCircle(db, { circleId: circle.id, userId: done.userId, now });
-    await notifyCircle(db, circle.id, { kind: "seat_admitted", gatheringId: circle.gatheringId, actorId: decidedBy, seatRequestId: done.id, now });
+    await notifyCircle(db, circle.id, { kind: "seat_admitted", gatheringId: circle.rootId, actorId: decidedBy, seatRequestId: done.id, now });
   }
   return done;
 }
@@ -135,7 +135,7 @@ async function admit(db: DB, req: SeatRequest, circle: Circle, decidedBy: string
 async function requireWaiting(db: DB, requestId: string) {
   const req = await requestById(db, requestId);
   if (req.status !== "waiting") refuse("That's already been decided.");
-  const circle = (await circleById(db, req.circleId))!;
+  const circle = (await circleById(db, req.groupId))!;
   return { req, circle };
 }
 
@@ -166,7 +166,7 @@ export async function declineSeat(db: DB, { requestId, userId, now = new Date() 
   const { req, circle } = await requireWaiting(db, requestId);
   if (circle.hostId !== userId) refuse("Only the host can say not now.");
   await db.update(seatRequests).set({ status: "declined", decidedAt: now, decidedBy: userId }).where(eq(seatRequests.id, req.id));
-  const m = { kind: "seat_declined" as const, gatheringId: circle.gatheringId, actorId: userId, circleId: circle.id, seatRequestId: req.id, now };
+  const m = { kind: "seat_declined" as const, gatheringId: circle.rootId, actorId: userId, circleId: circle.id, seatRequestId: req.id, now };
   if (req.userId) await notifyOne(db, req.userId, m);
   if (req.askedBy !== req.userId) await notifyOne(db, req.askedBy, m);
 }
@@ -186,8 +186,8 @@ export async function lapseSeats(db: DB, now = new Date()): Promise<number> {
     .where(and(eq(seatRequests.status, "waiting"), isNull(seatRequests.inviteId), lte(seatRequests.expiresAt, now)))
     .returning();
   for (const r of due) {
-    const circle = (await circleById(db, r.circleId))!;
-    await notifyOne(db, r.askedBy, { kind: "ask_lapsed", gatheringId: circle.gatheringId, circleId: circle.id, seatRequestId: r.id, now });
+    const circle = (await circleById(db, r.groupId))!;
+    await notifyOne(db, r.askedBy, { kind: "ask_lapsed", gatheringId: circle.rootId, circleId: circle.id, seatRequestId: r.id, now });
   }
   return due.length;
 }
@@ -209,7 +209,7 @@ export async function waitingSeats(db: DB, circle: Circle, viewerId: string) {
     .from(seatRequests)
     .leftJoin(user, eq(user.id, seatRequests.userId))
     .leftJoin(invites, eq(invites.id, seatRequests.inviteId))
-    .where(and(eq(seatRequests.circleId, circle.id), eq(seatRequests.status, "waiting")))
+    .where(and(eq(seatRequests.groupId, circle.id), eq(seatRequests.status, "waiting")))
     .orderBy(seatRequests.createdAt);
   const needed = approvalsNeeded(circle, await activeMemberCount(db, circle.id));
   return rows.map((r) => ({
@@ -227,19 +227,19 @@ export async function myAsk(db: DB, circleId: string, userId: string) {
   const [r] = await db
     .select({ id: seatRequests.id, createdAt: seatRequests.createdAt, supports: sql<number>`(select count(*)::int from ${seatSupports} where ${seatSupports.requestId} = ${seatRequests.id})` })
     .from(seatRequests)
-    .where(and(eq(seatRequests.circleId, circleId), eq(seatRequests.userId, userId), eq(seatRequests.status, "waiting")))
+    .where(and(eq(seatRequests.groupId, circleId), eq(seatRequests.userId, userId), eq(seatRequests.status, "waiting")))
     .limit(1);
   return r ?? null;
 }
 
 /** Gathering members who could be suggested for a circle: not in it, not already asked for. */
-export async function suggestableFor(db: DB, circle: Circle, members: { userId: string; name: string; email: string }[]) {
+export async function suggestableFor(db: DB, circle: Circle, people: { userId: string; name: string; email: string }[]) {
   const [inside, asked] = await Promise.all([
-    db.select({ userId: circleMembers.userId }).from(circleMembers).where(and(eq(circleMembers.circleId, circle.id), isNull(circleMembers.leftAt))),
-    db.select({ userId: seatRequests.userId }).from(seatRequests).where(and(eq(seatRequests.circleId, circle.id), eq(seatRequests.status, "waiting"))),
+    db.select({ userId: members.userId }).from(members).where(and(eq(members.groupId, circle.id), isNull(members.leftAt))),
+    db.select({ userId: seatRequests.userId }).from(seatRequests).where(and(eq(seatRequests.groupId, circle.id), eq(seatRequests.status, "waiting"))),
   ]);
   const out = new Set([...inside, ...asked].map((r) => r.userId));
-  return members.filter((m) => !out.has(m.userId));
+  return people.filter((m) => !out.has(m.userId));
 }
 
 /** Seats held for an invitation, by state: domain/invites.ts uses these. */

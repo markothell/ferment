@@ -36,8 +36,8 @@ export default async function GatheringPage({ params }: PageProps<"/g/[gathering
       <Top trail={[{ label: gathering.name }]} />
       <main className="mx-auto max-w-2xl space-y-10 px-4 py-8">
         <GatheringHeader name={gathering.name} slug={gathering.slug} tab="home">
-          {gathering.welcomeNote && (
-            <p className="whitespace-pre-line text-[var(--ink-soft)]">{gathering.welcomeNote}</p>
+          {gathering.note && (
+            <p className="whitespace-pre-line text-[var(--ink-soft)]">{gathering.note}</p>
           )}
         </GatheringHeader>
 
