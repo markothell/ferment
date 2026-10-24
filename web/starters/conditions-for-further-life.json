@@ -1,0 +1,233 @@
+{
+  "slug": "conditions-for-further-life",
+  "title": "Conditions for further life",
+  "summary": "For a group with something real to look after: a place, a project, a family, a patch of ground. Five circles, each holding one of Tom Atlee's five lenses on how life makes conditions for further life. Bring one living thing from your own life, see which dynamics are at work in it, and find the one to engage differently. After Tom Atlee's Regenerativity Word Clouds (2026).",
+  "content": {
+    "welcomeNote": "This gathering looks at the things we care for the way life looks at them: as something that makes conditions for more life, or doesn't. Tom Atlee gathered dozens of the ways life does this and sorted them into five clouds of words. Each circle here holds one cloud. Bring one real thing from your own life or place, a garden, a team, a friendship, a town, a body, and look at it through the lens your circle keeps. The clouds are lenses, not boxes. Nothing gets decided here. The point is to see more.",
+    "welcomeQuestion": {
+      "key": "atlee-bring-1",
+      "question": "Bring one thing from your life or your place that is alive right now, or struggling to be. What is it?"
+    },
+    "circles": [
+      {
+        "key": "cycles",
+        "name": "What goes around",
+        "description": "Cycles: what rises, ripens, falls apart and returns.",
+        "color": "saffron",
+        "questions": [
+          {
+            "key": "atlee-cycles-1",
+            "question": "Where is the thing you brought in its life? What is being born in it, and what is dying off?",
+            "context": "Place it on the line, then tell it. Life runs in cycles: birth, growth, harvest, decay, and back into the soil. Nothing is wrong with being near the end; that's where the next thing starts. From the first of Tom Atlee's five clouds, Cycles, in Regenerativity Word Clouds (2026).",
+            "shape": "story_placement",
+            "axes": [{ "poleA": "Just beginning", "poleB": "Coming apart" }],
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-cycles-2",
+            "question": "Which of these cycles are at work in what you brought?",
+            "context": "Pick the ones most alive in it. Add your own if the one you see isn't here. The circle will see which rhythms it shares. The words are Tom Atlee's Cycles cloud, from Regenerativity Word Clouds (2026).",
+            "shape": "words",
+            "seedWords": ["life cycle", "birth", "emergence", "growth", "development", "persistence", "decay", "erosion", "death", "collapse", "extinction", "recycling", "waste as food", "metabolism", "stocks", "accumulation", "flows", "pulses", "rhythms", "seasons", "rest", "yield", "harvest", "surplus", "reinvestment", "replenishing", "succession", "spirals", "rotation", "redundancy", "reserves", "metamorphosis", "phase shift", "conservation", "destruction", "reproduction", "repetition", "iteration"],
+            "pickMax": 5,
+            "coinMax": 2,
+            "reveal": "after_share",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-cycles-3",
+            "question": "Pick one cycle from the circle's portrait that is stuck or missing in what you brought. What would it take to let it turn?",
+            "context": "Which dynamic is suppressed, or out of balance? Tom Atlee's practice is to find the one that could be engaged differently, so that it makes conditions for further life. Say it plainly. It doesn't have to be a plan.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 60,
+            "reveal": "after_share",
+            "timerHours": 72
+          }
+        ]
+      },
+      {
+        "key": "relationship",
+        "name": "What holds it up",
+        "description": "Relationship: what it depends on, and what depends on it.",
+        "color": "clay",
+        "questions": [
+          {
+            "key": "atlee-relationship-1",
+            "question": "What does the thing you brought depend on, and what depends on it?",
+            "context": "Name the relationships that hold it up: people, places, weather, money, habits. Then the ones it holds up. Nothing alive stands alone. From the second of Tom Atlee's five clouds, Relationship, in Regenerativity Word Clouds (2026).",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-relationship-2",
+            "question": "Which of these relationships shape what you brought?",
+            "context": "Pick the ones doing the most work, for good or ill. Add your own if it's missing. The words are Tom Atlee's Relationship cloud, from Regenerativity Word Clouds (2026).",
+            "shape": "words",
+            "seedWords": ["connection", "interdependence", "synergy", "edges", "boundaries", "reciprocity", "sharing", "gifting", "gratitude", "kin", "place", "local", "habitat", "niche", "food chain", "cooperation", "coordination", "competition", "restraint", "regulation", "communication", "dialogue", "love", "empathy", "networks", "co-evolution", "power", "catalyst", "ferocity", "concealment", "protection", "need", "attachment", "attraction", "preference", "choice", "decentralized", "polycentric"],
+            "pickMax": 5,
+            "coinMax": 2,
+            "reveal": "after_share",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-relationship-3",
+            "question": "Which relationship in your thing is out of balance: too much of one, too little of another? What would a fairer exchange look like?",
+            "context": "Reciprocity is the test: what goes around comes around. Look at the portrait the circle made and pick one relationship to engage differently. From Tom Atlee's practice of using the clouds on a real issue.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 60,
+            "reveal": "after_share",
+            "timerHours": 72
+          }
+        ]
+      },
+      {
+        "key": "learning",
+        "name": "What is listening",
+        "description": "Responsiveness: what in it notices, adapts and learns.",
+        "color": "moss",
+        "questions": [
+          {
+            "key": "atlee-learning-1",
+            "question": "What in the thing you brought is paying attention? What has it learned lately, and what is it failing to notice?",
+            "context": "Living things sense, adapt, remember, repair and let go. Some of that is people; some is the thing itself. From the third of Tom Atlee's five clouds, Responsiveness, Intelligence and Learning, in Regenerativity Word Clouds (2026).",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-learning-2",
+            "question": "Which of these are the ways your thing notices and learns?",
+            "context": "Pick the ones you can actually see at work. Add your own if it's missing. The words are Tom Atlee's Responsiveness cloud, from Regenerativity Word Clouds (2026). A few are his own coinages; stigmergy is coordinating by the traces we leave, and symmathesy is learning together.",
+            "shape": "words",
+            "seedWords": ["perception", "attention", "listening", "awareness", "adaptation", "memory", "feedback", "experimentation", "exploration", "repetition", "repair", "healing", "letting go", "self-organization", "agency", "participation", "self-regulation", "enoughness", "reorganization", "purpose", "selection", "seeing the web", "resilience", "antifragility", "change", "evolution", "improvement", "symmathesy", "signal", "stigmergy", "sleep", "wakefulness", "wisdom", "instinct", "guidance", "mystery", "humility", "awe"],
+            "pickMax": 5,
+            "coinMax": 2,
+            "reveal": "after_share",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-learning-3",
+            "question": "Where is the feedback not getting through? What would it look like to listen there?",
+            "context": "Pick one dynamic from the portrait that is suppressed or out of balance. Repair, rest and letting go count as intelligence too. From Tom Atlee's practice of engaging a dynamic differently.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 60,
+            "reveal": "after_share",
+            "timerHours": 72
+          }
+        ]
+      },
+      {
+        "key": "difference",
+        "name": "Alike and different",
+        "description": "Difference and likeness: what sets it apart, what it shares, and the scales it lives at.",
+        "color": "slate",
+        "questions": [
+          {
+            "key": "atlee-difference-1",
+            "question": "What makes the thing you brought unlike anything else? And what does it share with everything of its kind?",
+            "context": "Both matter. Difference is where new things come from. Likeness is where safety and belonging come from. From the fourth of Tom Atlee's five clouds, Difference and Likeness, in Regenerativity Word Clouds (2026).",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-difference-2",
+            "question": "Which of these differences and likenesses matter in what you brought?",
+            "context": "Pick the ones that matter most, present or missing. Add your own. The words are Tom Atlee's Difference and Likeness cloud, from Regenerativity Word Clouds (2026). Holons are parts that are whole in their own right.",
+            "shape": "words",
+            "seedWords": ["uniqueness", "diversity", "variation", "integration", "coherence", "oneness", "nestedness", "context", "modularity", "keystones", "integrity", "randomness", "right scale", "many scales", "deep time", "immediacy", "fractality", "doing more with less", "grace", "beauty", "ugliness", "polarity", "dance of polarities", "cross-pollination", "recombination", "open possibilities", "holons", "equilibrium", "disequilibrium", "disturbance", "peace"],
+            "pickMax": 5,
+            "coinMax": 2,
+            "reveal": "after_share",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-difference-3",
+            "question": "Does the thing you brought need more difference, or more sameness, to stay alive? Place it, and say what that would mean.",
+            "context": "Too alike and it stops learning. Too different and it can't hold together. Look at the circle's portrait before you answer. From Tom Atlee's practice of using the clouds on a real issue.",
+            "shape": "story_placement",
+            "axes": [{ "poleA": "Needs more sameness", "poleB": "Needs more difference" }],
+            "telling": "voice",
+            "secondsPerNote": 60,
+            "reveal": "after_share",
+            "timerHours": 72
+          }
+        ]
+      },
+      {
+        "key": "movement",
+        "name": "Moving and staying",
+        "description": "Movement and stillness: what has to move, and what has to stay put.",
+        "color": "plum",
+        "questions": [
+          {
+            "key": "atlee-movement-1",
+            "question": "In the thing you brought, what has to move, and what has to stay put? Where is it, on balance, right now?",
+            "context": "Rivers need banks. Migration needs a home to return to. Place the thing between moving and staying, then tell what is moving in it and what isn't. From the fifth of Tom Atlee's five clouds, Mobility and Stasis, in Regenerativity Word Clouds (2026).",
+            "shape": "story_placement",
+            "axes": [{ "poleA": "Has to move", "poleB": "Has to stay put" }],
+            "telling": "voice",
+            "secondsPerNote": 90,
+            "reveal": "sealed",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-movement-2",
+            "question": "Which of these movements and stillnesses are in what you brought?",
+            "context": "Pick the ones you can see. Add your own. The words are Tom Atlee's Mobility and Stasis cloud, from Regenerativity Word Clouds (2026).",
+            "shape": "words",
+            "seedWords": ["movement", "process", "walking", "crawling", "swimming", "spinning", "flying", "dancing", "wriggling", "rising", "falling", "stillness", "waiting", "pause", "eternity", "interruption", "location", "place", "stability", "homeostasis", "drifting", "currents", "speed", "rushing", "direction", "progress", "migration", "relocation", "spread", "carrying", "transferring"],
+            "pickMax": 5,
+            "coinMax": 2,
+            "reveal": "after_share",
+            "timerHours": 72
+          },
+          {
+            "key": "atlee-movement-3",
+            "question": "What in your thing is rushing that should wait, or waiting that should move? What would one well-timed pause, or push, change?",
+            "context": "Pick one from the portrait that is out of balance. Timing is a regenerative dynamic too. From Tom Atlee's practice of engaging a dynamic differently.",
+            "shape": "story",
+            "telling": "voice",
+            "secondsPerNote": 60,
+            "reveal": "after_share",
+            "timerHours": 72
+          }
+        ]
+      }
+    ],
+    "openQuestions": [
+      {
+        "key": "atlee-gathering-1",
+        "question": "Look at this gathering as a living thing. Which of these dynamics are strongest in it right now?",
+        "context": "Eight words from each of Tom Atlee's five clouds, for the gathering to look at itself. Pick the ones you see at work among us. Add one if the one you see isn't here. Everyone will see the portrait. From Regenerativity Word Clouds (2026).",
+        "shape": "words",
+        "seedWords": ["birth", "growth", "decay", "harvest", "rest", "surplus", "succession", "repetition", "reciprocity", "gifting", "gratitude", "kin", "cooperation", "competition", "dialogue", "protection", "attention", "feedback", "repair", "letting go", "resilience", "signal", "humility", "awe", "diversity", "coherence", "nestedness", "many scales", "beauty", "polarity", "disturbance", "peace", "movement", "stillness", "waiting", "stability", "drifting", "rushing", "migration", "carrying"],
+        "pickMax": 5,
+        "coinMax": 2,
+        "reveal": "after_share",
+        "timerHours": 72
+      },
+      {
+        "key": "atlee-disturbance-1",
+        "question": "Where could you use a disturbance creatively?",
+        "context": "Tom Atlee's postscript: everything destructive in nature becomes raw material for the next version of life's wholeness. Our part is to use disturbance creatively. Name one disturbance, in the thing you brought or in your own life, and what it could become. Written, so you can come back to it.",
+        "shape": "story",
+        "telling": "text",
+        "reveal": "open"
+      }
+    ]
+  }
+}
