@@ -9,7 +9,7 @@ import { magicLink } from "better-auth/plugins";
 import { headers } from "next/headers";
 import { and, eq, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { maySignIn, normalizeEmail } from "./access";
+import { maySignIn, normalizeEmail, requesterIp } from "./access";
 import { sendMail } from "./email";
 
 // Inside heldLink(), a sign-in link is handed back to the caller instead of
@@ -84,14 +84,14 @@ export const auth = betterAuth({
       expiresIn: 60 * 15,
       storeToken: "hashed",
       generateToken: () => (held.getStore() ? HELD : "") + randomBytes(24).toString("base64url"),
-      async sendMagicLink({ email, url }) {
+      async sendMagicLink({ email, url }, ctx) {
         // A held link sends no mail, so it isn't counted (lib/access.ts).
         const hold = held.getStore();
         if (hold) {
           hold.url = url;
           return;
         }
-        if (!(await maySignIn(db, email))) return;
+        if (!(await maySignIn(db, email, requesterIp(ctx?.request?.headers ?? ctx?.headers)))) return;
         await sendMail({
           to: email,
           subject: "Your sign-in link for ferment",

@@ -556,15 +556,16 @@ export const starters = pgTable(
 // ── Sign-in requests ───────────────────────────────────────────────────────
 
 // Anyone may ask for a sign-in link (STARTERS.md §6), and each one sends an
-// email, so asks are counted: per address, and across addresses that don't
-// have an account yet.
+// email, so asks are counted: per address, per asker, and across addresses
+// that don't have an account yet.
 export const signInRequests = pgTable(
   "sign_in_requests",
   {
     id: text().primaryKey(),
     email: text().notNull(),
+    ip: text(), // who asked; null when the request didn't say
     newAccount: boolean().notNull(),
     createdAt: timestamp().notNull().defaultNow(),
   },
-  (t) => [index().on(t.email, t.createdAt), index().on(t.newAccount, t.createdAt)],
+  (t) => [index().on(t.email, t.createdAt), index().on(t.ip, t.createdAt), index().on(t.newAccount, t.createdAt)],
 );
