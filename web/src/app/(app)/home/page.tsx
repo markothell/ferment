@@ -28,12 +28,12 @@ export default async function HomePage() {
         )}
 
         <section className="space-y-4">
-          <h1 className="display text-4xl">Your gatherings</h1>
+          <h1 className="display text-4xl">Your circles and gatherings</h1>
           {mine.length === 0 ? (
             <div className="card space-y-3">
               <p>None yet. If someone has invited you, their email has your way in.</p>
               <p className="text-[var(--ink-soft)]">
-                Or start one of your own. A starter gives you a welcome, a few circles and the questions they open with; you change what you like before you invite anyone.
+                Or start one of your own: a circle for a few people around one thing, or a gathering of several circles. A circle can grow into a gathering when it&apos;s time.
               </p>
             </div>
           ) : (
@@ -42,15 +42,16 @@ export default async function HomePage() {
                 <li key={c.id}>
                   <Link href={`/g/${c.slug}`} className="card flex items-center justify-between">
                     <span className="text-lg font-medium">{c.name}</span>
-                    {c.role === "host" && <span className="label">host</span>}
+                    <span className="label">{c.kind === "circle" ? "circle" : ""}{c.kind === "circle" && c.role === "host" ? " · " : ""}{c.role === "host" ? "host" : ""}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           )}
           <div className="flex flex-wrap gap-3">
+            <Link href="/new" className="button">Start a circle</Link>
+            <Link href="/new?kind=gathering" className="button-quiet">Host a gathering</Link>
             <Link href="/library" className="button-quiet">Browse starters</Link>
-            <Link href="/new" className="button-quiet">Start a gathering</Link>
             <Link href="/library/mine" className="link self-center text-sm">Your starters</Link>
           </div>
         </section>

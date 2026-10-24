@@ -17,12 +17,12 @@ import { groups, invites, members, seatRequests, seatSupports, user } from "@/db
 import { normalizeEmail } from "@/lib/access";
 import { newId } from "@/lib/id";
 import { displayName } from "@/lib/names";
-import { activeMemberCount, circleById, isCircleMember, seatInCircle } from "./circles";
-import { memberCount, requireHost, requireMember } from "./gatherings";
+import { activeMemberCount, CIRCLE_MAX, circleById, isCircleMember, seatInCircle } from "./circles";
+import { groupById, memberCount, requireHost, requireMember } from "./gatherings";
 import { Refusal, refuse } from "./errors";
 import { notifyCircle, notifyHosts, notifyOne } from "./notifications";
 import { approvalsNeeded } from "./rounds";
-import { ASK_DAYS, openSeat, seatsForInvite } from "./seats";
+import { ASK_DAYS, openSeat, seatsForInvite, seatsSpoken } from "./seats";
 
 const INVITE_DAYS = 30;
 const DAY_MS = 86_400_000;
@@ -45,9 +45,12 @@ async function inviteById(db: DB, id: string): Promise<Invite> {
   return i ?? refuse("That invitation doesn't exist.");
 }
 
-async function requireRoom(db: DB, gatheringId: string) {
-  const [gathering] = await db.select().from(groups).where(eq(groups.id, gatheringId)).limit(1);
-  if ((await memberCount(db, gatheringId)) >= gathering.maxMembers) refuse("This gathering is full.");
+/** Room for one more: a gathering's setting, or a circle's twelve seats counting those held. */
+async function requireRoom(db: DB, groupId: string) {
+  const group = (await groupById(db, groupId)) ?? refuse("That gathering isn't here.");
+  if (group.kind === "circle") {
+    if ((await seatsSpoken(db, group.id)) >= CIRCLE_MAX) refuse("This circle is full.");
+  } else if ((await memberCount(db, groupId)) >= group.maxMembers) refuse("This gathering is full.");
 }
 
 /** The invitation or suggestion still live for this email, if any. */
@@ -102,8 +105,11 @@ export async function createInvite(
   if (already) refuse("They're already in this gathering.");
   await requireRoom(db, gatheringId);
 
-  const circle = circleId ? await circleById(db, circleId) : null;
-  if (circleId) {
+  // Invited to a circle on its own: the circle is the seat, and the host has made room.
+  const self = await groupById(db, gatheringId);
+  const lone = self?.kind === "circle" ? self : null;
+  const circle = lone ?? (circleId ? await circleById(db, circleId) : null);
+  if (circleId && !lone) {
     if (!circle || circle.parentId !== gatheringId) refuse("That circle isn't in this gathering.");
     if (!(await isCircleMember(db, circleId, invitedBy))) refuse("You can only suggest people for circles you're in.");
   }
@@ -131,7 +137,7 @@ export async function createInvite(
     });
   });
 
-  if (circle) await openSeat(db, { circle, askedBy: invitedBy, inviteId, note, now });
+  if (circle) await openSeat(db, { circle, askedBy: invitedBy, inviteId, note, now, admitted: Boolean(lone) && host });
   if (!host) await notifyHosts(db, { kind: "invite_suggested", gatheringId, actorId: invitedBy, inviteId, now });
   return { inviteId, status: host ? "pending" : "nominated", token: sent?.token ?? null, email: to };
 }
@@ -154,6 +160,13 @@ export async function confirmInvite(
     .where(and(eq(invites.id, inviteId), eq(invites.status, "nominated")))
     .returning();
   if (!done) refuse("Another host got to it first.");
+  // A host confirming for a circle on its own has made room: the held seat is theirs when they arrive.
+  if ((await groupById(db, invite.groupId))?.kind === "circle") {
+    await db
+      .update(seatRequests)
+      .set({ status: "admitted", decidedAt: now, decidedBy: userId })
+      .where(and(eq(seatRequests.inviteId, inviteId), eq(seatRequests.status, "waiting")));
+  }
   await notifyOne(db, invite.invitedBy, { kind: "invite_confirmed", gatheringId: invite.groupId, actorId: userId, inviteId, now });
   return { token, email: invite.email };
 }
@@ -296,11 +309,15 @@ export async function acceptInvite(
   if (view.state === "pending") {
     await requireRoom(db, view.gathering.id);
     const invite = await inviteById(db, view.id);
+    const lone = (await groupById(db, view.gathering.id))?.kind === "circle";
     await db.transaction(async (tx) => {
-      await tx
-        .insert(members)
-        .values({ groupId: view.gathering.id, userId, invitedBy: invite.invitedBy, joinedAt: now })
-        .onConflictDoNothing();
+      // A gathering's row is taken here; a circle on its own seats people through their held seat below.
+      if (!lone) {
+        await tx
+          .insert(members)
+          .values({ groupId: view.gathering.id, userId, invitedBy: invite.invitedBy, joinedAt: now })
+          .onConflictDoNothing();
+      }
       await tx.update(invites).set({ status: "accepted", acceptedAt: now, acceptedBy: userId }).where(eq(invites.id, invite.id));
       // A seat still being decided is now for a member like any other.
       await tx
@@ -314,7 +331,7 @@ export async function acceptInvite(
   let joinedCircle = false;
   for (const seat of await seatsForInvite(db, view.id, ["admitted"])) {
     try {
-      await seatInCircle(db, { circleId: seat.groupId, userId, now });
+      await seatInCircle(db, { circleId: seat.groupId, userId, invited: true, now });
       await db.update(seatRequests).set({ userId, inviteId: null }).where(eq(seatRequests.id, seat.id));
       await notifyCircle(db, seat.groupId, { kind: "seat_admitted", gatheringId: view.gathering.id, actorId: userId, seatRequestId: seat.id, now });
       joinedCircle = true;
@@ -322,7 +339,7 @@ export async function acceptInvite(
       if (!(e instanceof Refusal)) throw e; // full, closed or expired: they still joined the gathering
     }
   }
-  return { gatheringSlug: view.gathering.slug, circleSlug: joinedCircle ? view.circle?.slug ?? null : null, joinedCircle };
+  return { gatheringSlug: view.gathering.slug, circleSlug: joinedCircle && view.circle?.id !== view.gathering.id ? view.circle?.slug ?? null : null, joinedCircle };
 }
 
 /** What the invitation email says: from whoever suggested them, naming a circle only if it made room. */

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { gatheringHome, gatheringMapData } from "@/domain/gatherings";
 import { invitesWaiting } from "@/domain/invites";
 import { gatheringQuestions, roundView } from "@/domain/rounds";
+import { CircleView } from "./circles/[circle]/CircleView";
 import { loadGathering } from "@/lib/gathering";
 import { displayName } from "@/lib/session";
 import { GatheringMap } from "@/components/app/GatheringMap";
@@ -21,6 +22,8 @@ export async function generateMetadata({ params }: PageProps<"/g/[gathering]">):
 
 export default async function GatheringPage({ params }: PageProps<"/g/[gathering]">) {
   const { me, gathering, isHost } = await loadGathering((await params).gathering);
+  // A circle on its own is its own root: its page is the circle's.
+  if (gathering.kind === "circle") return <CircleView me={me} gathering={gathering} circle={gathering} />;
   const [home, questions, map, suggestions] = await Promise.all([
     gatheringHome(db, gathering, me.id),
     gatheringQuestions(db, gathering.id, me.id),

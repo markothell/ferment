@@ -51,12 +51,14 @@ export async function seatsSpoken(db: DB, circleId: string): Promise<number> {
  */
 export async function openSeat(
   db: DB,
-  { circle, askedBy, userId = null, inviteId = null, note = "", now }:
-  { circle: Circle; askedBy: string; userId?: string | null; inviteId?: string | null; note?: string; now: Date },
+  { circle, askedBy, userId = null, inviteId = null, note = "", admitted = false, now }:
+  { circle: Circle; askedBy: string; userId?: string | null; inviteId?: string | null; note?: string; now: Date;
+    /** The host has made room already: an invitation to a circle on its own. */
+    admitted?: boolean },
 ): Promise<SeatRequest> {
   if (circle.status === "closed" || circle.status === "expired") refuse("This circle isn't running.");
   if ((await seatsSpoken(db, circle.id)) >= CIRCLE_MAX) refuse("This circle is full.");
-  const forming = circle.status === "forming";
+  const forming = circle.status === "forming" || admitted;
   const [req] = await db
     .insert(seatRequests)
     .values({

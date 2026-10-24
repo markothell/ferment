@@ -78,7 +78,7 @@ export default async function RoundPage({ params }: Props) {
   ) : null;
   const trail = [
     { label: gathering.name, href: base },
-    ...(circle ? [{ label: circle.name, href: `${base}/circles/${circle.slug}` }] : []),
+    ...(circle && circle.id !== gathering.id ? [{ label: circle.name, href: `${base}/circles/${circle.slug}` }] : []),
     { label: pinned ? "Pinned question" : round.replyToRoundId ? "Reply" : circle ? "Round" : "Open question" },
   ];
   // A reply is a follow-up round for the whole circle (domain/replies.ts): only

@@ -25,8 +25,17 @@ function cleanName(raw: string): string {
   return name;
 }
 
-/** How many gatherings one person can start in a day: open to anyone, so capped. */
+/** How many gatherings or circles one person can start in a day: open to anyone, so capped. */
 export const STARTS_PER_DAY = 5;
+
+/** Refuse once someone has started their day's worth of root groups. */
+export async function requireStartAllowance(db: DB, userId: string, now: Date): Promise<void> {
+  const [{ started }] = await db
+    .select({ started: count() })
+    .from(groups)
+    .where(and(eq(groups.createdBy, userId), isNull(groups.parentId), gt(groups.createdAt, new Date(now.getTime() - DAY_MS))));
+  if (started >= STARTS_PER_DAY) refuse(`That's ${STARTS_PER_DAY} started today. Try again tomorrow.`);
+}
 
 /** Is this slug taken by any group? Slugs are unique across the site (GROUPS.md §2). */
 export async function slugTaken(db: DB, slug: string): Promise<boolean> {
@@ -52,11 +61,7 @@ export async function createGathering(
   const clean = cleanName(name);
   const note = welcomeNote.trim();
   if (note.length > NOTE_MAX) refuse("That welcome note is too long.");
-  const [{ started }] = await db
-    .select({ started: count() })
-    .from(groups)
-    .where(and(eq(groups.createdBy, userId), isNull(groups.parentId), gt(groups.createdAt, new Date(now.getTime() - DAY_MS))));
-  if (started >= STARTS_PER_DAY) refuse(`That's ${STARTS_PER_DAY} gatherings started today. Try again tomorrow.`);
+  await requireStartAllowance(db, userId, now);
 
   const slug = await uniqueSlug(clean, (s) => slugTaken(db, s));
   const id = newId();

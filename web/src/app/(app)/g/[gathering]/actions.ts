@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { circleById, createCircle, joinCircle, leaveCircle, type Circle } from "@/domain/circles";
+import { circleById, createCircle, joinCircle, leaveCircle, promoteCircle, type Circle } from "@/domain/circles";
 import { pinQuestion, setArchived, updateWelcomeNote } from "@/domain/gatherings";
 import { confirmInvite, createInvite, declineInvite, invitationLetter, withdrawInvite } from "@/domain/invites";
 import { askForSeat, declineSeat, makeRoom, toggleSeatSupport, withdrawSeat } from "@/domain/seats";
@@ -52,6 +52,19 @@ export async function pin(_prev: ActionState, form: FormData): Promise<ActionSta
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
   return { ok: unpin ? "Unpinned." : "Pinned to the centre." };
+}
+
+/** A circle on its own grows into a gathering, with itself as the first circle (GROUPS.md §4). */
+export async function growIntoGathering(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, gathering } = await loadGathering(str(form, "gathering"));
+  let made: { slug: string } | undefined;
+  const failed = await attempt(async () => {
+    made = await promoteCircle(db, { circleId: gathering.id, userId: me.id, name: str(form, "name"), welcomeNote: str(form, "note") });
+  });
+  if (failed) return failed;
+  revalidatePath("/home");
+  revalidatePath(`/g/${gathering.slug}`, "layout");
+  redirect(`/g/${made!.slug}/setup`);
 }
 
 /** Archive the gathering from your own list (then home), or put it back (then into it). */

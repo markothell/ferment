@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { UNIT, UNIT_CIRCLES, UNIT_LOOSE, UNIT_SEATS } from "@/lib/storyScene";
 
-// The two invitations under the story, each with its small drawing. Today both
-// lead to /new: a circle is started inside a gathering, and a gathering with one
-// question and a few people is the lightest thing there is. A lighter path for
-// "start a circle" is still to be designed.
+// The two invitations under the story, each with its small drawing: the two
+// doors of /new (GROUPS.md §6), the circle first.
 export function WhereToStart({ circleHref, gatheringHref }: { circleHref: string; gatheringHref: string }) {
   return (
     <section className="home-pair">

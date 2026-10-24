@@ -13,6 +13,7 @@ import "./home.css";
 // The two ways in (STARTERS.md §5): start a gathering, or look through the
 // starters other gatherings began with.
 const START_HREF = "/new";
+const GATHERING_HREF = "/new?kind=gathering";
 const LIBRARY_HREF = "/library";
 const ORIGIN_HREF = "https://holoscopic.io";
 
@@ -54,7 +55,7 @@ export default async function Home() {
         <Story startHref={START_HREF} libraryHref={LIBRARY_HREF} />
 
         <p className="home-band mono">where to start</p>
-        <WhereToStart circleHref={START_HREF} gatheringHref={START_HREF} />
+        <WhereToStart circleHref={START_HREF} gatheringHref={GATHERING_HREF} />
 
         <p className="home-band mono">inspired by</p>
         <section className="home-roots">

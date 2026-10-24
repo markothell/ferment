@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { groups, invites, prompts, rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle, seatInCircle, setCircleColor } from "./circles";
+import { CIRCLE_MAX, createCircle, createLoneCircle, expireProposals, joinCircle, leaveCircle, promoteCircle, seatInCircle, setCircleColor } from "./circles";
 import { gatheringHome, createGathering, pinQuestion, type Gathering } from "./gatherings";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite, findInvite } from "./invites";
-import { postOpenQuestion } from "./rounds";
+import { listNotifications } from "./notifications";
+import { postOpenQuestion, suggestRound } from "./rounds";
 
 let db: DB;
 let gathering: Gathering;
@@ -169,5 +170,67 @@ describe("circles", () => {
     await joinCircle(db, { circleId: circle.id, userId: amy, now: t0 });
     const home = await gatheringHome(db, gathering, amy);
     expect(home.circles[0]).toMatchObject({ isMember: true, members: 1 });
+  });
+});
+
+describe("a circle on its own", () => {
+  /** Invite someone to a circle on its own and have them arrive. */
+  async function arrive(circle: { id: string }, name: string) {
+    const id = await person(name);
+    const { token } = await createInvite(db, { gatheringId: circle.id, invitedBy: "u_host", email: `${name}@example.com`, now: t0 });
+    await acceptInvite(db, { token: token!, userId: id, userEmail: `${name}@example.com`, now: t0 });
+    return id;
+  }
+
+  it("starts with its host seated, fills by invitation, and forms at four", async () => {
+    const circle = await createLoneCircle(db, { userId: "u_host", name: "Soup", firstQuestion: "What soup do you make?", now: t0 });
+    expect(circle).toMatchObject({ kind: "circle", parentId: null, rootId: circle.id, status: "forming", hostId: "u_host" });
+    expect((await db.select().from(rounds).where(eq(rounds.groupId, circle.id)))[0]).toMatchObject({ rootId: circle.id, phase: "queued" });
+    expect((await db.select().from(prompts))[0].rootId).toBe(circle.id);
+
+    for (const n of ["amy", "ben"]) await arrive(circle, n);
+    expect((await db.select().from(groups).where(eq(groups.id, circle.id)))[0].status).toBe("forming");
+    await arrive(circle, "cal");
+    const [formed] = await db.select().from(groups).where(eq(groups.id, circle.id));
+    expect(formed.status).toBe("active");
+    expect((await db.select().from(rounds).where(eq(rounds.groupId, circle.id)))[0].phase).toBe("open");
+    // It's on everyone's list as a circle, and only the host hosts it.
+    const mine = await (await import("./gatherings")).listMyGatherings(db, "u_amy");
+    expect(mine.map((g) => [g.slug, g.kind, g.role])).toEqual([["soup", "circle", "member"]]);
+    // A circle on its own has nothing to open a round to.
+    await expect(postOpenQuestion(db, { gatheringId: circle.id, userId: "u_host", prompt: { question: "Everyone?" } })).rejects.toThrow(/gathering/);
+  });
+
+  it("counts against the same day's allowance as a gathering", async () => {
+    await person("amy");
+    for (let i = 1; i < 5; i++) await createLoneCircle(db, { userId: "u_amy", name: `Circle ${i}`, now: t0 });
+    await createGathering(db, { userId: "u_amy", name: "The fifth", now: t0 });
+    await expect(createGathering(db, { userId: "u_amy", name: "One more", now: t0 })).rejects.toThrow(/today/);
+    await expect(createLoneCircle(db, { userId: "u_amy", name: "Or this", now: t0 })).rejects.toThrow(/today/);
+  });
+
+  it("grows into a gathering: moves under it, keeps its address and everything in it, seats everyone", async () => {
+    const circle = await createLoneCircle(db, { userId: "u_host", name: "Soup", firstQuestion: "What soup?", now: t0 });
+    for (const n of ["amy", "ben", "cal"]) await arrive(circle, n);
+    await suggestRound(db, { circleId: circle.id, userId: "u_amy", prompt: { question: "Hot or cold?" }, now: t0 });
+    const before = await listNotifications(db, { userId: "u_host" });
+    expect(before.length).toBeGreaterThan(0);
+
+    await expect(promoteCircle(db, { circleId: circle.id, userId: "u_amy", name: "Soup Nights" })).rejects.toThrow(/host/);
+    const g = await promoteCircle(db, { circleId: circle.id, userId: "u_host", name: "Soup Nights", welcomeNote: "Soup, weekly.", now: t0 });
+    expect(g).toMatchObject({ kind: "gathering", slug: "soup-nights", note: "Soup, weekly.", createdBy: "u_host" });
+
+    const [moved] = await db.select().from(groups).where(eq(groups.id, circle.id));
+    expect(moved).toMatchObject({ slug: "soup", parentId: g.id, rootId: g.id, hostId: "u_host" });
+    expect((await db.select().from(rounds).where(eq(rounds.groupId, circle.id))).every((r) => r.rootId === g.id)).toBe(true);
+    expect((await db.select().from(prompts)).every((p) => p.rootId === g.id)).toBe(true);
+    expect((await listNotifications(db, { userId: "u_host" })).every((n) => n.gatheringId === g.id)).toBe(true);
+
+    const home = await gatheringHome(db, g, "u_amy");
+    expect(home.members.map((m) => [m.userId, m.role]).sort()).toEqual([["u_amy", "member"], ["u_ben", "member"], ["u_cal", "member"], ["u_host", "host"]]);
+    expect(home.circles.map((c) => [c.name, c.members, c.isMember])).toEqual([["Soup", 4, true]]);
+    await expect(promoteCircle(db, { circleId: circle.id, userId: "u_host", name: "Again" })).rejects.toThrow(/already/);
+    // And now it has somewhere to ask everyone.
+    await postOpenQuestion(db, { gatheringId: g.id, userId: "u_amy", prompt: { question: "Best soup in town?" } });
   });
 });

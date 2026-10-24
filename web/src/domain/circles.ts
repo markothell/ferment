@@ -7,11 +7,11 @@
 
 import { and, asc, count, eq, isNull, lt } from "drizzle-orm";
 import type { DB } from "@/db";
-import { groups, members, prompts, rounds, user } from "@/db/schema";
+import { groups, members, notifications, prompts, rounds, user } from "@/db/schema";
 import { isCircleColor, type CircleColor } from "@/lib/circleColors";
 import { newId } from "@/lib/id";
 import { KINDS } from "@/lib/kinds";
-import { groupById, requireMember, slugTaken, type Group } from "./gatherings";
+import { groupById, membershipOf, NAME_MAX, requireMember, requireStartAllowance, slugTaken, type Gathering, type Group } from "./gatherings";
 import { normalizePrompt } from "./prompts";
 import { notifyCircle } from "./notifications";
 import { settleCircle } from "./rounds";
@@ -114,6 +114,86 @@ export async function createCircle(
   });
 }
 
+/**
+ * Start a circle on its own (GROUPS.md §4): a root group of kind circle. You
+ * host it and hold its first seat; it forms when the fourth person is in.
+ * Its people come by your invitation (domain/invites.ts), and it can grow into
+ * a gathering later (promoteCircle).
+ */
+export async function createLoneCircle(
+  db: DB,
+  { userId, name, description = "", firstQuestion = "", color = "saffron", now = new Date() }:
+  { userId: string; name: string; description?: string; firstQuestion?: string; color?: string; now?: Date },
+): Promise<Circle> {
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean) refuse("Give the circle a name.");
+  if (clean.length > 60) refuse("Circle names are 60 characters at most.");
+  const desc = description.trim();
+  if (desc.length > DESCRIPTION_MAX) refuse("That description is too long.");
+  if (!isCircleColor(color)) refuse("Pick one of the colours.");
+  await requireStartAllowance(db, userId, now);
+  const first = firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
+  const slug = await uniqueSlug(clean, (s) => slugTaken(db, s));
+  const id = newId();
+
+  return db.transaction(async (tx) => {
+    // The group first: its prompt points at it as the root.
+    await tx.insert(groups).values({
+      id, kind: "circle", parentId: null, rootId: id, slug, name: clean, note: desc, hostId: userId, createdBy: userId,
+      status: "forming", color: color as CircleColor, createdAt: now, formingExpiresAt: new Date(now.getTime() + 7 * DAY_MS),
+    });
+    // The host's seat; a root's host is also its member of role host, as a gathering's is.
+    await tx.insert(members).values({ groupId: id, userId, role: "host", joinedAt: now });
+    if (first) {
+      const originPromptId = newId();
+      await tx.insert(prompts).values({ id: originPromptId, rootId: id, authorId: userId, ...first });
+      await tx.update(groups).set({ originPromptId }).where(eq(groups.id, id));
+      await tx.insert(rounds).values({ id: newId(), promptId: originPromptId, groupId: id, rootId: id, authorId: userId, phase: "queued", queuedAt: now });
+    }
+    return (await tx.select().from(groups).where(eq(groups.id, id)))[0];
+  });
+}
+
+/**
+ * "Host a gathering around this circle" (GROUPS.md §4), one transaction: a
+ * gathering is made, the circle moves under it, everything in the tree points
+ * at the new root, every circle member is in the gathering, and the circle's
+ * host hosts it. The circle keeps its slug. There is no demotion.
+ */
+export async function promoteCircle(
+  db: DB,
+  { circleId, userId, name, welcomeNote = "", now = new Date() }: { circleId: string; userId: string; name: string; welcomeNote?: string; now?: Date },
+): Promise<Gathering> {
+  const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
+  if (circle.parentId) refuse("This circle is already in a gathering.");
+  if (circle.hostId !== userId) refuse("Only the circle's host can host a gathering around it.");
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean) refuse("Give the gathering a name.");
+  if (clean.length > NAME_MAX) refuse(`Names are ${NAME_MAX} characters at most.`);
+  const note = welcomeNote.trim();
+  const slug = await uniqueSlug(clean, (s) => slugTaken(db, s));
+  const id = newId();
+
+  return db.transaction(async (tx) => {
+    const [gathering] = await tx
+      .insert(groups)
+      .values({ id, slug, kind: "gathering", parentId: null, rootId: id, name: clean, note, createdBy: userId, createdAt: now })
+      .returning();
+    await tx.update(groups).set({ parentId: id, rootId: id }).where(eq(groups.id, circle.id));
+    await tx.update(prompts).set({ rootId: id }).where(eq(prompts.rootId, circle.id));
+    await tx.update(rounds).set({ rootId: id }).where(eq(rounds.rootId, circle.id));
+    await tx.update(notifications).set({ rootId: id }).where(eq(notifications.rootId, circle.id));
+    const seated = await tx.select().from(members).where(and(eq(members.groupId, circle.id), isNull(members.leftAt)));
+    await tx.insert(members).values(seated.map((m) => ({
+      groupId: id, userId: m.userId, role: m.userId === userId ? ("host" as const) : ("member" as const),
+      invitedBy: m.invitedBy, email: m.email, joinedAt: now,
+    })));
+    // Inside a gathering, a circle's host is marked by host_id alone; the member rows are plain.
+    await tx.update(members).set({ role: "member" }).where(eq(members.groupId, circle.id));
+    return gathering;
+  });
+}
+
 /** The host picks the circle's colour (lib/circleColors.ts). */
 export async function setCircleColor(db: DB, { circleId, userId, color }: { circleId: string; userId: string; color: string }) {
   const circle = await circleById(db, circleId);
@@ -143,14 +223,20 @@ export async function joinCircle(
  * Put someone in a circle. Forms it when it reaches its minimum. Called by
  * "I'm in" on a forming circle and by an admitted seat (domain/seats.ts);
  * nothing else should, since it asks no one. Someone in a circle is in its
- * gathering too; that row is already theirs, since they were invited to it.
+ * gathering too: usually they were invited to the gathering first; someone
+ * whose invitation named the circle (`invited`) gets the gathering row here.
  */
 export async function seatInCircle(
   db: DB,
-  { circleId, userId, now = new Date() }: { circleId: string; userId: string; now?: Date },
+  { circleId, userId, invited = false, now = new Date() }: { circleId: string; userId: string; invited?: boolean; now?: Date },
 ): Promise<{ formed: boolean }> {
   const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
-  if (circle.parentId) await requireMember(db, circle.parentId, userId);
+  if (circle.parentId) {
+    if (invited && !(await membershipOf(db, circle.parentId, userId))) {
+      await db.insert(members).values({ groupId: circle.parentId, userId, joinedAt: now }).onConflictDoNothing();
+    }
+    await requireMember(db, circle.parentId, userId);
+  }
   if (circle.status === "closed") refuse("This circle has closed.");
   if (circle.status === "expired" || (circle.status === "forming" && circle.formingExpiresAt && circle.formingExpiresAt <= now)) {
     refuse("This proposal expired before it filled.");
