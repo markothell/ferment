@@ -38,16 +38,25 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
   lowercase.
 - **Shapes stay exact.** Circles are circles and lines are straight. Starter changed the
   colour and type only; the wobbly shapes and bubble animation were tried and dropped.
-- **Homepage** (`archive/home.html`, where openers are collected newest first):
-  - The opener, arriving one line at a time: "We shape the world with our ideas. / We shape
-    our ideas with each other." then "Culture is grown in *conversation*." (conversation in
-    saffron italic) then "This is where you pass it on." The quiet lines bookend the headline.
-  - Two ways in: **Start a conversation** (beet) and **Browse starters**.
-  - "How it grows", five steps told at the social level, with one drawing in ink and saffron
-    only: invite your people; pick what matters (from life or the library); gather in
-    circles of 4–12; share with the gathering; pass it on.
-  - Its first readers are people who were invited. It doesn't name workshops and doesn't
-    pitch.
+- **Homepage** (decided 2026-10-23; the review page is the "Ferment Homepage Scroll" artifact,
+  https://claude.ai/artifact/RTKgBCe3WY2ufbhivRP4nD; `archive/home.html` keeps the earlier
+  openers):
+  - Six beats scroll past one drawing that sticks beside them (`components/home/Story.tsx`,
+    geometry in `lib/storyScene.ts`). The drawing opens and closes on the mark with "ferment"
+    under it; between, the same eight people are rearranged: a story passed along a line, a
+    field of circles, one circle, a web of gatherings with a question crossing it.
+  - The beats: "We make the world with our ideas. / We make our ideas with each other." then
+    "Culture is *stories*." with three questions under it (who are we, what do we want, what are
+    we going to do about it); "Certain stories transform our world."; "It starts with a
+    *circle*."; "Good questions travel."; "Culture is grown in *conversation*. / This is where
+    you pass it on." with the two ways in: **Start a conversation** (beet) and **Browse starters**.
+  - Under the story, **where to start**: Start a circle and Host a gathering side by side, each
+    with a small drawing. Both lead to `/new` for now; a lighter path for a circle is still to
+    be designed. Then **inspired by**: a nod to pioneers in human process (Microsolidarity, Imago
+    dialogue, Internal Family Systems, Presencing Institute, sharing circles), what each
+    revealed, and a link to holoscopic.io.
+  - No app words before the buttons: "starter" appears only on the Browse starters button. The
+    privacy promise is said plainly instead ("never what anyone said"). It doesn't pitch.
 - **Circle map:** same grammar as the Toono version, recoloured (`archive/circle.html`):
 
   | Toono | Starter | Means |
