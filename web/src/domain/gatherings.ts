@@ -77,7 +77,13 @@ export async function createGathering(
   });
 }
 
-/** A root group by its address: a gathering, or (later) a circle on its own. */
+/** Any group by its address: slugs are unique across the site (GROUPS.md §7). */
+export async function groupBySlug(db: DB, slug: string): Promise<Group | null> {
+  const [g] = await db.select().from(groups).where(eq(groups.slug, slug)).limit(1);
+  return g ?? null;
+}
+
+/** A root group by its address: a gathering, or a circle on its own. */
 export async function gatheringBySlug(db: DB, slug: string): Promise<Gathering | null> {
   const [g] = await db.select().from(groups).where(and(eq(groups.slug, slug), isNull(groups.parentId))).limit(1);
   return g ?? null;

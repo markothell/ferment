@@ -1,4 +1,4 @@
-import { confirmSuggestion, declineSuggestion } from "@/app/(app)/g/[gathering]/actions";
+import { confirmSuggestion, declineSuggestion } from "@/app/(app)/g/[group]/actions";
 import type { invitesWaiting } from "@/domain/invites";
 import { relative } from "@/lib/time";
 import { Form } from "./Form";

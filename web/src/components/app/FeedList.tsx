@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { FeedItem } from "@/domain/feed";
-import { suggestFromFeed } from "@/app/(app)/g/[gathering]/actions";
+import { suggestFromFeed } from "@/app/(app)/g/[group]/actions";
 import { Form } from "./Form";
 import { CircleGlyph } from "./Glyph";
 import { Ripple } from "./Ripple";
@@ -16,8 +16,10 @@ function meta(item: FeedItem) {
  * <details> keeps it working without script.
  */
 export function FeedList({
-  items, gathering, openFirst = true, actions = true,
-}: { items: FeedItem[]; gathering: string; openFirst?: boolean; actions?: boolean }) {
+  items, gathering, openFirst = true, actions = true, circleHref = (slug) => `/g/${slug}`,
+}: { items: FeedItem[]; gathering: string; openFirst?: boolean; actions?: boolean;
+  /** Where a circle's name leads: its own address (GROUPS.md §7), unless the sample says otherwise. */
+  circleHref?: (slug: string) => string }) {
   const base = `/g/${gathering}`;
   const firstCircleQuestion = items.findIndex((i) => !i.everyone);
   return (
@@ -51,7 +53,7 @@ export function FeedList({
                   {item.everyone && !item.startedIn
                     ? `Asked of everyone by ${item.author}.`
                     : item.startedIn
-                      ? <>Started in <Link className="link" href={`${base}/circles/${item.startedIn.slug}`}>{item.startedIn.name}</Link>, asked by {item.author}.</>
+                      ? <>Started in <Link className="link" href={circleHref(item.startedIn.slug)}>{item.startedIn.name}</Link>, asked by {item.author}.</>
                       : `Asked by ${item.author}.`}
                   {item.adaptedFrom && (
                     <> Adapted from <Link className="link" href={`${base}/feed#p-${item.adaptedFrom.id}`}>“{item.adaptedFrom.question}”</Link>.</>
@@ -62,7 +64,7 @@ export function FeedList({
                   <ul className="flex flex-wrap gap-1.5">
                     {item.circles.map((c) => (
                       <li key={c.id}>
-                        <Link href={`${base}/circles/${c.slug}`} className="chip">
+                        <Link href={circleHref(c.slug)} className="chip">
                           <span className={c.open ? "chip-dot chip-live" : "chip-dot"} aria-hidden />
                           {c.name}
                           {c.open && " · open now"}

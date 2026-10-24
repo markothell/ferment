@@ -29,6 +29,7 @@ export default async function DemoGathering({ searchParams }: { searchParams: Pr
           answerers={names.map((_, i) => id(i)).filter((_, i) => (i * 7) % 3 !== 0).slice(0, 26)}
           viewerId={id(6)}
           base="/demo/gathering"
+          circleBase="/demo/gathering/circles"
           label={`${n} people on an outer ring, gathered into ${circles.length} circles, with two open questions at the center.`}
         />
         <p className="text-center text-sm text-[var(--ink-soft)]">Hover or tap a circle, a person, or the center.</p>

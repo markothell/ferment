@@ -30,16 +30,6 @@ export async function circleById(db: DB, circleId: string): Promise<Circle | nul
   return c ?? null;
 }
 
-/** A circle inside this gathering, by its slug. */
-export async function circleBySlug(db: DB, gatheringId: string, slug: string): Promise<Circle | null> {
-  const [c] = await db
-    .select()
-    .from(groups)
-    .where(and(eq(groups.parentId, gatheringId), eq(groups.slug, slug)))
-    .limit(1);
-  return c ?? null;
-}
-
 export async function activeMemberCount(db: DB, circleId: string): Promise<number> {
   const [{ n }] = await db
     .select({ n: count() })

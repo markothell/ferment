@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Axis } from "@/db/schema";
 import type { harvestForRound } from "@/domain/harvests";
 import { HARVEST_MIN } from "@/domain/harvests";
-import { chooseHarvestAction, proposeHarvestAction, withdrawHarvestAction } from "@/app/(app)/g/[gathering]/h/actions";
+import { chooseHarvestAction, proposeHarvestAction, withdrawHarvestAction } from "@/app/(app)/g/[group]/h/actions";
 import { relative } from "@/lib/time";
 import { Form } from "./Form";
 import { SharedAnswer, type Shared } from "./SharedAnswer";

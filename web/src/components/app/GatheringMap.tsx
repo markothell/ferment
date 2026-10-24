@@ -16,7 +16,7 @@ const MONO = "var(--font-geist-mono), ui-monospace, monospace";
  * questions hold the center. Hover or tap to see who's where.
  */
 export function GatheringMap({
-  people, circles, openQuestions, answerers, viewerId, base, label,
+  people, circles, openQuestions, answerers, viewerId, base, label, circleBase = "/g",
 }: {
   people: GatheringPerson[];
   circles: GatheringCircle[];
@@ -25,6 +25,8 @@ export function GatheringMap({
   viewerId: string;
   base: string;
   label: string;
+  /** Where a circle leads, before its slug: its own address (GROUPS.md §7), unless the sample says otherwise. */
+  circleBase?: string;
 }) {
   const { seats, seatR, nodes, center, ringR, full } = useMemo(() => layoutGathering(people, circles), [people, circles]);
   const [hover, setHover] = useState<Focus>(null);
@@ -65,7 +67,7 @@ export function GatheringMap({
     tip = {
       x: nd.x, y: nd.y - nd.r, title: nd.name,
       sub: nd.forming ? `forming · ${nd.members.length} of 4` : `${nd.members.length} people · ${nd.explored} rounds${nd.open ? " · open now" : ""}`,
-      href: `${base}/circles/${nd.slug}`,
+      href: `${circleBase}/${nd.slug}`,
     };
   } else if (focus?.kind === "person") {
     const s = seats.find((x) => x.id === focus.id)!;

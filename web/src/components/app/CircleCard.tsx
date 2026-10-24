@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CIRCLE_MAX, CIRCLE_MIN } from "@/domain/circles";
-import { join } from "@/app/(app)/g/[gathering]/actions";
+import { join } from "@/app/(app)/g/[group]/actions";
 import type { CircleColor } from "@/lib/circleColors";
 import { Form } from "./Form";
 import { CircleGlyph } from "./Glyph";
@@ -22,7 +22,7 @@ export function CircleCard({ circle, gathering }: { circle: CircleRow; gathering
   return (
     <li className="card space-y-3">
       <div className="flex items-baseline justify-between gap-3">
-        <Link href={`/g/${gathering}/circles/${circle.slug}`} className="flex items-center gap-3 text-lg font-medium hover:underline">
+        <Link href={`/g/${circle.slug}`} className="flex items-center gap-3 text-lg font-medium hover:underline">
           <CircleGlyph size={24} forming={forming} color={circle.color} />
           {circle.name}
         </Link>
@@ -41,7 +41,7 @@ export function CircleCard({ circle, gathering }: { circle: CircleRow; gathering
         ) : circle.members >= CIRCLE_MAX ? (
           <span className="label shrink-0">full</span>
         ) : !forming ? (
-          <Link href={`/g/${gathering}/circles/${circle.slug}`} className="link shrink-0 text-sm">Ask to join</Link>
+          <Link href={`/g/${circle.slug}`} className="link shrink-0 text-sm">Ask to join</Link>
         ) : (
           <Form action={join} submit="I'm in" pending="Joining…" quiet className="flex items-center gap-3">
             <input type="hidden" name="gathering" value={gathering} />

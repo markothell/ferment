@@ -186,7 +186,7 @@ export async function listNotifications(db: DB, where: { userId: string; ids?: s
     }),
     href: r.kind === "harvest_up" && r.harvestId ? `/g/${r.gatheringSlug}/h/${r.harvestId}`
       : r.roundId ? `/g/${r.gatheringSlug}/r/${r.roundId}`
-      : r.circleSlug && r.circleSlug !== r.gatheringSlug ? `/g/${r.gatheringSlug}/circles/${r.circleSlug}`
+      : r.circleSlug ? `/g/${r.circleSlug}`
       : r.kind === "invite_suggested" ? `/g/${r.gatheringSlug}/people#waiting`
       : `/g/${r.gatheringSlug}`,
   }));

@@ -39,7 +39,7 @@ export default function DemoFeed() {
       <Top trail={[{ label: "Hillside Tables, an example" }, { label: "What we're talking about" }]} />
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
         <h1 className="display text-4xl">What we&apos;re talking about</h1>
-        <FeedList items={ITEMS} gathering="demo" actions={false} />
+        <FeedList items={ITEMS} gathering="demo" actions={false} circleHref={(slug) => `/demo/gathering/circles/${slug}`} />
       </main>
     </>
   );
