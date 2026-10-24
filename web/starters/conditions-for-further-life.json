@@ -4,10 +4,6 @@
   "summary": "For a group with something real to look after: a place, a project, a family, a patch of ground. Five circles, each holding one of Tom Atlee's five lenses on how life makes conditions for further life. Bring one living thing from your own life, see which dynamics are at work in it, and find the one to engage differently. After Tom Atlee's Regenerativity Word Clouds (2026).",
   "content": {
     "welcomeNote": "This gathering looks at the things we care for the way life looks at them: as something that makes conditions for more life, or doesn't. Tom Atlee gathered dozens of the ways life does this and sorted them into five clouds of words. Each circle here holds one cloud. Bring one real thing from your own life or place, a garden, a team, a friendship, a town, a body, and look at it through the lens your circle keeps. The clouds are lenses, not boxes. Nothing gets decided here. The point is to see more.",
-    "welcomeQuestion": {
-      "key": "atlee-bring-1",
-      "question": "Bring one thing from your life or your place that is alive right now, or struggling to be. What is it?"
-    },
     "circles": [
       {
         "key": "cycles",
@@ -209,6 +205,15 @@
       }
     ],
     "openQuestions": [
+      {
+        "key": "atlee-bring-1",
+        "question": "Bring one thing from your life or your place that is alive right now, or struggling to be. What is it?",
+        "context": "The first question to everyone, pinned to the centre: every newcomer answers it on arrival.",
+        "shape": "story",
+        "telling": "voice",
+        "secondsPerNote": 60,
+        "reveal": "open"
+      },
       {
         "key": "atlee-gathering-1",
         "question": "Look at this gathering as a living thing. Which of these dynamics are strongest in it right now?",

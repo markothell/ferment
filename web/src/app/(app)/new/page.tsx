@@ -29,7 +29,7 @@ export default async function NewGatheringPage({ searchParams }: PageProps<"/new
           <h1 className="display text-4xl">Start a gathering</h1>
           <p className="text-[var(--ink-soft)]">
             A place for a few dozen people to think something through together, in small circles. You&apos;ll host it.
-            {starter ? " It opens with the starter's design, and nobody is invited until you say so." : " Next you'll set a welcome question and a few circles, then invite people."}
+            {starter ? " It opens with the starter's design, and nobody is invited until you say so." : " Next you'll ask everyone a first question and set up a few circles, then invite people."}
           </p>
         </div>
 

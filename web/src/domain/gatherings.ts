@@ -3,12 +3,11 @@
 // are the groups under it. The functions here keep their old names, so the
 // pages and tests read as before.
 
-import { and, asc, count, eq, gt, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, notInArray } from "drizzle-orm";
 import type { DB } from "@/db";
 import { groups, members, prompts, responses, rounds, user } from "@/db/schema";
 import { newId } from "@/lib/id";
 import { refuse } from "./errors";
-import { normalizePrompt } from "./prompts";
 import { uniqueSlug } from "./slug";
 
 export const NAME_MAX = 60;
@@ -150,45 +149,36 @@ export async function updateWelcomeNote(
 }
 
 /**
- * The welcome question: an open question every newcomer is invited to answer
- * (PLAN §4). A story, voice first, on an open wall, and it never closes.
- * Rewording it is free until someone has answered; after that a new question
- * replaces it and the old one closes with its answers intact.
+ * The pinned question (GROUPS.md §5): the question at the centre, an open
+ * question to everyone, of any shape. Newcomers answer it first, and it stays
+ * open while it's pinned. A host pins one, or unpins with null. With nothing
+ * pinned, the latest open question to everyone stands at the centre.
  */
-export async function setWelcomeQuestion(
+export async function pinQuestion(
   db: DB,
-  { gatheringId, userId, question, now = new Date() }: { gatheringId: string; userId: string; question: string; now?: Date },
+  { gatheringId, userId, roundId }: { gatheringId: string; userId: string; roundId: string | null },
 ): Promise<void> {
   await requireHost(db, gatheringId, userId);
-  const prompt = normalizePrompt({ question, shape: "story", telling: "voice", reveal: "open" });
-  const q = prompt.question;
+  if (roundId) {
+    const [r] = await db.select({ groupId: rounds.groupId, phase: rounds.phase }).from(rounds).where(eq(rounds.id, roundId)).limit(1);
+    if (!r || r.groupId !== gatheringId) refuse("Only a question to everyone in this gathering can be pinned.");
+    if (r.phase !== "open") refuse("Only an open question can be pinned.");
+  }
+  await db.update(groups).set({ pinnedRoundId: roundId }).where(eq(groups.id, gatheringId));
+}
 
-  await db.transaction(async (tx) => {
-    const [current] = await tx
-      .select({ roundId: rounds.id, promptId: rounds.promptId })
-      .from(rounds)
-      .where(and(eq(rounds.rootId, gatheringId), eq(rounds.welcome, true)))
-      .limit(1);
-
-    if (current) {
-      const [{ n }] = await tx.select({ n: count() }).from(responses).where(eq(responses.roundId, current.roundId));
-      if (n === 0) {
-        await tx.update(prompts).set({ question: q }).where(eq(prompts.id, current.promptId));
-        return;
-      }
-      await tx
-        .update(rounds)
-        .set({ welcome: false, phase: "closed", closedAt: now, closedVia: "manual" })
-        .where(eq(rounds.id, current.roundId));
-    }
-
-    const promptId = newId();
-    await tx.insert(prompts).values({ id: promptId, rootId: gatheringId, authorId: userId, ...prompt });
-    await tx.insert(rounds).values({
-      id: newId(), promptId, groupId: gatheringId, rootId: gatheringId, authorId: userId,
-      welcome: true, phase: "open", openedAt: now, editAfterClose: true,
-    });
-  });
+/** The question at the centre: the pinned one, or the latest open question to everyone. */
+export async function centreQuestion(db: DB, gathering: Pick<Gathering, "id" | "pinnedRoundId">) {
+  const [row] = await db
+    .select({ roundId: rounds.id, question: prompts.question, shape: prompts.shape, phase: rounds.phase })
+    .from(rounds)
+    .innerJoin(prompts, eq(prompts.id, rounds.promptId))
+    .where(gathering.pinnedRoundId
+      ? eq(rounds.id, gathering.pinnedRoundId)
+      : and(eq(rounds.groupId, gathering.id), eq(rounds.phase, "open")))
+    .orderBy(desc(rounds.openedAt))
+    .limit(1);
+  return row ? { ...row, pinned: gathering.pinnedRoundId === row.roundId } : null;
 }
 
 /** The circles a gathering holds, as its pages list them. */
@@ -199,19 +189,14 @@ const circleColumns = {
 
 /** Everything the gathering page shows, for a member. */
 export async function gatheringHome(db: DB, gathering: Gathering, viewerId: string) {
-  const [memberRows, welcome, circleRows, mine] = await Promise.all([
+  const [memberRows, pinned, circleRows, mine] = await Promise.all([
     db
       .select({ userId: user.id, name: user.name, email: user.email, role: members.role, joinedAt: members.joinedAt })
       .from(members)
       .innerJoin(user, eq(user.id, members.userId))
       .where(and(eq(members.groupId, gathering.id), isNull(members.leftAt)))
       .orderBy(asc(members.joinedAt)),
-    db
-      .select({ roundId: rounds.id, question: prompts.question })
-      .from(rounds)
-      .innerJoin(prompts, eq(prompts.id, rounds.promptId))
-      .where(and(eq(rounds.rootId, gathering.id), eq(rounds.welcome, true)))
-      .limit(1),
+    centreQuestion(db, gathering),
     db
       .select({ ...circleColumns, members: count(members.userId) })
       .from(groups)
@@ -229,7 +214,8 @@ export async function gatheringHome(db: DB, gathering: Gathering, viewerId: stri
   const myCircleIds = new Set(mine.map((m) => m.circleId));
   return {
     members: memberRows,
-    welcome: welcome[0] ?? null,
+    /** The question at the centre, if any. */
+    pinned,
     circles: circleRows.map((c) => ({ ...c, isMember: myCircleIds.has(c.id) })),
   };
 }

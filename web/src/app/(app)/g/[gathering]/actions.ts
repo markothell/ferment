@@ -5,7 +5,7 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { circleById, createCircle, joinCircle, leaveCircle, type Circle } from "@/domain/circles";
-import { setArchived, setWelcomeQuestion, updateWelcomeNote } from "@/domain/gatherings";
+import { pinQuestion, setArchived, updateWelcomeNote } from "@/domain/gatherings";
 import { confirmInvite, createInvite, declineInvite, invitationLetter, withdrawInvite } from "@/domain/invites";
 import { askForSeat, declineSeat, makeRoom, toggleSeatSupport, withdrawSeat } from "@/domain/seats";
 import { setEmailPref } from "@/domain/notifications";
@@ -32,14 +32,26 @@ export async function saveWelcomeNote(_prev: ActionState, form: FormData): Promi
   return { ok: "Saved." };
 }
 
-export async function saveWelcomeQuestion(_prev: ActionState, form: FormData): Promise<ActionState> {
+/** Setup: ask everyone a first question, of any shape, and pin it to the centre. */
+export async function askAndPin(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGathering(str(form, "gathering"));
-  const failed = await attempt(() =>
-    setWelcomeQuestion(db, { gatheringId: gathering.id, userId: me.id, question: str(form, "question") }),
-  );
+  const failed = await attempt(async () => {
+    const r = await postOpenQuestion(db, { gatheringId: gathering.id, userId: me.id, prompt: promptFrom(form), timerHours: str(form, "timer") || null });
+    await pinQuestion(db, { gatheringId: gathering.id, userId: me.id, roundId: r.id });
+  });
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
-  return { ok: "Saved." };
+  return { ok: "Asked, and pinned to the centre." };
+}
+
+/** A host pins an open question to everyone to the centre, or unpins it. */
+export async function pin(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, gathering } = await loadGathering(str(form, "gathering"));
+  const unpin = str(form, "unpin") === "yes";
+  const failed = await attempt(() => pinQuestion(db, { gatheringId: gathering.id, userId: me.id, roundId: unpin ? null : str(form, "round") }));
+  if (failed) return failed;
+  revalidatePath(`/g/${gathering.slug}`, "layout");
+  return { ok: unpin ? "Unpinned." : "Pinned to the centre." };
 }
 
 /** Archive the gathering from your own list (then home), or put it back (then into it). */

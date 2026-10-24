@@ -1,13 +1,13 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { groups, invites, prompts, responses, rounds, user } from "@/db/schema";
+import { groups, invites, prompts, rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { newId } from "@/lib/id";
 import { CIRCLE_MAX, createCircle, expireProposals, joinCircle, leaveCircle, seatInCircle, setCircleColor } from "./circles";
-import { gatheringHome, createGathering, setWelcomeQuestion, type Gathering } from "./gatherings";
+import { gatheringHome, createGathering, pinQuestion, type Gathering } from "./gatherings";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite, findInvite } from "./invites";
+import { postOpenQuestion } from "./rounds";
 
 let db: DB;
 let gathering: Gathering;
@@ -44,26 +44,31 @@ describe("gatherings", () => {
     expect(again.slug).toBe("tuesday-tables-2");
   });
 
-  it("rewords the welcome question until someone answers, then replaces it", async () => {
-    await setWelcomeQuestion(db, { gatheringId: gathering.id, userId: "u_host", question: "What brought you?" });
-    await setWelcomeQuestion(db, { gatheringId: gathering.id, userId: "u_host", question: "What brought you here?" });
-    let all = await db.select().from(rounds);
-    expect(all).toHaveLength(1);
+  it("puts the latest question to everyone at the centre until a host pins one, of any shape", async () => {
+    const first = await postOpenQuestion(db, { gatheringId: gathering.id, userId: "u_host", prompt: { question: "What brought you?" }, now: t0 });
+    const words = await postOpenQuestion(db, {
+      gatheringId: gathering.id, userId: "u_host", now: new Date(t0.getTime() + 1000),
+      prompt: { question: "Which words?", shape: "words", seedWords: ["bread", "salt"] },
+    });
+    let home = await gatheringHome(db, gathering, "u_host");
+    expect(home.pinned).toMatchObject({ roundId: words.id, shape: "words", pinned: false });
 
-    await db.insert(responses).values({ id: newId(), roundId: all[0].id, userId: "u_host", text: "friends" });
-    await setWelcomeQuestion(db, { gatheringId: gathering.id, userId: "u_host", question: "What are you hoping for?" });
-    all = await db.select().from(rounds);
-    expect(all).toHaveLength(2);
-    expect(all.find((r) => r.welcome)?.phase).toBe("open");
-    expect(all.find((r) => !r.welcome)?.phase).toBe("closed");
+    await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: first.id });
+    home = await gatheringHome(db, { ...gathering, pinnedRoundId: first.id }, "u_host");
+    expect(home.pinned).toMatchObject({ roundId: first.id, question: "What brought you?", pinned: true });
 
-    const home = await gatheringHome(db, gathering, "u_host");
-    expect(home.welcome?.question).toBe("What are you hoping for?");
+    await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: null });
+    const [g] = await db.select().from(groups).where(eq(groups.id, gathering.id));
+    expect(g.pinnedRoundId).toBeNull();
   });
 
-  it("keeps the welcome question to hosts", async () => {
+  it("pins only an open question to everyone in this gathering, and only for hosts", async () => {
     const amy = await member("amy");
-    await expect(setWelcomeQuestion(db, { gatheringId: gathering.id, userId: amy, question: "Hi?" })).rejects.toBeInstanceOf(Refusal);
+    const q = await postOpenQuestion(db, { gatheringId: gathering.id, userId: "u_host", prompt: { question: "Hi?" } });
+    await expect(pinQuestion(db, { gatheringId: gathering.id, userId: amy, roundId: q.id })).rejects.toBeInstanceOf(Refusal);
+    const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Bread", firstQuestion: "What fed you?", now: t0 });
+    const [inCircle] = await db.select().from(rounds).where(eq(rounds.groupId, circle.id));
+    await expect(pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: inCircle.id })).rejects.toThrow(/to everyone/);
   });
 });
 

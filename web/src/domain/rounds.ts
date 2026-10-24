@@ -15,7 +15,7 @@
 
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { DB } from "@/db";
-import { members, prompts, responseWords, responses, roundSupports, rounds, user, words } from "@/db/schema";
+import { groups, members, prompts, responseWords, responses, roundSupports, rounds, user, words } from "@/db/schema";
 import { isOurAudio, listenPath } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
 import { activeMemberCount, CIRCLE_MIN, isCircleMember } from "./circles";
@@ -39,6 +39,12 @@ export async function roundById(db: DB, id: string): Promise<Round | null> {
 /** The group a round runs in. */
 async function groupOf(db: DB, round: Round): Promise<Group> {
   return (await groupById(db, round.groupId)) ?? refuse("That question's group is gone.");
+}
+
+/** Is this the question at the centre of its gathering? */
+export async function isPinned(db: DB, round: Pick<Round, "id" | "groupId">): Promise<boolean> {
+  const [g] = await db.select({ pinnedRoundId: groups.pinnedRoundId }).from(groups).where(eq(groups.id, round.groupId)).limit(1);
+  return g?.pinnedRoundId === round.id;
 }
 
 /** The circle a round runs in, or null for a question to everyone. */
@@ -385,8 +391,8 @@ export async function respond(
     }
   });
 
-  // Someone answered your question to everyone.
-  if (!circle && !existing && !round.welcome) {
+  // Someone answered your question to everyone. Not for the pinned one: everyone answers that.
+  if (!circle && !existing && !(await isPinned(db, round))) {
     await notifyOne(db, round.authorId, { kind: "answered", gatheringId: round.rootId, actorId: userId, roundId, now });
   }
 
@@ -408,7 +414,7 @@ export async function respond(
 export async function revealNow(db: DB, { roundId, userId, now = new Date() }: { roundId: string; userId: string; now?: Date }): Promise<void> {
   const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
   if (round.phase !== "open") refuse("It isn't open.");
-  if (round.welcome) refuse("The welcome question stays open.");
+  if (await isPinned(db, round)) refuse("The pinned question stays open. Unpin it first.");
   if (!(await mayConduct(db, round, userId))) refuse("Only its author or the host can reveal it early.");
   const circle = await circleOf(db, round);
   await closeRound(db, roundId, "manual", now, Boolean(circle));
@@ -565,7 +571,7 @@ export async function gatheringMemberTotal(db: DB, gatheringId: string): Promise
   return n;
 }
 
-/** Open questions to the whole gathering, newest first, welcome question first. */
+/** Open questions to the whole gathering, newest first, the pinned one first of all. */
 export async function gatheringQuestions(db: DB, gatheringId: string, viewerId: string, now = new Date()) {
   await db
     .update(rounds)
@@ -573,7 +579,7 @@ export async function gatheringQuestions(db: DB, gatheringId: string, viewerId: 
     .where(and(eq(rounds.groupId, gatheringId), eq(rounds.phase, "open"), lte(rounds.closesAt, now)));
   return db
     .select({
-      id: rounds.id, phase: rounds.phase, welcome: rounds.welcome, question: prompts.question,
+      id: rounds.id, phase: rounds.phase, pinned: sql<boolean>`${groups.pinnedRoundId} = ${rounds.id}`, question: prompts.question, shape: prompts.shape,
       authorName: user.name, authorEmail: user.email, openedAt: rounds.openedAt, closesAt: rounds.closesAt,
       responded: sql<number>`(select count(*)::int from ${responses} where ${responses.roundId} = ${rounds.id})`,
       respondedByMe: sql<boolean>`exists(select 1 from ${responses} where ${responses.roundId} = ${rounds.id} and ${responses.userId} = ${viewerId})`,
@@ -581,8 +587,9 @@ export async function gatheringQuestions(db: DB, gatheringId: string, viewerId: 
     .from(rounds)
     .innerJoin(prompts, eq(prompts.id, rounds.promptId))
     .innerJoin(user, eq(user.id, rounds.authorId))
+    .innerJoin(groups, eq(groups.id, rounds.groupId))
     .where(and(eq(rounds.groupId, gatheringId), inArray(rounds.phase, ["open", "closed"])))
-    .orderBy(desc(rounds.welcome), desc(rounds.openedAt));
+    .orderBy(desc(sql`${groups.pinnedRoundId} = ${rounds.id}`), desc(rounds.openedAt));
 }
 
 /** Who answered each of a circle's rounds: the circle map's participation lines. */

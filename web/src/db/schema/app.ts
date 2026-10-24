@@ -88,6 +88,9 @@ export const groups = pgTable(
     membersPostOpenQuestions: boolean().notNull().default(true),
     // The starter it was started from, or the first one added to it (STARTERS.md §4).
     starterId: text().references((): AnyPgColumn => starters.id, { onDelete: "set null" }),
+    // Gatherings: the question at the centre (GROUPS.md §5), an open question to everyone.
+    // Newcomers answer it first, and it stays open while it's pinned.
+    pinnedRoundId: text().references((): AnyPgColumn => rounds.id, { onDelete: "set null" }),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [
@@ -256,7 +259,6 @@ export const rounds = pgTable(
     replyToRoundId: text().references((): AnyPgColumn => rounds.id, { onDelete: "cascade" }),
     // Optionally, the one answer it follows up on, quoted at the top.
     replyToResponseId: text().references((): AnyPgColumn => responses.id, { onDelete: "set null" }),
-    welcome: boolean().notNull().default(false),
     phase: roundPhase().notNull(),
     timerHours: integer(),
     closesAt: timestamp(),
@@ -275,9 +277,6 @@ export const rounds = pgTable(
     index().on(t.replyToRoundId),
     check("rounds_reply_not_self", sql`${t.replyToRoundId} is distinct from ${t.id}`),
     check("rounds_answer_needs_round", sql`${t.replyToResponseId} is null or ${t.replyToRoundId} is not null`),
-    // One welcome question per gathering, and it is always gathering-wide.
-    uniqueIndex("rounds_one_welcome").on(t.rootId).where(sql`${t.welcome}`),
-    check("rounds_welcome_is_open_question", sql`not ${t.welcome} or ${t.groupId} = ${t.rootId}`),
   ],
 );
 
@@ -477,8 +476,8 @@ export const contactMessages = pgTable(
 
 // ── Starters: a gathering's design, without its people (STARTERS.md) ──────
 //
-// What a gathering can be started from: the welcome note and question, its
-// circles with their questions in order, and its questions to everyone. Never
+// What a gathering can be started from: the welcome note, its circles with
+// their questions in order, and its questions to everyone. Never
 // people, answers, invitations, harvests or follow-ups. The design is one
 // document (`content`), checked by domain/starters.ts on the way in.
 
@@ -515,9 +514,8 @@ export type StarterCircle = {
 
 export type StarterContent = {
   welcomeNote: string;
-  welcomeQuestion: { key: string; from?: { starterId: string; key: string } | null; question: string } | null;
   circles: StarterCircle[];
-  /** Questions to everyone, other than the welcome question. */
+  /** Questions to everyone. The first is pinned to the centre when a gathering begins from this. */
   openQuestions: StarterQuestion[];
 };
 

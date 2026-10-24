@@ -1,7 +1,8 @@
 // Starters: a gathering's design with the people taken out (STARTERS.md).
 //
-// A starter holds the welcome note and question, the circles with their
-// questions in order, and the questions to everyone. It is saved from a
+// A starter holds the welcome note, the circles with their questions in
+// order, and the questions to everyone (the first is pinned to the centre when
+// a gathering begins from it, GROUPS.md §5). It is saved from a
 // gathering, copied from another starter, or written by us (web/starters/).
 // A gathering is started from one, or has one added.
 //
@@ -86,13 +87,12 @@ export function normalizeStarterContent(raw: unknown): StarterContent {
   const welcomeNote = (c.welcomeNote ?? "").trim();
   if (welcomeNote.length > NOTE_MAX) refuse("That welcome note is too long.");
 
-  const wq = c.welcomeQuestion;
-  const welcomeQuestion = wq && wq.question?.trim()
-    ? {
-        key: cleanKey(wq.key, keys), from: cleanFrom(wq.from),
-        question: normalizePrompt({ question: wq.question, shape: "story", telling: "voice", reveal: "open" }).question,
-      }
-    : null;
+  // A design saved before the pinned question had a welcome question of its
+  // own: it becomes the first question to everyone, a story told by voice.
+  const legacy = (c as { welcomeQuestion?: { key?: string; from?: unknown; question?: string } | null }).welcomeQuestion;
+  const carried = legacy && legacy.question?.trim()
+    ? [{ key: legacy.key, from: legacy.from, question: legacy.question, shape: "story", telling: "voice", reveal: "open" }]
+    : [];
 
   const rawCircles = c.circles ?? [];
   if (rawCircles.length > CIRCLES_MAX) refuse(`A starter has ${CIRCLES_MAX} circles at most.`);
@@ -112,16 +112,16 @@ export function normalizeStarterContent(raw: unknown): StarterContent {
     };
   });
 
-  const rawOpen = c.openQuestions ?? [];
+  const rawOpen = [...carried, ...(c.openQuestions ?? [])];
   if (rawOpen.length > OPEN_QUESTIONS_MAX) refuse(`A starter has ${OPEN_QUESTIONS_MAX} questions to everyone at most.`);
   const openQuestions = rawOpen.map((q) => cleanQuestion(q, keys));
 
-  return { welcomeNote, welcomeQuestion, circles: circleList, openQuestions };
+  return { welcomeNote, circles: circleList, openQuestions };
 }
 
-/** How many questions a design holds, counting the welcome question. */
+/** How many questions a design holds. */
 export function questionCount(c: StarterContent): number {
-  return (c.welcomeQuestion ? 1 : 0) + c.circles.reduce((n, k) => n + k.questions.length, 0) + c.openQuestions.length;
+  return c.circles.reduce((n, k) => n + k.questions.length, 0) + c.openQuestions.length;
 }
 
 function cleanTitle(raw: string): string {
@@ -298,8 +298,9 @@ type PromptRow = typeof prompts.$inferSelect;
 /**
  * The design of a gathering as it stands. Its circles' questions come in the
  * order the circle met them: what has run, then what's queued, then what's
- * suggested. Follow-ups and skipped questions stay behind. With `keep`, a
- * question that came from that starter keeps its key there (an update).
+ * suggested. The pinned question leads the questions to everyone. Follow-ups
+ * and skipped questions stay behind. With `keep`, a question that came from
+ * that starter keeps its key there (an update).
  */
 export async function starterFromGathering(db: DB, gatheringId: string, keep: Starter | null = null): Promise<StarterContent> {
   const g = await groupById(db, gatheringId);
@@ -318,9 +319,7 @@ export async function starterFromGathering(db: DB, gatheringId: string, keep: St
   // Updating: each question keeps its key in `keep`, so copies made from it
   // still point at the right one. Matched by the key itself, then by the
   // question it came from, then by its words. Anything else is new.
-  const before = keep
-    ? [...(keep.content.welcomeQuestion ? [keep.content.welcomeQuestion] : []), ...keep.content.circles.flatMap((c) => c.questions), ...keep.content.openQuestions]
-    : [];
+  const before = keep ? [...keep.content.circles.flatMap((c) => c.questions), ...keep.content.openQuestions] : [];
   const used = new Set<string>();
   const same = (a: StarterQuestion["from"], starterId: string | null, key: string | null) => a?.starterId === starterId && a?.key === key;
   const lineage = (p: PromptRow) => {
@@ -356,20 +355,21 @@ export async function starterFromGathering(db: DB, gatheringId: string, keep: St
     return rows.filter((r) => !seen.has(r.prompt.id) && Boolean(seen.add(r.prompt.id)));
   };
 
-  const welcome = roundRows.find((r) => r.round.welcome);
+  const pinnedFirst = (a: { round: { id: string } }, b: { round: { id: string } }) =>
+    Number(b.round.id === g.pinnedRoundId) - Number(a.round.id === g.pinnedRoundId);
   const content: StarterContent = {
     welcomeNote: g.note,
-    welcomeQuestion: welcome ? { ...lineage(welcome.prompt), question: welcome.prompt.question } : null,
     circles: circleRows.map((c) => ({
       key: newId(), name: c.name, description: c.note, color: c.color,
       questions: onceEach(roundRows.filter((r) => r.round.groupId === c.id).sort((a, b) => earlier(rank(a.round), rank(b.round))))
         .map((r) => question(r.prompt, r.round.timerHours)),
     })),
     openQuestions: onceEach(
-      roundRows.filter((r) => r.round.groupId === gatheringId && !r.round.welcome).sort((a, b) => a.round.createdAt.getTime() - b.round.createdAt.getTime()),
+      roundRows.filter((r) => r.round.groupId === gatheringId)
+        .sort((a, b) => pinnedFirst(a, b) || a.round.createdAt.getTime() - b.round.createdAt.getTime()),
     ).map((r) => question(r.prompt, r.round.timerHours)),
   };
-  if (!questionCount(content)) refuse("There's nothing to save yet. Add a welcome question, or a circle with a question.");
+  if (!questionCount(content)) refuse("There's nothing to save yet. Ask everyone a question, or add a circle with one.");
   return normalizeStarterContent(content);
 }
 
@@ -426,7 +426,6 @@ export async function copyStarter(
   const c = source.content;
   const content = normalizeStarterContent({
     welcomeNote: c.welcomeNote,
-    welcomeQuestion: c.welcomeQuestion ? { ...c.welcomeQuestion, key: newId(), from: { starterId: source.id, key: c.welcomeQuestion.key } } : null,
     circles: c.circles.map((k) => ({ ...k, key: newId(), questions: k.questions.map(descend) })),
     openQuestions: c.openQuestions.map(descend),
   });
@@ -485,8 +484,8 @@ type Seeded = { openRounds: string[] };
 /**
  * Fill a gathering from a design, inside the caller's transaction: circles
  * proposed by the host, each with its first question queued and the rest
- * suggested; questions to everyone open; the welcome note and question only
- * where the gathering has none.
+ * suggested; questions to everyone open, the first of them pinned if nothing
+ * is; the welcome note only where the gathering has none.
  */
 async function seed(
   tx: DB,
@@ -509,16 +508,6 @@ async function seed(
 
   if (!gathering.note && content.welcomeNote) {
     await tx.update(groups).set({ note: content.welcomeNote }).where(eq(groups.id, gathering.id));
-  }
-  if (content.welcomeQuestion) {
-    const [has] = await tx.select({ id: rounds.id }).from(rounds).where(and(eq(rounds.rootId, gathering.id), eq(rounds.welcome, true))).limit(1);
-    if (!has) {
-      const w = normalizePrompt({ question: content.welcomeQuestion.question, shape: "story", telling: "voice", reveal: "open" });
-      const promptId = await makePrompt(w, content.welcomeQuestion.key);
-      await tx.insert(rounds).values({
-        id: newId(), promptId, groupId: gathering.id, rootId: gathering.rootId, authorId: hostId, welcome: true, phase: "open", openedAt: now, createdAt: now,
-      });
-    }
   }
 
   // Slugs are unique across the site; the ones made here are seen by slugTaken inside the transaction.
@@ -557,6 +546,9 @@ async function seed(
     }
     seeded.openRounds.push(roundId);
   }
+  if (seeded.openRounds.length && !gathering.pinnedRoundId) {
+    await tx.update(groups).set({ pinnedRoundId: seeded.openRounds[0] }).where(eq(groups.id, gathering.id));
+  }
   return seeded;
 }
 
@@ -576,8 +568,8 @@ export async function startFromStarter(
 
 /**
  * Add a starter to a gathering you host: its circles and questions to
- * everyone join what's there. The welcome note and question are filled only
- * if the gathering has none. Everyone hears about the new open questions.
+ * everyone join what's there. The welcome note and the pinned question are
+ * filled only if the gathering has none. Everyone hears about the new open questions.
  */
 export async function addStarter(
   db: DB,
@@ -615,12 +607,8 @@ export function checkCurated(raw: unknown): CuratedStarter {
   const slug = (r.slug ?? "").trim();
   if (!slug || slug !== slugify(slug) || RESERVED.has(slug)) refuse(`"${slug}" isn't a slug we can use.`);
   const content = normalizeStarterContent(r.content);
-  const keys = [content.welcomeQuestion, ...content.circles.flatMap((c) => c.questions), ...content.openQuestions]
-    .filter(Boolean)
-    .map((q) => q!.key);
-  const given = [r.content?.welcomeQuestion, ...(r.content?.circles ?? []).flatMap((c) => c.questions), ...(r.content?.openQuestions ?? [])]
-    .filter(Boolean)
-    .map((q) => q!.key);
+  const keys = [...content.circles.flatMap((c) => c.questions), ...content.openQuestions].map((q) => q.key);
+  const given = [...(r.content?.circles ?? []).flatMap((c) => c.questions), ...(r.content?.openQuestions ?? [])].map((q) => q.key);
   // Keys are lineage: ours are written by hand and must not change between loads.
   if (keys.join() !== given.join()) refuse(`${slug}: every question needs its own key.`);
   return { slug, title: cleanTitle(r.title ?? ""), summary: cleanSummary(r.summary ?? ""), content };

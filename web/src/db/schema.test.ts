@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { newId } from "@/lib/id";
 import type { DB } from "./index";
@@ -52,16 +53,13 @@ describe("schema constraints", () => {
     await expect(db.insert(groups).values({ id: "c2", slug: "c2", kind: "circle", parentId: gatheringId, rootId: "c2", name: "Two", createdBy: alice })).rejects.toThrow();
   });
 
-  it("keeps the welcome question gathering-wide and single", async () => {
-    const circleId = await circle();
-    await expect(
-      db.insert(rounds).values({ id: newId(), promptId, groupId: circleId, rootId: gatheringId, authorId: alice, phase: "open", welcome: true }),
-    ).rejects.toThrow();
-
-    await db.insert(rounds).values({ id: newId(), promptId, groupId: gatheringId, rootId: gatheringId, authorId: alice, phase: "open", welcome: true });
-    await expect(
-      db.insert(rounds).values({ id: newId(), promptId, groupId: gatheringId, rootId: gatheringId, authorId: alice, phase: "open", welcome: true }),
-    ).rejects.toThrow();
+  it("lets the pinned question go when its round does", async () => {
+    const roundId = newId();
+    await db.insert(rounds).values({ id: roundId, promptId, groupId: gatheringId, rootId: gatheringId, authorId: alice, phase: "open" });
+    await db.update(groups).set({ pinnedRoundId: roundId }).where(eq(groups.id, gatheringId));
+    await db.delete(rounds).where(eq(rounds.id, roundId));
+    const [g] = await db.select().from(groups).where(eq(groups.id, gatheringId));
+    expect(g.pinnedRoundId).toBeNull();
   });
 
   it("keeps placements on the unit square", async () => {

@@ -3,12 +3,14 @@ import Link from "next/link";
 import { db } from "@/db";
 import { gatheringHome, gatheringMapData } from "@/domain/gatherings";
 import { invitesWaiting } from "@/domain/invites";
-import { gatheringQuestions } from "@/domain/rounds";
+import { gatheringQuestions, roundView } from "@/domain/rounds";
 import { loadGathering } from "@/lib/gathering";
 import { displayName } from "@/lib/session";
 import { GatheringMap } from "@/components/app/GatheringMap";
+import { PlacementResult } from "@/components/app/PlacementResult";
 import { RoundRow } from "@/components/app/RoundRow";
 import { TurnDot } from "@/components/app/TurnDot";
+import { WordsPortrait } from "@/components/app/WordsPortrait";
 import { GatheringHeader } from "@/components/app/GatheringHeader";
 import { Top } from "@/components/app/Top";
 
@@ -25,11 +27,13 @@ export default async function GatheringPage({ params }: PageProps<"/g/[gathering
     gatheringMapData(db, gathering.id),
     isHost ? invitesWaiting(db, gathering.id, me.id) : [],
   ]);
-  const welcome = questions.find((q) => q.welcome);
-  const others = questions.filter((q) => !q.welcome);
+  // The question at the centre, with what the gathering has made of it so far.
+  const centre = home.pinned ? questions.find((q) => q.id === home.pinned!.roundId) ?? null : null;
+  const centreView = centre ? await roundView(db, centre.id, me.id) : null;
+  const others = questions.filter((q) => q.id !== centre?.id);
   const mayAsk = gathering.membersPostOpenQuestions || isHost;
   const base = `/g/${gathering.slug}`;
-  const setupLeft = isHost && (!home.welcome || home.circles.length === 0 || home.members.length < 2);
+  const setupLeft = isHost && (!home.pinned || home.circles.length === 0 || home.members.length < 2);
 
   return (
     <>
@@ -67,17 +71,26 @@ export default async function GatheringPage({ params }: PageProps<"/g/[gathering
           </Link>
         )}
 
-        {welcome && (
-          <Link href={`${base}/r/${welcome.id}`} className="card block space-y-2">
-            <span className="label live flex items-center gap-2">
-              <TurnDot open answered={welcome.respondedByMe} /> welcome question
+        {centre && centreView && (
+          <section className="card space-y-3">
+            <span className={centre.phase === "open" ? "label live flex items-center gap-2" : "label"}>
+              <TurnDot open={centre.phase === "open"} answered={centre.respondedByMe} /> {home.pinned?.pinned ? "pinned to the centre" : "at the centre"}
             </span>
-            <p className="display text-2xl leading-snug">{welcome.question}</p>
-            <p className="mono text-sm text-[var(--ink-soft)]">
-              {welcome.responded} shared
-            </p>
-            {!welcome.respondedByMe && <span className="button mt-2">Answer it</span>}
-          </Link>
+            <Link href={`${base}/r/${centre.id}`} className="display block text-2xl leading-snug">{centre.question}</Link>
+            {centreView.aggregate && centreView.prompt.shape === "words" && centreView.aggregate.words.length > 0 && (
+              <WordsPortrait words={centreView.aggregate.words.slice(0, 24)} />
+            )}
+            {centreView.aggregate && (centreView.prompt.shape === "placement" || centreView.prompt.shape === "story_placement") && (
+              <PlacementResult
+                axes={centreView.prompt.axes}
+                dots={centreView.responses.map((r) => ({ id: r.id, name: displayName(r), x: r.x, y: r.y, mine: r.userId === me.id }))}
+                x={centreView.aggregate.x}
+                y={centreView.aggregate.y}
+              />
+            )}
+            <p className="mono text-sm text-[var(--ink-soft)]">{centre.responded} shared</p>
+            {!centre.respondedByMe && centre.phase === "open" && <Link href={`${base}/r/${centre.id}`} className="button">Answer it</Link>}
+          </section>
         )}
 
         <section id="questions" className="scroll-mt-4 space-y-4">

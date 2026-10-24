@@ -5,7 +5,7 @@ import { prompts, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { deleteCircle, deleteRound, editQuestion } from "./authoring";
 import { circleById, createCircle, joinCircle, seatInCircle, type Circle } from "./circles";
-import { createGathering, listMyArchived, listMyGatherings, setArchived, setWelcomeQuestion, type Gathering } from "./gatherings";
+import { createGathering, listMyArchived, listMyGatherings, pinQuestion, setArchived, type Gathering } from "./gatherings";
 import { acceptInvite, createInvite } from "./invites";
 import { listNotifications } from "./notifications";
 import { postOpenQuestion, respond, roundById, suggestRound, toggleSupport } from "./rounds";
@@ -69,11 +69,11 @@ describe("editing a question", () => {
     await expect(editQuestion(db, { roundId: asked.id, userId: amy, question: "Where is home?", context: "" })).rejects.toThrow(/taken/);
   });
 
-  it("leaves the welcome question to setup", async () => {
-    await setWelcomeQuestion(db, { gatheringId: gathering.id, userId: "u_host", question: "What brought you?" });
-    const [{ id }] = await db.query.rounds.findMany({ where: (r, { eq }) => eq(r.welcome, true) });
-    await expect(editQuestion(db, { roundId: id, userId: "u_host", question: "Hi?", context: "" })).rejects.toThrow(/setup/);
-    await expect(deleteRound(db, { roundId: id, userId: "u_host" })).rejects.toThrow(/not deleted/);
+  it("keeps the pinned question, but lets its author fix the words", async () => {
+    const { id } = await postOpenQuestion(db, { gatheringId: gathering.id, userId: "u_host", prompt: { question: "What brought you?" } });
+    await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: id });
+    await editQuestion(db, { roundId: id, userId: "u_host", question: "What brought you here?", context: "" });
+    await expect(deleteRound(db, { roundId: id, userId: "u_host" })).rejects.toThrow(/pinned/);
   });
 });
 

@@ -114,7 +114,7 @@ export default async function StarterPage({ params }: PageProps<"/library/[start
               <div className="space-y-3">
                 <h2 className="display text-2xl">Add it to a gathering you host</h2>
                 <p className="text-[var(--ink-soft)]">
-                  Its circles and questions to everyone join what&apos;s already there. Your welcome note and question stay as they are, if you have them.
+                  Its circles and questions to everyone join what&apos;s already there. Your welcome note and the question at the centre stay as they are, if you have them.
                 </p>
                 <Form action={addToGathering} submit="Add it" pending="Adding…" quiet>
                   {hidden}

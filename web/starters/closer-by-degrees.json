@@ -4,10 +4,6 @@
   "summary": "For people who barely know each other yet. Questions that go a little deeper each time, from a perfect day to what you'd regret leaving unsaid. Adapted from Arthur Aron's study of how closeness grows (1997).",
   "content": {
     "welcomeNote": "This gathering is for getting to know each other, a little at a time. The questions start light and go deeper as your circle settles in. Take them at your own pace, and say only what you'd like to.",
-    "welcomeQuestion": {
-      "key": "aron-1-dinner",
-      "question": "If you could have anyone in the world over for dinner, who would it be?"
-    },
     "circles": [
       {
         "key": "first-table",
@@ -67,6 +63,15 @@
       }
     ],
     "openQuestions": [
+      {
+        "key": "aron-1-dinner",
+        "question": "If you could have anyone in the world over for dinner, who would it be?",
+        "context": "The first question to everyone, pinned to the centre: every newcomer answers it on arrival.",
+        "shape": "story",
+        "telling": "voice",
+        "secondsPerNote": 60,
+        "reveal": "open"
+      },
       {
         "key": "closer-how-well",
         "question": "How well do you feel you know the people in this gathering?",

@@ -1,7 +1,7 @@
 import type { StarterContent, StarterQuestion } from "@/db/schema";
 import { CircleGlyph } from "./Glyph";
 
-// A starter's design, read before anyone uses it: the welcome, each circle
+// A starter's design, read before anyone uses it: the welcome note, each circle
 // with its questions in the order they come, and the questions to everyone.
 // Each question says how people answer and when they see each other, plainly.
 
@@ -50,16 +50,10 @@ function Question({ q, n }: { q: StarterQuestion; n?: number }) {
 export function StarterOutline({ content }: { content: StarterContent }) {
   return (
     <div className="space-y-8">
-      {(content.welcomeNote || content.welcomeQuestion) && (
+      {content.welcomeNote && (
         <section className="space-y-3">
           <h2 className="label">the welcome</h2>
-          {content.welcomeNote && <p className="whitespace-pre-line text-[var(--ink-soft)]">{content.welcomeNote}</p>}
-          {content.welcomeQuestion && (
-            <div className="card space-y-1">
-              <p className="font-medium">{content.welcomeQuestion.question}</p>
-              <p className="label">everyone who arrives answers it · tell it, by voice · answers show as they arrive</p>
-            </div>
-          )}
+          <p className="whitespace-pre-line text-[var(--ink-soft)]">{content.welcomeNote}</p>
         </section>
       )}
 

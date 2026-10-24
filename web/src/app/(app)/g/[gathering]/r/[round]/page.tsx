@@ -24,7 +24,7 @@ import { Top } from "@/components/app/Top";
 import { TurnDot } from "@/components/app/TurnDot";
 import Link from "next/link";
 import { PromptFields } from "@/components/app/PromptFields";
-import { edit, remove, reply, reveal, share } from "../../actions";
+import { edit, pin, remove, reply, reveal, share } from "../../actions";
 
 type Props = PageProps<"/g/[gathering]/r/[round]">;
 
@@ -42,7 +42,8 @@ async function load(params: Props["params"]) {
     : [[], null];
   const harvest = circle && view.canTakePart && view.round.phase === "closed" ? await harvestForRound(db, view.round.id, ctx.me.id) : undefined;
   const rights = await authorRights(db, view.round, ctx.me.id);
-  return { ...ctx, view, circle, replies, context, harvest, rights };
+  const pinned = ctx.gathering.pinnedRoundId === view.round.id;
+  return { ...ctx, view, circle, replies, context, harvest, rights, pinned };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -57,7 +58,7 @@ const REVEAL_NOTE = {
 } as const;
 
 export default async function RoundPage({ params }: Props) {
-  const { me, gathering, view, circle, replies, context, harvest, rights } = await load(params);
+  const { me, gathering, isHost, view, circle, replies, context, harvest, rights, pinned } = await load(params);
   const { round, prompt } = view;
   const base = `/g/${gathering.slug}`;
   const open = round.phase === "open";
@@ -78,7 +79,7 @@ export default async function RoundPage({ params }: Props) {
   const trail = [
     { label: gathering.name, href: base },
     ...(circle ? [{ label: circle.name, href: `${base}/circles/${circle.slug}` }] : []),
-    { label: round.welcome ? "Welcome question" : round.replyToRoundId ? "Reply" : circle ? "Round" : "Open question" },
+    { label: pinned ? "Pinned question" : round.replyToRoundId ? "Reply" : circle ? "Round" : "Open question" },
   ];
   // A reply is a follow-up round for the whole circle (domain/replies.ts): only
   // to a round that has happened, and only once you can see its answers.
@@ -93,7 +94,7 @@ export default async function RoundPage({ params }: Props) {
         <header className="space-y-3">
           <span className={open ? "label live flex items-center gap-2" : "label"}>
             <TurnDot open={open} answered={Boolean(view.mine)} />
-            {round.welcome ? "welcome question" : circle ? `a ${round.replyToRoundId ? "reply" : "round"} in ${circle.name}` : "open question"}
+            {pinned ? "pinned to the centre" : circle ? `a ${round.replyToRoundId ? "reply" : "round"} in ${circle.name}` : "open question"}
             {" · "}
             {open ? (round.closesAt ? `closes ${relative(round.closesAt)}` : "open") : round.phase === "closed" ? "closed" : "not open yet"}
           </span>
@@ -302,9 +303,18 @@ export default async function RoundPage({ params }: Props) {
           </section>
         )}
 
-        {open && view.mayConduct && !round.welcome && (
+        {open && view.mayConduct && !pinned && (
           <section className="border-t border-[var(--rule)] pt-6">
             <Form action={reveal} submit="Close and reveal now" pending="Revealing…" quiet>{hidden}</Form>
+          </section>
+        )}
+        {open && !circle && isHost && (
+          <section className="border-t border-[var(--rule)] pt-6">
+            <Form action={pin} submit={pinned ? "Unpin from the centre" : "Pin to the centre"} pending={pinned ? "Unpinning…" : "Pinning…"} quiet>
+              {hidden}
+              {pinned && <input type="hidden" name="unpin" value="yes" />}
+            </Form>
+            {!pinned && <p className="mt-2 text-sm text-[var(--ink-soft)]">The pinned question is the one newcomers answer first. It stays open while it&apos;s pinned.</p>}
           </section>
         )}
       </main>

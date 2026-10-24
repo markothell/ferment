@@ -7,9 +7,10 @@ import { gatheringOrigin, starterById, startersToAdd } from "@/domain/starters";
 import { loadGathering } from "@/lib/gathering";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
+import { PromptFields } from "@/components/app/PromptFields";
 import { Top } from "@/components/app/Top";
 import { addToGathering } from "@/app/(app)/library/actions";
-import { invite, proposeCircle, saveWelcomeNote, saveWelcomeQuestion } from "../actions";
+import { askAndPin, invite, proposeCircle, saveWelcomeNote } from "../actions";
 
 export const metadata: Metadata = { title: "Set up · ferment" };
 
@@ -47,7 +48,7 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
         <div className="space-y-2">
           <h1 className="display text-4xl">Set up {gathering.name}</h1>
           <p className="text-[var(--ink-soft)]">
-            Newcomers read your note, answer the welcome question, then pick a circle. Aim for someone sharing within five minutes of arriving.
+            Newcomers read your note, answer the question at the centre, then pick a circle. Aim for someone sharing within five minutes of arriving.
           </p>
         </div>
 
@@ -58,7 +59,7 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
               {origin.slug ? <Link href={`/library/${origin.slug}`} className="link">{origin.title}</Link> : origin.title}
             </p>
             <p className="text-sm text-[var(--ink-soft)]">
-              Its note, welcome question and circles are filled in below. Read them through, change what you like, then invite people.
+              Its note, questions to everyone and circles are filled in below. Read them through, change what you like, then invite people.
             </p>
           </div>
         )}
@@ -73,21 +74,25 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
           </Form>
         </Step>
 
-        <Step n={2} title="A welcome question" done={Boolean(home.welcome)}>
+        <Step n={2} title="A question at the centre" done={Boolean(home.pinned)}>
           <p className="text-[var(--ink-soft)]">
-            Every newcomer is invited to answer it, by voice or in writing, and everyone can hear the answers. It&apos;s how people first meet.
+            A question to everyone, pinned to the centre of the gathering. Every newcomer answers it first, and it stays open while it&apos;s pinned.
+            Any shape works: a story, a line to stand on, a cloud of words.
           </p>
-          <Form action={saveWelcomeQuestion} submit="Save question" quiet>
-            {hidden}
-            <Field
-              label="The question"
-              name="question"
-              maxLength={200}
-              required
-              defaultValue={home.welcome?.question ?? ""}
-              placeholder="What's something you're learning right now?"
-            />
-          </Form>
+          {home.pinned ? (
+            <p className="card">
+              <span className="label">{home.pinned.pinned ? "pinned" : "at the centre for now"}</span>
+              <Link href={`${base}/r/${home.pinned.roundId}`} className="mt-1 block font-medium">{home.pinned.question}</Link>
+              <span className="mt-1 block text-sm text-[var(--ink-soft)]">
+                To change it, <Link href={`${base}/ask`} className="link">ask everyone another question</Link> and pin that one from its page.
+              </span>
+            </p>
+          ) : (
+            <Form action={askAndPin} submit="Ask and pin" pending="Asking…" quiet>
+              {hidden}
+              <PromptFields defaultReveal="open" />
+            </Form>
+          )}
         </Step>
 
         <Step n={3} title="Circles to join" done={home.circles.length > 0}>
@@ -136,7 +141,7 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
         {toAdd.length > 0 && (
           <Step n={5} title="Add a starter" done={false}>
             <p className="text-[var(--ink-soft)]">
-              Optional. A starter&apos;s circles and questions to everyone join what&apos;s here. Your note and welcome question stay as they are.{" "}
+              Optional. A starter&apos;s circles and questions to everyone join what&apos;s here. Your note and the question at the centre stay as they are.{" "}
               <Link href="/library" className="link">Look through them first</Link>.
             </p>
             <Form action={addToGathering} submit="Add it" pending="Adding…" quiet>

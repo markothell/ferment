@@ -37,10 +37,9 @@ async function memberOf(gathering: Gathering, name: string) {
 
 const q = (question: string, extra: Partial<StarterContent["openQuestions"][number]> = {}) => ({ key: question.slice(0, 12), question, ...extra });
 
-/** A small design: a welcome question, two circles, a words question to everyone. */
+/** A small design: two circles, and two questions to everyone, the first of them pinned. */
 const DESIGN = {
   welcomeNote: "We're here to think about bread.",
-  welcomeQuestion: { key: "welcome", question: "What bread did you grow up with?" },
   circles: [
     {
       key: "c1", name: "Starters", color: "moss",
@@ -52,7 +51,10 @@ const DESIGN = {
     },
     { key: "c2", name: "Ovens", questions: [{ key: "o1", question: "Whose oven?" }] },
   ],
-  openQuestions: [{ key: "w1", question: "Which words go with bread?", shape: "words", seedWords: ["crust", "crumb", "rise"] }],
+  openQuestions: [
+    { key: "welcome", question: "What bread did you grow up with?", reveal: "open" },
+    { key: "w1", question: "Which words go with bread?", shape: "words", seedWords: ["crust", "crumb", "rise"] },
+  ],
 };
 
 async function published(design = DESIGN, slug = "bread"): Promise<Starter> {
@@ -73,7 +75,7 @@ describe("the design", () => {
     expect(c.circles[0].questions[0]).toMatchObject({ key: "s1", shape: "story", telling: "voice", reveal: "sealed", secondsPerNote: 60, timerHours: null });
     expect(c.circles[0].questions[1]).toMatchObject({ shape: "placement", placing: "free", telling: null });
     expect(c.circles[1].color).toBe("saffron");
-    expect(c.openQuestions[0]).toMatchObject({ pickMax: 5, coinMax: 2, seedWords: ["crust", "crumb", "rise"] });
+    expect(c.openQuestions[1]).toMatchObject({ pickMax: 5, coinMax: 2, seedWords: ["crust", "crumb", "rise"] });
     expect(() => normalizeStarterContent({ circles: [{ name: "x", questions: [{ question: "q", shape: "placement" }] }] })).toThrow(Refusal);
     expect(() => normalizeStarterContent({ circles: [{ name: "", questions: [] }] })).toThrow(/name/);
   });
@@ -120,19 +122,24 @@ describe("starting a gathering from a starter", () => {
     expect(phases.map((p) => p.phase)).toEqual(["open", "nominated", "nominated"]);
   });
 
-  it("opens the welcome question and the questions to everyone, words and all", async () => {
+  it("opens the questions to everyone, words and all, and pins the first", async () => {
     const s = await published();
     const g = await startFromStarter(db, { starterId: s.id, viewer: host, name: "Our bread", welcomeNote: "Our own note.", now: t0 });
     expect(g.note).toBe("Our own note.");
     const open = await db
-      .select({ welcome: rounds.welcome, phase: rounds.phase, question: prompts.question })
+      .select({ id: rounds.id, phase: rounds.phase, question: prompts.question })
       .from(rounds).innerJoin(prompts, eq(prompts.id, rounds.promptId))
       .where(and(eq(rounds.rootId, g.id), eq(rounds.phase, "open")));
-    expect(open.map((r) => [r.question, r.welcome])).toEqual(
-      expect.arrayContaining([["What bread did you grow up with?", true], ["Which words go with bread?", false]]),
-    );
-    const everyone = (await db.select().from(rounds).where(and(eq(rounds.rootId, g.id), eq(rounds.welcome, false), eq(rounds.phase, "open"))))[0];
+    expect(open.map((r) => r.question)).toEqual(expect.arrayContaining(["What bread did you grow up with?", "Which words go with bread?"]));
+    const [after] = await db.select().from(groups).where(eq(groups.id, g.id));
+    expect(after.pinnedRoundId).toBe(open.find((r) => r.question === "What bread did you grow up with?")!.id);
+    const everyone = open.find((r) => r.question === "Which words go with bread?")!;
     expect((await db.select().from(words).where(eq(words.roundId, everyone.id))).map((w) => w.label).sort()).toEqual(["crumb", "crust", "rise"]);
+  });
+
+  it("carries an older design's welcome question in as the first question to everyone", () => {
+    const c = normalizeStarterContent({ welcomeNote: "", welcomeQuestion: { key: "w", question: "Who are you?" }, circles: [], openQuestions: [{ key: "q", question: "Why?" }] });
+    expect(c.openQuestions.map((q) => [q.key, q.question, q.shape, q.reveal])).toEqual([["w", "Who are you?", "story", "open"], ["q", "Why?", "story", "sealed"]]);
   });
 
   it("is for starters you can see, and is capped per person per day", async () => {
@@ -187,7 +194,7 @@ describe("saving a gathering as a starter", () => {
     expect(fork).toMatchObject({ forkedFromId: s.id, forkedFromTitle: "Bread, together" });
     const ovens = fork.content.circles.find((c) => c.name === "Ovens")!;
     expect(ovens.questions.map((x) => x.from)).toEqual([{ starterId: s.id, key: "o1" }, null]);
-    expect(fork.content.welcomeQuestion?.from).toEqual({ starterId: s.id, key: "welcome" });
+    expect(fork.content.openQuestions[0].from).toEqual({ starterId: s.id, key: "welcome" });
 
     // Saving over it keeps its own keys, and what they came from.
     await db.update(groups).set({ note: "Changed." }).where(eq(groups.id, g.id));
@@ -197,7 +204,7 @@ describe("saving a gathering as a starter", () => {
     expect(updated.content.circles.find((c) => c.name === "Ovens")!.questions.map((x) => [x.key, x.from])).toEqual(
       ovens.questions.map((x) => [x.key, x.from]),
     );
-    expect(updated.content.welcomeQuestion?.key).toBe(fork.content.welcomeQuestion?.key);
+    expect(updated.content.openQuestions[0].key).toBe(fork.content.openQuestions[0].key);
 
     // A gathering started from the copy: its questions come from the copy's keys.
     const g2 = await startFromStarter(db, { starterId: fork.id, viewer: host, name: "Bread again", now: hours(6) });
@@ -272,7 +279,7 @@ describe("copies, the library, and lineage", () => {
 });
 
 describe("adding a starter to a gathering", () => {
-  it("adds its circles and questions, fills the welcome only where empty, and tells everyone", async () => {
+  it("adds its circles and questions, fills the note and the centre only where empty, and tells everyone", async () => {
     const s = await published();
     const g = await createGathering(db, { userId: host.id, name: "Tables", welcomeNote: "Ours.", now: t0 });
     await createCircle(db, { gatheringId: g.id, userId: host.id, name: "Starters", now: t0 });
@@ -284,9 +291,9 @@ describe("adding a starter to a gathering", () => {
     expect(after).toMatchObject({ note: "Ours.", starterId: s.id });
     const names = (await db.select({ slug: groups.slug }).from(groups).where(eq(groups.parentId, g.id))).map((c) => c.slug).sort();
     expect(names).toEqual(["ovens", "starters", "starters-2"]);
-    const welcome = await db.select().from(rounds).where(and(eq(rounds.rootId, g.id), eq(rounds.welcome, true)));
-    expect(welcome).toHaveLength(1);
+    const pinnedTo = (await db.select({ q: prompts.question }).from(rounds).innerJoin(prompts, eq(prompts.id, rounds.promptId)).where(eq(rounds.id, after.pinnedRoundId!)))[0];
+    expect(pinnedTo.q).toBe("What bread did you grow up with?");
     const told = await db.select().from(notifications).where(and(eq(notifications.userId, ben), eq(notifications.kind, "asked_everyone")));
-    expect(told).toHaveLength(1);
+    expect(told).toHaveLength(2);
   });
 });

@@ -4,10 +4,6 @@
   "summary": "For a group that wants to own what it becomes. What each person hopes for, how much they plan to put in, their doubts, and the gifts they bring, one question at a time. After Peter Block's Community: The Structure of Belonging (2008).",
   "content": {
     "welcomeNote": "We're starting with what each of us hopes for, and what we're each willing to bring. There are no right answers, and nothing here gets decided. The point is to hear each other.",
-    "welcomeQuestion": {
-      "key": "block-possibility-1",
-      "question": "What possibility did you come here to live into?"
-    },
     "circles": [
       {
         "key": "ownership",
@@ -89,6 +85,15 @@
       }
     ],
     "openQuestions": [
+      {
+        "key": "block-possibility-1",
+        "question": "What possibility did you come here to live into?",
+        "context": "The first question to everyone, pinned to the centre: every newcomer answers it on arrival.",
+        "shape": "story",
+        "telling": "voice",
+        "secondsPerNote": 60,
+        "reveal": "open"
+      },
       {
         "key": "block-gifts-1",
         "question": "What do you bring to a circle like this one?",

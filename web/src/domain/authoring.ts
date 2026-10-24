@@ -4,7 +4,7 @@
 //
 //   edit a question:   until someone else has answered it, picked it, or adapted it
 //   delete a round:    a circle suggestion until it opens; an open question
-//                      until someone else answers. Never the welcome question.
+//                      until someone else answers. Never while it's pinned.
 //   delete a circle:   its creator, until it has formed and has a question
 //                      queued or open; a forming one can go whatever it holds.
 
@@ -15,7 +15,7 @@ import { circleById, type Circle } from "./circles";
 import { refuse } from "./errors";
 import { notifyPeople } from "./notifications";
 import { cleanWording, promptById } from "./prompts";
-import { roundById, type Round } from "./rounds";
+import { isPinned, roundById, type Round } from "./rounds";
 import { groupById } from "./gatherings";
 
 const some = async (q: Promise<{ n: number }[]>) => (await q)[0].n > 0;
@@ -35,7 +35,6 @@ async function takenUp(db: DB, promptId: string, authorId: string): Promise<bool
 
 /** Why this person can't edit the round's question, or null if they can. */
 async function editBlock(db: DB, round: Round, userId: string): Promise<string | null> {
-  if (round.welcome) return "The welcome question is changed in setup.";
   const prompt = (await promptById(db, round.promptId))!;
   if (prompt.authorId !== userId) return "Only whoever wrote the question can edit it.";
   if (await takenUp(db, prompt.id, userId)) return "Someone else has taken this question up, so it stays as it is.";
@@ -44,8 +43,8 @@ async function editBlock(db: DB, round: Round, userId: string): Promise<string |
 
 /** Why this person can't delete the round, or null if they can. */
 async function deleteBlock(db: DB, round: Round, userId: string): Promise<string | null> {
-  if (round.welcome) return "The welcome question can be changed but not deleted.";
   if (round.authorId !== userId) return "Only whoever asked it can delete it.";
+  if (await isPinned(db, round)) return "It's pinned to the centre. Unpin it first.";
   if ((await groupById(db, round.groupId))?.kind === "circle") {
     return round.phase === "nominated" || round.phase === "queued" || round.phase === "skipped" ? null : "It has already opened in the circle.";
   }

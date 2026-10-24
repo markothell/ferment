@@ -4,7 +4,7 @@ import type { DB } from "@/db";
 import { rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
 import { createCircle, seatInCircle, leaveCircle, type Circle } from "./circles";
-import { createGathering, setWelcomeQuestion, updateWelcomeNote, type Gathering } from "./gatherings";
+import { createGathering, pinQuestion, updateWelcomeNote, type Gathering } from "./gatherings";
 import { Refusal } from "./errors";
 import { acceptInvite, createInvite } from "./invites";
 import { normalizePrompt } from "./prompts";
@@ -269,10 +269,13 @@ describe("open questions", () => {
     await expect(postOpenQuestion(db, { gatheringId: gathering.id, userId: eve, prompt: { question: "Again?" } })).rejects.toThrow(/hosts/);
   });
 
-  it("keeps the welcome question open", async () => {
+  it("keeps the pinned question open", async () => {
     await updateWelcomeNote(db, { gatheringId: gathering.id, userId: "u_host", note: "hi" });
-    await setWelcomeQuestion(db, { gatheringId: gathering.id, userId: "u_host", question: "What brought you?" });
-    const [w] = await db.select().from(rounds).where(eq(rounds.welcome, true));
+    const w = await postOpenQuestion(db, { gatheringId: gathering.id, userId: "u_host", prompt: { question: "What brought you?" } });
+    await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: w.id });
     await expect(revealNow(db, { roundId: w.id, userId: "u_host" })).rejects.toThrow(/stays open/);
+    await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: null });
+    await revealNow(db, { roundId: w.id, userId: "u_host" });
+    expect(await phase(w.id)).toBe("closed");
   });
 });
