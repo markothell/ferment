@@ -99,6 +99,13 @@
 .ferment .chip-live { background: var(--raised); border: 2px solid var(--live); }
 @media (prefers-reduced-motion: reduce) { .ferment .feed-chev { transition: none; } }
 
+/* A fold: a card closed to its first line until wanted (the starter's circles). */
+.ferment .fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+.ferment .fold > summary::-webkit-details-marker { display: none; }
+.ferment .fold-chev { margin-left: auto; color: var(--ink-faint); font-size: 22px; line-height: 1; transition: transform .15s; }
+.ferment .fold[open] > summary .fold-chev { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .ferment .fold-chev { transition: none; } }
+
 /* The record button: a ring with your color inside. */
 .ferment .record {
   width: 64px; height: 64px; border-radius: 999px;

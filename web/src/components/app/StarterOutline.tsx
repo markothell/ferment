@@ -1,8 +1,10 @@
 import type { StarterContent, StarterQuestion } from "@/db/schema";
-import { CircleGlyph } from "./Glyph";
+import { CircleGlyph, GatheringGlyph } from "./Glyph";
+import { circleAnchor, EVERYONE_ANCHOR } from "@/lib/starterAnchors";
 
-// A starter's design, read before anyone uses it: the welcome note, each circle
-// with its questions in the order they come, and the questions to everyone.
+// A starter's design, read before anyone uses it, in the order a visitor needs
+// it: the questions to everyone first, since they set the gathering's frame;
+// then the welcome note; then each circle, folded to its name until wanted.
 // Each question says how people answer and when they see each other, plainly.
 
 const ANSWER: Record<StarterQuestion["shape"], string> = {
@@ -47,49 +49,64 @@ function Question({ q, n }: { q: StarterQuestion; n?: number }) {
   );
 }
 
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
 export function StarterOutline({ content }: { content: StarterContent }) {
   return (
     <div className="space-y-8">
-      {content.welcomeNote && (
-        <section className="space-y-3">
-          <h2 className="label">the welcome</h2>
-          <p className="whitespace-pre-line text-[var(--ink-soft)]">{content.welcomeNote}</p>
+      {content.openQuestions.length > 0 && (
+        <section id={EVERYONE_ANCHOR} className="scroll-mt-6 space-y-3">
+          <h2 className="flex items-center gap-2">
+            <GatheringGlyph size={26} />
+            <span className="label">to everyone · {plural(content.openQuestions.length, "question")}</span>
+          </h2>
+          <p className="text-sm text-[var(--ink-soft)]">
+            Asked of the whole gathering, in the middle. The first is pinned there when the gathering begins.
+          </p>
+          <ul className="card divide-y divide-[var(--rule)] !py-0">
+            {content.openQuestions.map((q) => <Question key={q.key} q={q} />)}
+          </ul>
         </section>
+      )}
+
+      {content.welcomeNote && (
+        <details className="fold card">
+          <summary>
+            <span className="label">the welcome note</span>
+            <span className="fold-chev" aria-hidden>›</span>
+          </summary>
+          <p className="whitespace-pre-line pt-3 text-[var(--ink-soft)]">{content.welcomeNote}</p>
+        </details>
       )}
 
       {content.circles.length > 0 && (
         <section className="space-y-3">
           <h2 className="label">{content.circles.length === 1 ? "a circle" : `${content.circles.length} circles`}</h2>
           {content.circles.map((c) => (
-            <div key={c.key} className="card space-y-2">
-              <div className="flex items-center gap-3">
+            <details key={c.key} id={circleAnchor(c.key)} className="fold card scroll-mt-6">
+              <summary>
                 <CircleGlyph size={30} color={c.color} />
-                <div className="min-w-0">
-                  <h3 className="display text-2xl">{c.name}</h3>
-                  {c.description && <p className="text-sm text-[var(--ink-soft)]">{c.description}</p>}
-                </div>
+                <span className="min-w-0 flex-1">
+                  <span className="display block text-2xl">{c.name}</span>
+                  <span className="mono text-xs text-[var(--ink-faint)]">{plural(c.questions.length, "question")}</span>
+                </span>
+                <span className="fold-chev" aria-hidden>›</span>
+              </summary>
+              <div className="space-y-2 pt-3">
+                {c.description && <p className="text-sm text-[var(--ink-soft)]">{c.description}</p>}
+                {c.questions.length > 0 ? (
+                  <ol className="divide-y divide-[var(--rule)]">
+                    {c.questions.map((q, i) => <Question key={q.key} q={q} n={i + 1} />)}
+                  </ol>
+                ) : (
+                  <p className="text-sm text-[var(--ink-soft)]">No questions yet: the circle brings its own.</p>
+                )}
               </div>
-              {c.questions.length > 0 ? (
-                <ol className="divide-y divide-[var(--rule)]">
-                  {c.questions.map((q, i) => <Question key={q.key} q={q} n={i + 1} />)}
-                </ol>
-              ) : (
-                <p className="text-sm text-[var(--ink-soft)]">No questions yet: the circle brings its own.</p>
-              )}
-            </div>
+            </details>
           ))}
           <p className="text-sm text-[var(--ink-soft)]">
             Each circle opens with its first question once four people are in. The rest wait as suggestions, and the circle takes them up when it&apos;s ready, in any order, or brings its own.
           </p>
-        </section>
-      )}
-
-      {content.openQuestions.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="label">to everyone</h2>
-          <ul className="card divide-y divide-[var(--rule)] !py-0">
-            {content.openQuestions.map((q) => <Question key={q.key} q={q} />)}
-          </ul>
         </section>
       )}
     </div>

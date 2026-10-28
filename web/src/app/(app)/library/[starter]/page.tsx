@@ -9,6 +9,7 @@ import { currentSession } from "@/lib/auth";
 import { ConfirmForm } from "@/components/app/ConfirmForm";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
+import { StarterMap } from "@/components/app/StarterMap";
 import { StarterOutline } from "@/components/app/StarterOutline";
 import { Top } from "@/components/app/Top";
 import { addToGathering, copy, describe, publish, remove } from "../actions";
@@ -52,6 +53,7 @@ export default async function StarterPage({ params }: PageProps<"/library/[start
           </p>
           <h1 className="display text-4xl">{starter.title}</h1>
           {starter.summary && <p className="text-lg text-[var(--ink-soft)]">{starter.summary}</p>}
+          <StarterMap content={starter.content} label={`${starter.title} as a gathering: its circles round the questions to everyone. Hover or tap for what each holds.`} />
           <div className="space-y-3 pt-2">
             <Link href={viewer ? startHref : `/signin?next=${encodeURIComponent(startHref)}`} className="button">
               Start a gathering with this
