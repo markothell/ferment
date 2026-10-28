@@ -23,7 +23,7 @@ import { groupById, membershipOf, requireMember, type Group } from "./gatherings
 import { refuse } from "./errors";
 import { refreshHarvestItem } from "./harvests";
 import { notifyCircle, notifyGathering, notifyOne } from "./notifications";
-import { cleanWord, createPrompt, promptById, wordKey, type Prompt, type PromptInput } from "./prompts";
+import { cleanTimer, cleanWord, createPrompt, promptById, wordKey, type Prompt, type PromptInput } from "./prompts";
 
 export type Round = typeof rounds.$inferSelect;
 type Circle = Group;
@@ -66,13 +66,6 @@ async function mayConduct(db: DB, round: Round, userId: string): Promise<boolean
   const g = await groupOf(db, round);
   if (g.kind === "circle") return g.hostId === userId;
   return (await membershipOf(db, round.rootId, userId))?.role === "host";
-}
-
-function cleanTimer(hours: unknown): number | null {
-  if (hours === undefined || hours === null || hours === "") return null;
-  const h = Math.round(Number(hours));
-  if (!Number.isFinite(h) || h < 1) refuse("The timer is a whole number of hours.");
-  return Math.min(h, 24 * 365);
 }
 
 type RoundSettings = { timerHours?: number | string | null; editAfterClose?: boolean };

@@ -66,6 +66,14 @@ export function cleanWording(input: { question?: string; context?: string }) {
 }
 
 /** Validate and fill defaults. Returns exactly the columns a prompt stores. */
+/** A round's timer, in whole hours, or none. */
+export function cleanTimer(hours: unknown): number | null {
+  if (hours === undefined || hours === null || hours === "") return null;
+  const h = Math.round(Number(hours));
+  if (!Number.isFinite(h) || h < 1) refuse("The timer is a whole number of hours.");
+  return Math.min(h, 24 * 365);
+}
+
 export function normalizePrompt(input: PromptInput) {
   const { question, context } = cleanWording(input);
 

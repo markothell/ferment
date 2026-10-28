@@ -12,7 +12,7 @@ import { isCircleColor, type CircleColor } from "@/lib/circleColors";
 import { newId } from "@/lib/id";
 import { KINDS } from "@/lib/kinds";
 import { groupById, membershipOf, NAME_MAX, requireMember, requireStartAllowance, slugTaken, type Gathering, type Group } from "./gatherings";
-import { normalizePrompt } from "./prompts";
+import { cleanTimer, normalizePrompt, type PromptInput } from "./prompts";
 import { notifyCircle } from "./notifications";
 import { settleCircle } from "./rounds";
 import { refuse } from "./errors";
@@ -47,6 +47,15 @@ export async function isCircleMember(db: DB, circleId: string, userId: string): 
   return Boolean(row);
 }
 
+/** A circle's first question: a whole round, with its shape and timer. A bare string is a story, told by voice. */
+export type FirstQuestion = string | PromptInput;
+
+function firstRound(firstQuestion: FirstQuestion, timerHours: number | string | null | undefined) {
+  const input = typeof firstQuestion === "string" ? { question: firstQuestion, shape: "story" as const, telling: "voice" as const } : firstQuestion;
+  if (!input.question.trim()) return null;
+  return { prompt: normalizePrompt(input), timerHours: cleanTimer(timerHours) };
+}
+
 /**
  * Propose a circle. The proposer holds the host seat and is its first member.
  * An optional first question is queued as the circle's first round.
@@ -54,11 +63,11 @@ export async function isCircleMember(db: DB, circleId: string, userId: string): 
 export async function createCircle(
   db: DB,
   {
-    gatheringId, userId, name, description = "", firstQuestion = "", promptId = null, color = "saffron", now = new Date(),
+    gatheringId, userId, name, description = "", firstQuestion = "", timerHours = null, promptId = null, color = "saffron", now = new Date(),
   }: {
     gatheringId: string; userId: string; name: string; description?: string; now?: Date; color?: string;
     /** A new first question, or an existing prompt: "start a circle around this". */
-    firstQuestion?: string; promptId?: string | null;
+    firstQuestion?: FirstQuestion; timerHours?: number | string | null; promptId?: string | null;
   },
 ): Promise<Circle> {
   await requireMember(db, gatheringId, userId);
@@ -68,7 +77,7 @@ export async function createCircle(
   const desc = description.trim();
   if (desc.length > DESCRIPTION_MAX) refuse("That description is too long.");
   if (!isCircleColor(color)) refuse("Pick one of the colours.");
-  const first = !promptId && firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
+  const first = promptId ? null : firstRound(firstQuestion, timerHours);
   if (promptId) {
     const [existing] = await db.select({ rootId: prompts.rootId }).from(prompts).where(eq(prompts.id, promptId)).limit(1);
     if (!existing || existing.rootId !== gatheringId) refuse("That question isn't in this gathering.");
@@ -81,7 +90,7 @@ export async function createCircle(
     let originPromptId: string | null = promptId;
     if (first) {
       originPromptId = newId();
-      await tx.insert(prompts).values({ id: originPromptId, rootId: gatheringId, authorId: userId, ...first });
+      await tx.insert(prompts).values({ id: originPromptId, rootId: gatheringId, authorId: userId, ...first.prompt });
     }
 
     const [circle] = await tx
@@ -97,7 +106,7 @@ export async function createCircle(
     if (originPromptId) {
       await tx.insert(rounds).values({
         id: newId(), promptId: originPromptId, groupId: circle.id, rootId: circle.rootId,
-        authorId: userId, phase: "queued", queuedAt: now,
+        authorId: userId, phase: "queued", queuedAt: now, timerHours: first?.timerHours ?? null,
       });
     }
     return circle;
@@ -112,8 +121,8 @@ export async function createCircle(
  */
 export async function createLoneCircle(
   db: DB,
-  { userId, name, description = "", firstQuestion = "", color = "saffron", now = new Date() }:
-  { userId: string; name: string; description?: string; firstQuestion?: string; color?: string; now?: Date },
+  { userId, name, description = "", firstQuestion = "", timerHours = null, color = "saffron", now = new Date() }:
+  { userId: string; name: string; description?: string; firstQuestion?: FirstQuestion; timerHours?: number | string | null; color?: string; now?: Date },
 ): Promise<Circle> {
   const clean = name.trim().replace(/\s+/g, " ");
   if (!clean) refuse("Give the circle a name.");
@@ -122,7 +131,7 @@ export async function createLoneCircle(
   if (desc.length > DESCRIPTION_MAX) refuse("That description is too long.");
   if (!isCircleColor(color)) refuse("Pick one of the colours.");
   await requireStartAllowance(db, userId, now);
-  const first = firstQuestion.trim() ? normalizePrompt({ question: firstQuestion, shape: "story", telling: "voice" }) : null;
+  const first = firstRound(firstQuestion, timerHours);
   const slug = await uniqueSlug(clean, (s) => slugTaken(db, s));
   const id = newId();
 
@@ -136,9 +145,11 @@ export async function createLoneCircle(
     await tx.insert(members).values({ groupId: id, userId, role: "host", joinedAt: now });
     if (first) {
       const originPromptId = newId();
-      await tx.insert(prompts).values({ id: originPromptId, rootId: id, authorId: userId, ...first });
+      await tx.insert(prompts).values({ id: originPromptId, rootId: id, authorId: userId, ...first.prompt });
       await tx.update(groups).set({ originPromptId }).where(eq(groups.id, id));
-      await tx.insert(rounds).values({ id: newId(), promptId: originPromptId, groupId: id, rootId: id, authorId: userId, phase: "queued", queuedAt: now });
+      await tx.insert(rounds).values({
+        id: newId(), promptId: originPromptId, groupId: id, rootId: id, authorId: userId, phase: "queued", queuedAt: now, timerHours: first.timerHours,
+      });
     }
     return (await tx.select().from(groups).where(eq(groups.id, id)))[0];
   });

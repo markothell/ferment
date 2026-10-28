@@ -114,7 +114,10 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
             <input type="hidden" name="back" value="setup" />
             <Field label="Circle name" name="name" required maxLength={60} placeholder="Tuesday evenings" />
             <Field label="What it's for" name="description" maxLength={500} placeholder="Optional" />
-            <Field label="Its first question" name="question" maxLength={200} placeholder="What fed you this week?" />
+            <div className="space-y-6 border-t border-[var(--rule)] pt-6">
+              <p className="label">its first question</p>
+              <PromptFields />
+            </div>
           </Form>
         </Step>
 

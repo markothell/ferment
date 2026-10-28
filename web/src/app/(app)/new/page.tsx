@@ -4,7 +4,9 @@ import { db } from "@/db";
 import { mayView, questionCount, starterBySlug } from "@/domain/starters";
 import { requireUser } from "@/lib/session";
 import { Field } from "@/components/app/Field";
+import { ColorPicker } from "@/components/app/ColorPicker";
 import { Form } from "@/components/app/Form";
+import { PromptFields } from "@/components/app/PromptFields";
 import { CircleGlyph, GatheringGlyph } from "@/components/app/Glyph";
 import { Top } from "@/components/app/Top";
 import { startCircle, startGathering } from "./actions";
@@ -34,7 +36,12 @@ export default async function NewPage({ searchParams }: PageProps<"/new">) {
       <Form action={startCircle} submit="Start the circle" pending="Starting…">
         <Field label="Name" name="name" required maxLength={60} placeholder="Tuesday evenings" />
         <Field label="What it's for" name="description" maxLength={500} placeholder="Optional" />
-        <Field label="Its first question" name="question" maxLength={200} placeholder="What fed you this week?" hint="It opens when the fourth person is in." />
+        <div className="space-y-6 border-t border-[var(--rule)] pt-6">
+          <p className="label">its first question</p>
+          <p className="text-sm text-[var(--ink-soft)]">A whole round. It opens when the fourth person is in.</p>
+          <PromptFields />
+        </div>
+        <ColorPicker />
       </Form>
     </section>
   );

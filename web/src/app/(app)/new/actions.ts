@@ -6,6 +6,7 @@ import { createLoneCircle } from "@/domain/circles";
 import { createGathering, type Gathering } from "@/domain/gatherings";
 import { startFromStarter } from "@/domain/starters";
 import { attempt, type ActionState } from "@/lib/actions";
+import { promptFrom, timerFrom } from "@/lib/promptForm";
 import { requireUser } from "@/lib/session";
 
 /** Start a circle on its own: a name, a first question, then invite a few people. */
@@ -15,7 +16,7 @@ export async function startCircle(_prev: ActionState, form: FormData): Promise<A
   const failed = await attempt(async () => {
     created = await createLoneCircle(db, {
       userId: me.id, name: String(form.get("name") || ""), description: String(form.get("description") || ""),
-      firstQuestion: String(form.get("question") || ""),
+      firstQuestion: promptFrom(form), timerHours: timerFrom(form), color: String(form.get("color") || "saffron"),
     });
   });
   if (failed) return failed;

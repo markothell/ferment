@@ -145,6 +145,27 @@ describe("circles", () => {
     expect(after.formingExpiresAt).toBeNull();
   });
 
+  it("takes a whole round as its first question: shape, reveal and timer, and opens it with the timer running", async () => {
+    const circle = await createCircle(db, {
+      gatheringId: gathering.id, userId: "u_host", name: "Rye", now: t0, timerHours: "72",
+      firstQuestion: { question: "Where is it in its life?", context: "Place it, then tell it.", shape: "story_placement", telling: "text", reveal: "after_share", axes: [{ poleA: "Just beginning", poleB: "Coming apart" }] },
+    });
+    const [first] = await db.select().from(rounds).where(eq(rounds.groupId, circle.id));
+    expect(first).toMatchObject({ phase: "queued", timerHours: 72 });
+    const [prompt] = await db.select().from(prompts).where(eq(prompts.id, first.promptId));
+    expect(prompt).toMatchObject({ shape: "story_placement", telling: "text", reveal: "after_share", context: "Place it, then tell it." });
+    expect(prompt.axes).toEqual([{ poleA: "Just beginning", poleB: "Coming apart" }]);
+
+    for (const n of ["a", "b", "c"]) await joinCircle(db, { circleId: circle.id, userId: await member(n), now: t0 });
+    const [opened] = await db.select().from(rounds).where(eq(rounds.groupId, circle.id));
+    expect(opened.phase).toBe("open");
+    expect(opened.closesAt).toEqual(new Date(t0.getTime() + 72 * 3600_000));
+    // A bad timer or a placement without a line is refused before anything is made.
+    await expect(createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Spelt", firstQuestion: "Q?", timerHours: "0", now: t0 })).rejects.toThrow(Refusal);
+    await expect(createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Spelt", firstQuestion: { question: "Q?", shape: "placement" }, now: t0 })).rejects.toThrow(Refusal);
+    expect((await db.select().from(groups).where(eq(groups.name, "Spelt"))).length).toBe(0);
+  });
+
   it("stops at twelve", async () => {
     const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Big", now: t0 });
     for (let i = 1; i < CIRCLE_MAX; i++) await seatInCircle(db, { circleId: circle.id, userId: await member(`m${i}`), now: t0 });
@@ -199,6 +220,19 @@ describe("a circle on its own", () => {
     expect(mine.map((g) => [g.slug, g.kind, g.role])).toEqual([["soup", "circle", "member"]]);
     // A circle on its own has nothing to open a round to.
     await expect(postOpenQuestion(db, { gatheringId: circle.id, userId: "u_host", prompt: { question: "Everyone?" } })).rejects.toThrow(/gathering/);
+  });
+
+  it("takes a words question with a timer as its first round", async () => {
+    const circle = await createLoneCircle(db, {
+      userId: "u_host", name: "Soup", now: t0, timerHours: 24, color: "moss",
+      firstQuestion: { question: "Which of these is in the pot?", shape: "words", seedWords: ["rest", "ginger", "salt"], pickMax: 2, coinMax: 1 },
+    });
+    const [first] = await db.select().from(rounds).where(eq(rounds.groupId, circle.id));
+    expect(first).toMatchObject({ phase: "queued", timerHours: 24, rootId: circle.id });
+    const [prompt] = await db.select().from(prompts).where(eq(prompts.id, first.promptId));
+    expect(prompt).toMatchObject({ shape: "words", pickMax: 2, coinMax: 1, rootId: circle.id });
+    expect(prompt.seedWords).toEqual(["rest", "ginger", "salt"]);
+    expect(circle.color).toBe("moss");
   });
 
   it("counts against the same day's allowance as a gathering", async () => {

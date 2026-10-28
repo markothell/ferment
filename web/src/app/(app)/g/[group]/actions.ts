@@ -9,7 +9,6 @@ import { pinQuestion, setArchived, updateWelcomeNote } from "@/domain/gatherings
 import { confirmInvite, createInvite, declineInvite, invitationLetter, withdrawInvite } from "@/domain/invites";
 import { askForSeat, declineSeat, makeRoom, toggleSeatSupport, withdrawSeat } from "@/domain/seats";
 import { setEmailPref } from "@/domain/notifications";
-import type { PromptInput } from "@/domain/prompts";
 import { suggestReply } from "@/domain/replies";
 import { transcribeResponse } from "@/domain/transcripts";
 import {
@@ -17,12 +16,12 @@ import {
 } from "@/domain/rounds";
 import { deleteCircle, deleteRound, editQuestion } from "@/domain/authoring";
 import { attempt, type ActionState } from "@/lib/actions";
+import { promptFrom, str, timerFrom } from "@/lib/promptForm";
 import { deepgram } from "@/lib/deepgram";
 import { loadGroup } from "@/lib/group";
 import { sendMail } from "@/lib/email";
 import { appUrl } from "@/lib/urls";
 
-const str = (form: FormData, key: string) => String(form.get(key) || "");
 
 export async function saveWelcomeNote(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGroup(str(form, "gathering"));
@@ -96,7 +95,7 @@ export async function proposeCircle(_prev: ActionState, form: FormData): Promise
   const failed = await attempt(async () => {
     circle = await createCircle(db, {
       gatheringId: gathering.id, userId: me.id,
-      name: str(form, "name"), description: str(form, "description"), firstQuestion: str(form, "question"),
+      name: str(form, "name"), description: str(form, "description"), firstQuestion: promptFrom(form), timerHours: timerFrom(form),
       promptId: str(form, "prompt") || null, color: str(form, "color") || "saffron",
     });
   });
@@ -230,26 +229,6 @@ export async function leave(_prev: ActionState, form: FormData): Promise<ActionS
 }
 
 // ── Rounds ────────────────────────────────────────────────────────────────
-
-function promptFrom(form: FormData): PromptInput {
-  const reveal = str(form, "reveal");
-  const shape = str(form, "shape");
-  const axes = [[str(form, "axis1a"), str(form, "axis1b")], [str(form, "axis2a"), str(form, "axis2b")]]
-    .filter(([a, b]) => a.trim() || b.trim())
-    .map(([poleA, poleB]) => ({ poleA, poleB }));
-  return {
-    question: str(form, "question"),
-    context: str(form, "context"),
-    shape: shape === "placement" || shape === "story_placement" || shape === "words" ? shape : "story",
-    telling: str(form, "telling") === "text" ? "text" : "voice",
-    reveal: reveal === "open" || reveal === "after_share" ? reveal : "sealed",
-    axes,
-    placing: str(form, "placing") === "quadrants" ? "quadrants" : "free",
-    seedWords: str(form, "words").split(/[,\n]/),
-    pickMax: Number(str(form, "pickMax")) || undefined,
-    coinMax: str(form, "coinMax") === "" ? undefined : Number(str(form, "coinMax")),
-  };
-}
 
 export async function suggest(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGroup(str(form, "gathering"));

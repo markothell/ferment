@@ -5,6 +5,7 @@ import { loadGroup } from "@/lib/group";
 import { ColorPicker } from "@/components/app/ColorPicker";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
+import { PromptFields } from "@/components/app/PromptFields";
 import { Top } from "@/components/app/Top";
 import { proposeCircle } from "../../actions";
 
@@ -36,7 +37,11 @@ export default async function NewCirclePage({ params, searchParams }: PageProps<
               <p className="text-lg leading-snug">{prompt.question}</p>
             </div>
           ) : (
-            <Field label="Its first question" name="question" maxLength={200} placeholder="Optional" />
+            <div className="space-y-6 border-t border-[var(--rule)] pt-6">
+              <p className="label">its first question</p>
+              <p className="text-sm text-[var(--ink-soft)]">A whole round, ready to open when the fourth person is in.</p>
+              <PromptFields />
+            </div>
           )}
           <ColorPicker />
         </Form>
