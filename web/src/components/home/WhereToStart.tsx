@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CircleGlyph, GatheringGlyph } from "@/components/app/Glyph";
 import { UNIT, UNIT_CIRCLES, UNIT_LOOSE, UNIT_SEATS } from "@/lib/storyScene";
 
 // The two invitations under the story, each with its small drawing: the two
@@ -15,7 +16,7 @@ export function WhereToStart({ circleHref, gatheringHref }: { circleHref: string
           <circle cx={100} cy={100} r={9} fill="var(--shared)" />
         </svg>
         <div>
-          <h2 className="display">Start a circle.</h2>
+          <h2 className="display"><CircleGlyph size={30} /> Start a circle.</h2>
           <p>Four to twelve people you know, around one question at a time. Everyone answers once, in their own voice. Then the circle sees where it landed. What is said in a circle stays in it.</p>
           <span className="mono home-unit-note">4 to 12 people &middot; one question at a time</span>
           <div className="home-ctas"><Link href={circleHref} className="home-quiet">Start a circle</Link></div>
@@ -38,7 +39,7 @@ export function WhereToStart({ circleHref, gatheringHref }: { circleHref: string
           <circle cx={100} cy={100} r={9} fill="var(--shared)" />
         </svg>
         <div>
-          <h2 className="display">Host a gathering.</h2>
+          <h2 className="display"><GatheringGlyph size={30} /> Host a gathering.</h2>
           <p>Your circles, and the people not yet in one, thinking something through together. When a circle is ready, it passes what it found to the middle, and the whole gathering thinks with it. You can begin from how another gathering did it: their questions and the way they were asked, never what anyone said.</p>
           <p>A gathering is where a group answers those questions on purpose, together.</p>
           <span className="mono home-unit-note">a few circles &middot; one middle</span>

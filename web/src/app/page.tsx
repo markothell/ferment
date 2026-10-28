@@ -6,6 +6,7 @@ import { Story } from "@/components/home/Story";
 import { WhereToStart } from "@/components/home/WhereToStart";
 import { OpenedAsApp } from "@/components/home/OpenedAsApp";
 import { THEME_COOKIE } from "@/lib/theme";
+import "./(app)/circles.css";
 import "./home.css";
 
 // The homepage. It explains the social side, not the screens: six beats beside

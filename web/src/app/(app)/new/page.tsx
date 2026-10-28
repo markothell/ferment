@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
-import { library, mayView, questionCount, starterBySlug } from "@/domain/starters";
+import { mayView, questionCount, starterBySlug } from "@/domain/starters";
 import { requireUser } from "@/lib/session";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
-import { StarterCard } from "@/components/app/StarterCard";
+import { CircleGlyph, GatheringGlyph } from "@/components/app/Glyph";
 import { Top } from "@/components/app/Top";
 import { startCircle, startGathering } from "./actions";
 
@@ -21,12 +21,11 @@ export default async function NewPage({ searchParams }: PageProps<"/new">) {
   const found = typeof slug === "string" ? await starterBySlug(db, slug) : null;
   const starter = found && mayView(found, { id: me.id, email: me.email }) ? found : null;
   const gatheringFirst = Boolean(starter) || sp.kind === "gathering";
-  const offered = starter ? [] : (await library(db)).slice(0, 3);
 
   const circleDoor = (
     <section className="space-y-4" id="circle">
       <div className="space-y-2">
-        <h2 className="display text-3xl">Start a circle</h2>
+        <h2 className="display flex items-center gap-3 text-3xl"><CircleGlyph size={34} /> Start a circle</h2>
         <p className="text-[var(--ink-soft)]">
           Four to twelve people you know, around one question at a time. Everyone answers once, in their own voice, and then the circle sees where it landed.
           Name it, ask the first question, then invite a few people. It can grow into a gathering later.
@@ -43,7 +42,7 @@ export default async function NewPage({ searchParams }: PageProps<"/new">) {
   const gatheringDoor = (
     <section className="space-y-4" id="gathering">
       <div className="space-y-2">
-        <h2 className="display text-3xl">Host a gathering</h2>
+        <h2 className="display flex items-center gap-3 text-3xl"><GatheringGlyph size={34} /> Host a gathering</h2>
         <p className="text-[var(--ink-soft)]">
           Several circles and the people not yet in one, thinking something through together, with a question to everyone at the centre.
           {starter ? " It opens with the starter's design, and nobody is invited until you say so." : " Next you'll ask everyone a first question and set up a few circles, then invite people."}
@@ -61,19 +60,7 @@ export default async function NewPage({ searchParams }: PageProps<"/new">) {
         </div>
       )}
 
-      {offered.length > 0 && (
-        <div className="space-y-3">
-          <h3 className="label">from a starter</h3>
-          <p className="text-[var(--ink-soft)]">Circles and questions ready to go, made by people who&apos;ve run them. Open one to see it whole.</p>
-          <ul className="space-y-3">
-            {offered.map((s) => <li key={s.id}><StarterCard s={s} /></li>)}
-          </ul>
-          <Link href="/library" className="link">All starters</Link>
-        </div>
-      )}
-
       <div className="space-y-4">
-        {offered.length > 0 && <h3 className="label">from nothing</h3>}
         <Form action={startGathering} submit={starter ? "Start it" : "Create the gathering"} pending="Starting…">
           {starter && <input type="hidden" name="starter" value={starter.id} />}
           <Field label="Name" name="name" required maxLength={60} placeholder="Tuesday Tables" defaultValue={starter?.title.slice(0, 60)}
@@ -87,6 +74,12 @@ export default async function NewPage({ searchParams }: PageProps<"/new">) {
             hint="What this gathering is and why it's here. The first thing an invitee reads. You can change it later."
           />
         </Form>
+        {!starter && (
+          <p className="text-sm text-[var(--ink-soft)]">
+            Or begin from a starter: circles and questions made by people who&apos;ve run them, which you can change before anyone is invited.{" "}
+            <Link href="/library" className="link">See the starters</Link>
+          </p>
+        )}
       </div>
     </section>
   );

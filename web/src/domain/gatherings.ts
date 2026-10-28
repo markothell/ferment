@@ -117,7 +117,7 @@ export async function memberCount(db: DB, groupId: string): Promise<number> {
 /** Your gatherings (the root groups you're in), without the ones you've archived. */
 export async function listMyGatherings(db: DB, userId: string) {
   return db
-    .select({ id: groups.id, slug: groups.slug, name: groups.name, kind: groups.kind, role: members.role })
+    .select({ id: groups.id, slug: groups.slug, name: groups.name, kind: groups.kind, color: groups.color, status: groups.status, role: members.role })
     .from(members)
     .innerJoin(groups, eq(groups.id, members.groupId))
     .where(and(eq(members.userId, userId), isNull(groups.parentId), isNull(members.leftAt), isNull(members.archivedAt)))

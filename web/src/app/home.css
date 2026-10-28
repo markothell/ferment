@@ -58,8 +58,9 @@
 /* Where to start: the two invitations, each with its drawing. */
 .home-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 48px; padding: 36px 0 88px; }
 .home-unit { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 24px; align-items: start; }
-.home-unit svg { width: 100%; height: auto; display: block; overflow: visible; }
-.home-unit h2 { margin: 0; font-size: clamp(28px, 3vw, 36px); line-height: 1.04; letter-spacing: -0.02em; }
+.home-unit > svg { width: 100%; height: auto; display: block; overflow: visible; }
+.home-unit h2 svg { flex: none; }
+.home-unit h2 { margin: 0; display: flex; align-items: center; gap: 10px; font-size: clamp(28px, 3vw, 36px); line-height: 1.04; letter-spacing: -0.02em; }
 .home-unit p { margin: 14px 0 0; color: var(--ink-soft); font-size: 17px; line-height: 1.55; max-width: 36ch; }
 .home-unit-note { display: block; margin-top: 12px; font-size: 12px; letter-spacing: .04em; color: var(--ink-faint); }
 .home-unit .home-ctas { margin-top: 18px; }

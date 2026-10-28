@@ -5,6 +5,7 @@ import { listMyArchived, listMyGatherings } from "@/domain/gatherings";
 import { requireUser } from "@/lib/session";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
+import { CircleGlyph, GatheringGlyph } from "@/components/app/Glyph";
 import { Top } from "@/components/app/Top";
 import { setName, signOut } from "./actions";
 
@@ -40,9 +41,12 @@ export default async function HomePage() {
             <ul className="space-y-3">
               {mine.map((c) => (
                 <li key={c.id}>
-                  <Link href={`/g/${c.slug}`} className="card flex items-center justify-between">
-                    <span className="text-lg font-medium">{c.name}</span>
-                    <span className="label">{c.kind === "circle" ? "circle" : ""}{c.kind === "circle" && c.role === "host" ? " · " : ""}{c.role === "host" ? "host" : ""}</span>
+                  <Link href={`/g/${c.slug}`} className="card flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-3">
+                      {c.kind === "circle" ? <CircleGlyph size={28} color={c.color} forming={c.status === "forming"} /> : <GatheringGlyph size={28} />}
+                      <span className="truncate text-lg font-medium">{c.name}</span>
+                    </span>
+                    <span className="label shrink-0">{c.kind}{c.role === "host" ? " · host" : ""}</span>
                   </Link>
                 </li>
               ))}

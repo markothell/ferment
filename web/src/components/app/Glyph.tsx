@@ -12,9 +12,9 @@ export function GatheringGlyph({ size = 40 }: { size?: number }) {
   return (
     <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden className="shrink-0">
       {dots.map((d, k) => (
-        <circle key={k} cx={Math.round(d.x * 100) / 100} cy={Math.round(d.y * 100) / 100} r={2.4} strokeWidth={1} style={{ fill: "var(--raised)", stroke: "var(--rule-strong)" }} />
+        <circle key={k} cx={Math.round(d.x * 100) / 100} cy={Math.round(d.y * 100) / 100} r={3.1} strokeWidth={1.4} style={{ fill: "var(--raised)", stroke: "var(--ink-soft)" }} />
       ))}
-      <circle cx={20} cy={20} r={4} strokeWidth={1.5} style={{ fill: "none", stroke: "var(--live)" }} />
+      <circle cx={20} cy={20} r={4.6} strokeWidth={2.2} style={{ fill: "none", stroke: "var(--live)" }} />
     </svg>
   );
 }

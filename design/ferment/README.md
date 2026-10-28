@@ -51,12 +51,20 @@ words shouldn't say so. The table of examples is in `archive/juicy.html`.
     *circle*."; "Good questions travel."; "Culture is grown in *conversation*. / This is where
     you pass it on." with the two ways in: **Start a conversation** (beet) and **Browse starters**.
   - Under the story, **where to start**: Start a circle and Host a gathering side by side, each
-    with a small drawing. Both lead to `/new` for now; a lighter path for a circle is still to
-    be designed. Then **inspired by**: a nod to pioneers in human process (Microsolidarity, Imago
+    with a small drawing, and the app's own glyph beside each headline (2026-10-28: the circle
+    glyph and the gathering glyph from `components/app/Glyph.tsx`, so the two kinds read apart
+    here, on `/new`, and on every page after). The circle leads to `/new`, the gathering to
+    `/new?kind=gathering`. Then **inspired by**: a nod to pioneers in human process (Microsolidarity, Imago
     dialogue, Internal Family Systems, Presencing Institute, sharing circles), what each
     revealed, and a link to holoscopic.io.
   - No app words before the buttons: "starter" appears only on the Browse starters button. The
     privacy promise is said plainly instead ("never what anyone said"). It doesn't pitch.
+- **Starter page** (2026-10-28): the starter drawn as the gathering it becomes comes first
+  (`components/app/StarterMap.tsx`, the gathering map's shapes: circles round the middle, a
+  dashed line from each to the questions to everyone, a faint ring where people will sit);
+  hover or tap a circle or the middle for what it holds, and a pinned tip's "Read" opens that
+  part of the outline. Below it the questions to everyone come before the circles, since they
+  set the frame; the welcome note and each circle are folded to one line until wanted.
 - **Circle map:** same grammar as the Toono version, recoloured (`archive/circle.html`):
 
   | Toono | Starter | Means |
