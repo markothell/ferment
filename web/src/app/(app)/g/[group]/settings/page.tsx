@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { db } from "@/db";
+import { joinLinkOf } from "@/domain/joinLinks";
 import { loadGroup } from "@/lib/group";
+import { appUrl } from "@/lib/urls";
 import { ColorPicker } from "@/components/app/ColorPicker";
 import { ConfirmForm } from "@/components/app/ConfirmForm";
+import { CopyLine } from "@/components/app/CopyLine";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
 import { Top } from "@/components/app/Top";
-import { archive, circleColor, emailPref, growIntoGathering } from "../actions";
+import { archive, circleColor, emailPref, growIntoGathering, joinLinkMake, joinLinkOpen } from "../actions";
 
 export const metadata: Metadata = { title: "Settings · ferment" };
 
@@ -16,6 +20,8 @@ export default async function SettingsPage({ params }: PageProps<"/g/[group]/set
   const circle = group.kind === "circle" ? group : null;
   const lone = Boolean(circle) && circle!.id === gathering.id;
   const circleHost = circle !== null && circle.hostId === me.id;
+  const rootHost = isHost && (!circle || lone);
+  const link = rootHost ? await joinLinkOf(db, gathering.id) : null;
   return (
     <>
       <Top trail={lone || !circle
@@ -78,6 +84,37 @@ export default async function SettingsPage({ params }: PageProps<"/g/[group]/set
             ))}
           </Form>
         </section>
+
+        {rootHost && (
+          <section id="link" className="scroll-mt-4 space-y-3 border-t border-[var(--rule)] pt-8">
+            <h2 className="display text-2xl">Anyone with the link</h2>
+            <p className="text-[var(--ink-soft)]">
+              One link that lets whoever has it come straight in, no invitation needed. Off until you make it.
+              Room still counts: {lone ? "twelve seats" : `${gathering.maxMembers} people`}. Pause it any time, or make a new one and the old stops working.
+            </p>
+            {link ? (
+              <div className="space-y-3">
+                <CopyLine value={appUrl(`/join/${link.token}`)} label="The link" />
+                <p className="mono text-sm text-[var(--ink-soft)]">
+                  {link.open ? "open" : "paused"} · {link.arrivals === 0 ? "nobody has come in by it yet" : `${link.arrivals} came in by it`}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <Form action={joinLinkOpen} submit={link.open ? "Pause it" : "Open it again"} quiet className="space-y-2">
+                    <input type="hidden" name="gathering" value={gathering.slug} />
+                    <input type="hidden" name="open" value={link.open ? "no" : "yes"} />
+                  </Form>
+                  <ConfirmForm action={joinLinkMake} submit="Make a new link" confirm="The link you've shared stops working. Anyone already in stays in." yes="New link" doing="Making…" final={false}>
+                    <input type="hidden" name="gathering" value={gathering.slug} />
+                  </ConfirmForm>
+                </div>
+              </div>
+            ) : (
+              <Form action={joinLinkMake} submit="Make a link" pending="Making…" quiet className="space-y-2">
+                <input type="hidden" name="gathering" value={gathering.slug} />
+              </Form>
+            )}
+          </section>
+        )}
 
         {isHost && !lone && (
           <section className="space-y-3 border-t border-[var(--rule)] pt-8">

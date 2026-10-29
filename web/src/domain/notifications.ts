@@ -20,6 +20,7 @@ export const KINDS = {
   invite_confirmed: "invitation sent",
   invite_declined: "not this time",
   arrived: "arrived",
+  arrived_link: "came in",
   seat_requested: "asking to join",
   seat_admitted: "joined",
   seat_declined: "not this time",
@@ -119,6 +120,7 @@ function describe(r: {
     case "invite_confirmed": return `Your invitation to ${them} went out.`;
     case "invite_declined": return r.hostNote ? `Not this time for ${them}: “${r.hostNote}”` : `Not this time for ${them}.`;
     case "arrived": return `${who} arrived. You invited them.`;
+    case "arrived_link": return `${who} came in by the link.`;
     case "seat_requested": return r.selfAsked ? `${them} asks to join ${r.circleName}.` : `${who} suggests ${them} for ${r.circleName}.`;
     case "seat_admitted": return r.forReader ? `You're in ${r.circleName}.` : `${them} joined ${r.circleName}.`;
     case "seat_declined": return r.forReader ? `${r.circleName} couldn't make room this time.` : `Not this time for ${them} in ${r.circleName}.`;

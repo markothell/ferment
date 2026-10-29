@@ -91,6 +91,11 @@ export const groups = pgTable(
     // Gatherings: the question at the centre (GROUPS.md §5), an open question to everyone.
     // Newcomers answer it first, and it stays open while it's pinned.
     pinnedRoundId: text().references((): AnyPgColumn => rounds.id, { onDelete: "set null" }),
+    // Roots: "anyone with the link" (GROUPS.md §10). Kept as is, not hashed, so the host can
+    // see and share it again; a capability bounded by the cap, paused or replaced by the host.
+    // Null until a host makes one.
+    joinToken: text().unique(),
+    joinOpen: boolean().notNull().default(false),
     createdAt: timestamp().notNull().defaultNow(),
   },
   (t) => [
@@ -114,6 +119,8 @@ export const members = pgTable(
     userId: userRef().notNull(),
     role: memberRole().notNull().default("member"),
     invitedBy: text().references(() => user.id, { onDelete: "set null" }),
+    // Came in by the group's link (GROUPS.md §10), not an invitation.
+    viaLink: boolean().notNull().default(false),
     // How this member hears about this group (PLAN §7). Read on the root's row.
     email: emailPref().notNull().default("each"),
     joinedAt: timestamp().notNull().defaultNow(),

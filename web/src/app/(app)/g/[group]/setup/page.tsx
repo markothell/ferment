@@ -139,6 +139,9 @@ export default async function SetupPage({ params, searchParams }: PageProps<"/g/
             )}
             <Field label="A note from you" name="note" multiline maxLength={500} placeholder="Optional" />
           </Form>
+          <p className="text-sm text-[var(--ink-soft)]">
+            Or share one link with everyone: <Link href={`/g/${gathering.slug}/settings#link`} className="link">anyone with the link</Link> comes straight in, until you pause it.
+          </p>
         </Step>
 
         {toAdd.length > 0 && (

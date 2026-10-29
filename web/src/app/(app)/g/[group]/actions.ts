@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { circleById, createCircle, joinCircle, leaveCircle, promoteCircle, setCircleColor, type Circle } from "@/domain/circles";
 import { pinQuestion, setArchived, updateWelcomeNote } from "@/domain/gatherings";
 import { confirmInvite, createInvite, declineInvite, invitationLetter, withdrawInvite } from "@/domain/invites";
+import { makeJoinLink, setJoinLinkOpen } from "@/domain/joinLinks";
 import { askForSeat, declineSeat, makeRoom, toggleSeatSupport, withdrawSeat } from "@/domain/seats";
 import { setEmailPref } from "@/domain/notifications";
 import { suggestReply } from "@/domain/replies";
@@ -87,6 +88,25 @@ export async function archive(_prev: ActionState, form: FormData): Promise<Actio
   revalidatePath("/home");
   revalidatePath(`/g/${gathering.slug}`, "layout");
   redirect(archived ? "/home" : `/g/${gathering.slug}`);
+}
+
+/** A host makes the group's link (GROUPS.md §10), or replaces it. */
+export async function joinLinkMake(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, gathering } = await loadGroup(str(form, "gathering"));
+  const failed = await attempt(() => makeJoinLink(db, { gatheringId: gathering.id, userId: me.id }));
+  if (failed) return failed;
+  revalidatePath(`/g/${gathering.slug}/settings`);
+  return { ok: "The link is ready to share." };
+}
+
+/** A host pauses the link, or opens it again. */
+export async function joinLinkOpen(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, gathering } = await loadGroup(str(form, "gathering"));
+  const open = str(form, "open") === "yes";
+  const failed = await attempt(() => setJoinLinkOpen(db, { gatheringId: gathering.id, userId: me.id, open }));
+  if (failed) return failed;
+  revalidatePath(`/g/${gathering.slug}/settings`);
+  return { ok: open ? "The link is open again." : "The link is paused. Nobody comes in by it until you open it again." };
 }
 
 export async function proposeCircle(_prev: ActionState, form: FormData): Promise<ActionState> {

@@ -26,6 +26,14 @@ Pages that need no sign-in: the library of starters (`/library`, `/library/<slug
 Our own starters are `starters/*.json`. `npm run dev` loads them into the local store at start;
 elsewhere, run `npm run starters:load` after `npm run db:migrate`.
 
+**Known weakness of the local store.** If the dev server is stopped hard (a crash, a forced
+kill, a sleeping laptop at the wrong moment), PGlite can come back with "could not locate a
+valid checkpoint record" and refuse to open; it ships no `pg_resetwal`. This has happened more
+than once (last 2026-10-28). Recovery is a rebuild: stop everything on port 3000, move
+`.data/pglite` aside, then `npm run db:migrate` and `npm run starters:load`, and start the
+server. Stop the server with a plain interrupt and let it exit before starting it again. A
+reset script, or a periodic copy of the store, is still to do.
+
 ## Layout
 
 - `src/db/schema/` — every table. `auth.ts` is Better Auth's; `app.ts` is Ferment's. A circle and a
