@@ -60,7 +60,7 @@ export async function setJoinLinkOpen(db: DB, { gatheringId, userId, open }: { g
 export async function findJoinLink(db: DB, token: string): Promise<JoinLinkView | null> {
   if (!token) return null;
   const [g] = await db.select().from(groups).where(eq(groups.joinToken, token)).limit(1);
-  if (!g) return null;
+  if (!g || g.parentId) return null; // only a root has a link; a stale one on a promoted circle is no link
   const [h] = await db
     .select({ name: user.name, email: user.email })
     .from(members)
@@ -88,12 +88,16 @@ export async function joinByLink(
     await seatInCircle(db, { circleId: group.id, userId, invited: true, now });
     await db.update(members).set({ viaLink: true }).where(and(eq(members.groupId, group.id), eq(members.userId, userId)));
   } else {
-    const g = (await groupById(db, group.id))!;
-    if ((await memberCount(db, group.id)) >= g.maxMembers) refuse("This gathering is full.");
-    await db
-      .insert(members)
-      .values({ groupId: group.id, userId, joinedAt: now, viaLink: true })
-      .onConflictDoUpdate({ target: [members.groupId, members.userId], set: { leftAt: null, joinedAt: now, viaLink: true } });
+    await db.transaction(async (tx) => {
+      // Lock the group so two arrivals can't both take the last place, and so a pause lands before or after, never between.
+      const [g] = await tx.select().from(groups).where(eq(groups.id, group.id)).for("update");
+      if (!g || g.joinToken !== token || !g.joinOpen) refuse("This link is paused. Ask the host to open it again.");
+      if ((await memberCount(tx, group.id)) >= g.maxMembers) refuse("This gathering is full.");
+      await tx
+        .insert(members)
+        .values({ groupId: group.id, userId, joinedAt: now, viaLink: true })
+        .onConflictDoUpdate({ target: [members.groupId, members.userId], set: { leftAt: null, joinedAt: now, viaLink: true } });
+    });
   }
   await notifyHosts(db, { kind: "arrived_link", gatheringId: group.id, actorId: userId, now });
   return { slug: group.slug, already: false };

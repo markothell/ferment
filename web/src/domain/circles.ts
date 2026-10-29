@@ -180,7 +180,8 @@ export async function promoteCircle(
       .insert(groups)
       .values({ id, slug, kind: "gathering", parentId: null, rootId: id, name: clean, note, createdBy: userId, createdAt: now })
       .returning();
-    await tx.update(groups).set({ parentId: id, rootId: id }).where(eq(groups.id, circle.id));
+    // Its link, if any, was into a circle on its own; a circle inside a gathering has none (GROUPS.md §10).
+    await tx.update(groups).set({ parentId: id, rootId: id, joinToken: null, joinOpen: false }).where(eq(groups.id, circle.id));
     await tx.update(prompts).set({ rootId: id }).where(eq(prompts.rootId, circle.id));
     await tx.update(rounds).set({ rootId: id }).where(eq(rounds.rootId, circle.id));
     await tx.update(notifications).set({ rootId: id }).where(eq(notifications.rootId, circle.id));

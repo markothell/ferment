@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
 import { groups, members, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { createCircle, createLoneCircle } from "./circles";
+import { createCircle, createLoneCircle, promoteCircle } from "./circles";
 import { Refusal } from "./errors";
 import { createGathering, membershipOf, type Gathering } from "./gatherings";
 import { findJoinLink, joinByLink, joinLinkOf, makeJoinLink, setJoinLinkOpen } from "./joinLinks";
@@ -70,6 +70,24 @@ describe("anyone with the link", () => {
     await joinByLink(db, { token: fresh, userId: dev, now: t0 });
     // Cal stayed in.
     expect(await membershipOf(db, gathering.id, cal)).not.toBeNull();
+  });
+
+  it("dies when a circle on its own grows into a gathering", async () => {
+    const soup = await createLoneCircle(db, { userId: "u_host", name: "Soup", firstQuestion: "What soup?", now: t0 });
+    const token = await makeJoinLink(db, { gatheringId: soup.id, userId: "u_host" });
+    await promoteCircle(db, { circleId: soup.id, userId: "u_host", name: "Soup nights", welcomeNote: "", now: t0 });
+    expect(await findJoinLink(db, token)).toBeNull();
+    await expect(joinByLink(db, { token, userId: await person("amy"), now: t0 })).rejects.toThrow(/valid/);
+    expect(await joinLinkOf(db, soup.id)).toBeNull();
+  });
+
+  it("holds the cap when two people arrive at once", async () => {
+    const token = await makeJoinLink(db, { gatheringId: gathering.id, userId: "u_host" });
+    await db.update(groups).set({ maxMembers: 2 }).where(eq(groups.id, gathering.id));
+    const [amy, ben] = [await person("amy"), await person("ben")];
+    const results = await Promise.allSettled([joinByLink(db, { token, userId: amy, now: t0 }), joinByLink(db, { token, userId: ben, now: t0 })]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
   });
 
   it("still counts room", async () => {
