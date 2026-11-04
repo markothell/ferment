@@ -59,9 +59,9 @@ export default function DemoCircle() {
           seats={PEOPLE.map((name, i) => ({ id: id(i), name }))}
           rounds={ROUNDS}
           roundBase="/demo/circle"
-          label="A circle of nine people. The rounds they shared spiral in to the question open now; replies branch off the rounds they answer; three suggestions wait at the edge."
+          label="A circle of nine people. The rounds they shared spiral in to the question open now; follow-ups branch off the rounds they answer; three suggestions wait at the edge."
         />
-        <p className="text-center text-sm text-[var(--ink-soft)]">Hover or tap a round. The smaller branches are replies.</p>
+        <p className="text-center text-sm text-[var(--ink-soft)]">Hover or tap a round. The smaller branches are follow-ups.</p>
       </main>
     </>
   );

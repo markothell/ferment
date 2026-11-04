@@ -1,9 +1,11 @@
-// Replies (design/ferment/archive/replies.html): a follow-up round the whole
-// circle takes a turn on, answering an earlier round and optionally pointing
-// at one person's answer in it. A reply is an ordinary round in every other
-// way — support, queue, reveal, answers — and lives on its parent's branch of
-// the circle map instead of the spiral. It needs less support (rounds.ts,
-// approvalsNeeded) because the circle already took up what it answers.
+// Follow-ups (design/ferment/archive/replies.html): a round the whole circle
+// takes a turn on, answering an earlier round and optionally pointing at one
+// person's answer in it. On screen it is a "follow-up" (since 2026-10-29, so
+// "response" keeps meaning anything shared in a round); in code it is still a
+// reply. A follow-up is an ordinary round in every other way — support, queue,
+// reveal, answers — and lives on its parent's branch of the circle map instead
+// of the spiral. It needs less support (rounds.ts, approvalsNeeded) because the
+// circle already took up what it answers.
 
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { DB } from "@/db";
@@ -31,9 +33,9 @@ export async function suggestReply(
   if (parent.phase !== "open" && parent.phase !== "closed") refuse("Nobody has answered this one yet.");
 
   const view = await roundView(db, roundId, userId, now);
-  if (!view.circle) refuse("Open questions don't take replies yet.");
-  if (!view.canTakePart) refuse("Only members can reply here.");
-  if (view.visibility !== "all") refuse(view.visibility === "own" ? "You can reply once this one closes." : "Share yours first, then reply.");
+  if (!view.circle) refuse("Open questions don't take follow-ups yet.");
+  if (!view.canTakePart) refuse("Only members can follow up here.");
+  if (view.visibility !== "all") refuse(view.visibility === "own" ? "You can follow up once this one closes." : "Share yours first, then follow up.");
   if (responseId && !view.responses.some((r) => r.id === responseId)) refuse("That answer isn't part of this round.");
 
   return suggestRound(db, { circleId: view.circle.id, userId, prompt, replyToRoundId: roundId, replyToResponseId: responseId, now, ...rest });

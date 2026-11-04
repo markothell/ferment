@@ -98,7 +98,7 @@ export function FeedList({
                 {item.replies.length > 0 && (
                   <div className="space-y-1.5">
                     <p className="mono text-[11px] text-[var(--ink-faint)]">
-                      {item.replies.length} {item.replies.length === 1 ? "reply" : "replies"} in circles
+                      {item.replies.length} {item.replies.length === 1 ? "follow-up" : "follow-ups"} in circles
                     </p>
                     <ul className="space-y-1 border-l border-[var(--rule-strong)] pl-3">
                       {item.replies.map((r) => (

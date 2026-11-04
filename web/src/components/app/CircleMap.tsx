@@ -79,14 +79,14 @@ export function CircleMap({
           />
         )}
 
-        {/* Replies branch off the round they answer, finer than the thread. */}
+        {/* Follow-ups branch off the round they answer, finer than the thread. */}
         {links.map((l) =>
           l.folded ? (
             <g
               key={`${l.from}-${l.to}`}
               role="link"
               tabIndex={0}
-              aria-label={`${l.folded.ids.length} more ${l.folded.ids.length === 1 ? "reply" : "replies"} in between`}
+              aria-label={`${l.folded.ids.length} more ${l.folded.ids.length === 1 ? "follow-up" : "follow-ups"} in between`}
               className="cm-act cm-fade"
               style={{ opacity: active !== null ? 0.55 : 1 }}
               onClick={(e) => { e.stopPropagation(); router.push(roundHref(l.folded!.ids[0])); }}
@@ -131,12 +131,12 @@ export function CircleMap({
             {...(s.onRound && {
               role: "link",
               tabIndex: 0,
-              "aria-label": `A reply waiting to start: ${s.round.question}`,
+              "aria-label": `A follow-up waiting to start: ${s.round.question}`,
               onClick: (e: MouseEvent) => { e.stopPropagation(); router.push(roundHref(s.round.id)); },
               onKeyDown: (e: KeyboardEvent) => { if (e.key === "Enter") router.push(roundHref(s.round.id)); },
             })}
           >
-            {s.onRound && <title>{`Reply: ${s.round.question}`}</title>}
+            {s.onRound && <title>{`Follow-up: ${s.round.question}`}</title>}
             <line x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} style={{ stroke: "var(--mine)" }} strokeWidth={2.5} strokeLinecap="round" />
             {s.queued && <circle cx={s.x2} cy={s.y2} r={3.5} style={{ fill: "var(--mine)" }} />}
           </g>
@@ -184,7 +184,7 @@ export function CircleMap({
             key={n.id}
             tabIndex={0}
             role="button"
-            aria-label={`${n.reply ? "A reply: " : ""}${n.question}. ${n.live ? "Open now. " : ""}${n.tellers.length} took part.`}
+            aria-label={`${n.reply ? "A follow-up: " : ""}${n.question}. ${n.live ? "Open now. " : ""}${n.tellers.length} took part.`}
             className="cm-act cm-fade"
             style={{ opacity: active !== null && active !== ni ? 0.55 : 1 }}
             onMouseEnter={() => setFocus(ni)}
@@ -211,7 +211,7 @@ export function CircleMap({
             ) : (
               <circle cx={n.x} cy={n.y} r={n.r} style={{ fill: "var(--shared-soft)", stroke: "var(--shared)" }} strokeWidth={n.reply ? 1.1 : 1.4} />
             )}
-            {/* a larger, invisible target for fingers; replies sit close, so theirs is smaller */}
+            {/* a larger, invisible target for fingers; follow-ups sit close, so theirs is smaller */}
             <circle cx={n.x} cy={n.y} r={n.reply ? 9 : Math.max(n.r, 16)} fill="transparent" />
           </g>
         ))}
@@ -231,7 +231,7 @@ export function CircleMap({
           <b>{shown.question}</b>
           <small>
             {shown.live && <i>● </i>}
-            {shown.reply && "a reply · "}
+            {shown.reply && "a follow-up · "}
             {when(shown, new Date())} · {shown.tellers.length} took part
           </small>
           {pinned !== null && (

@@ -17,7 +17,7 @@ export function RoundRow({ round, href, expected, replyTo }: { round: RoundRowDa
           <TurnDot open={open} answered={round.respondedByMe} />
           {open ? (round.closesAt ? `open · closes ${relative(round.closesAt)}` : "open") : "closed"}
         </span>
-        {replyTo && <p className="text-sm text-[var(--ink-soft)]">replying to {replyTo}</p>}
+        {replyTo && <p className="text-sm text-[var(--ink-soft)]">following up on {replyTo}</p>}
         <p className="text-lg leading-snug">{round.question}</p>
         <p className="mono text-sm text-[var(--ink-soft)]">
           {round.responded}{expected ? ` of ${expected}` : ""} shared

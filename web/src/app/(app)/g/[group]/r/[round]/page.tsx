@@ -81,10 +81,10 @@ export default async function RoundPage({ params }: Props) {
     ...(circle && circle.id !== gathering.id ? [{ label: circle.name, href: `/g/${circle.slug}` }] : []),
     { label: pinned ? "Pinned question" : round.replyToRoundId ? "Reply" : circle ? "Round" : "Open question" },
   ];
-  // A reply is a follow-up round for the whole circle (domain/replies.ts): only
+  // A follow-up is a round for the whole circle that answers this one (domain/replies.ts): only
   // to a round that has happened, and only once you can see its answers.
   const replyable = Boolean(circle) && view.canTakePart && (open || closed);
-  const replyBlocked = !replyable ? null : view.visibility === "own" ? "You can reply once this one closes." : view.visibility === "after_share" ? "Share yours first, then you can reply." : null;
+  const replyBlocked = !replyable ? null : view.visibility === "own" ? "You can follow up once this one closes." : view.visibility === "after_share" ? "Share yours first, then you can follow up." : null;
   const REPLY_STATE = { nominated: "waiting for support", queued: "up next", open: "open now", closed: "explored" } as const;
 
   return (
@@ -94,13 +94,13 @@ export default async function RoundPage({ params }: Props) {
         <header className="space-y-3">
           <span className={open ? "label live flex items-center gap-2" : "label"}>
             <TurnDot open={open} answered={Boolean(view.mine)} />
-            {pinned ? "pinned to the centre" : circle ? `a ${round.replyToRoundId ? "reply" : "round"} in ${circle.name}` : "open question"}
+            {pinned ? "pinned to the centre" : circle ? `a ${round.replyToRoundId ? "follow-up" : "round"} in ${circle.name}` : "open question"}
             {" · "}
             {open ? (round.closesAt ? `closes ${relative(round.closesAt)}` : "open") : round.phase === "closed" ? "closed" : "not open yet"}
           </span>
           {context && (
             <p className="mono text-xs text-[var(--ink-faint)]">
-              replying to{" "}
+              following up on{" "}
               {context.chain.map((c, i) => (
                 <span key={c.id}>
                   {i > 0 && " › "}
@@ -229,9 +229,9 @@ export default async function RoundPage({ params }: Props) {
 
         {replyable && (
           <section className="space-y-4 border-t border-[var(--rule)] pt-6">
-            <h2 className="display text-2xl">Replies to this round</h2>
+            <h2 className="display text-2xl">Follow-ups to this round</h2>
             {replies.length === 0 ? (
-              <p className="text-[var(--ink-soft)]">None yet. A reply is a follow-up question for the whole circle, and it branches off this round on the map.</p>
+              <p className="text-[var(--ink-soft)]">None yet. A follow-up is a question for the whole circle that answers this one, and it branches off this round on the map.</p>
             ) : (
               <ul className="space-y-3">
                 {replies.map((r) => (
@@ -252,9 +252,9 @@ export default async function RoundPage({ params }: Props) {
               <p className="text-sm text-[var(--ink-soft)]">{replyBlocked}</p>
             ) : (
               <details className="card">
-                <summary className="cursor-pointer font-medium">Reply to this round</summary>
+                <summary className="cursor-pointer font-medium">Follow up on this round</summary>
                 <div className="pt-4">
-                  <Form action={reply} submit="Suggest this reply" pending="Suggesting…">
+                  <Form action={reply} submit="Suggest this follow-up" pending="Suggesting…">
                     {hidden}
                     {view.responses.some((r) => r.userId !== me.id) && (
                       <label className="block space-y-2">
