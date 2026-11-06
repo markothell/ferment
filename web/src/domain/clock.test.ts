@@ -62,6 +62,9 @@ describe("the clock", () => {
   it("lapses proposals that never filled", async () => {
     const gathering = await createGathering(db, { userId: "u_host", name: "Quiet" });
     await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Alone", now: t0 });
-    expect((await runClock(db, send, hours(24 * 8))).expired).toBe(1);
+    expect((await runClock(db, send, hours(24 * 8))).expired).toBe(0); // the host is alone: a draft
+    await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: "amy@example.com", now: hours(24 * 8) });
+    await runClock(db, send, hours(24 * 9));
+    expect((await runClock(db, send, hours(24 * 17))).expired).toBe(1);
   });
 });

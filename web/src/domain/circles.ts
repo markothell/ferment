@@ -2,12 +2,14 @@
 //
 // A circle is proposed, gathers people while it is forming, and forms when the
 // fourth person joins. A proposal that never gets there expires after the
-// gathering's proposal window (default 7 days). A circle sits inside a
+// gathering's proposal window (default 7 days). While its host is alone, with
+// nobody else in or invited, it's a draft: no window runs, and it can wait for
+// as long as they like. A circle sits inside a
 // gathering today; the rules in lib/kinds.ts also let it stand on its own.
 
-import { and, asc, count, eq, isNull, lt } from "drizzle-orm";
+import { and, asc, count, eq, gt, inArray, isNull } from "drizzle-orm";
 import type { DB } from "@/db";
-import { groups, members, notifications, prompts, rounds, user } from "@/db/schema";
+import { groups, invites, members, notifications, prompts, rounds, user } from "@/db/schema";
 import { isCircleColor, type CircleColor } from "@/lib/circleColors";
 import { newId } from "@/lib/id";
 import { KINDS } from "@/lib/kinds";
@@ -293,14 +295,49 @@ export async function leaveCircle(
   });
 }
 
-/** Expire proposals whose window has passed. Returns the ids it expired. */
+/** Is the root's host on their own: nobody else in, nobody invited or suggested, no link open? */
+async function draftRoot(db: DB, root: Group, now: Date): Promise<boolean> {
+  if (root.joinToken && root.joinOpen) return false;
+  if ((await activeMemberCount(db, root.id)) > 1) return false;
+  const [live] = await db
+    .select({ id: invites.id })
+    .from(invites)
+    .where(and(eq(invites.groupId, root.id), inArray(invites.status, ["nominated", "pending"]), gt(invites.expiresAt, now)))
+    .limit(1);
+  return !live;
+}
+
+/**
+ * The window on forming circles. In a draft none runs, and a window already
+ * running is taken off. Once someone else is in or invited, a circle with no
+ * window gets a whole one, and a window that has passed expires the circle.
+ * Returns the ids it expired.
+ */
 export async function expireProposals(db: DB, now = new Date()): Promise<string[]> {
-  const rows = await db
-    .update(groups)
-    .set({ status: "expired" })
-    .where(and(eq(groups.kind, "circle"), eq(groups.status, "forming"), lt(groups.formingExpiresAt, now)))
-    .returning({ id: groups.id });
-  return rows.map((r) => r.id);
+  const forming = await db
+    .select({ id: groups.id, rootId: groups.rootId, until: groups.formingExpiresAt })
+    .from(groups)
+    .where(and(eq(groups.kind, "circle"), eq(groups.status, "forming")));
+
+  const expired: string[] = [];
+  for (const rootId of new Set(forming.map((c) => c.rootId))) {
+    const root = await groupById(db, rootId);
+    if (!root) continue;
+    const draft = await draftRoot(db, root, now);
+    for (const c of forming.filter((f) => f.rootId === rootId)) {
+      if (draft) {
+        if (c.until) await db.update(groups).set({ formingExpiresAt: null }).where(eq(groups.id, c.id));
+      } else if (!c.until) {
+        await db.update(groups)
+          .set({ formingExpiresAt: new Date(now.getTime() + root.proposalExpiryDays * DAY_MS) })
+          .where(eq(groups.id, c.id));
+      } else if (c.until < now) {
+        await db.update(groups).set({ status: "expired" }).where(eq(groups.id, c.id));
+        expired.push(c.id);
+      }
+    }
+  }
+  return expired;
 }
 
 /** Everything the circle page shows. Rounds are for members only; how many have closed is for anyone. */

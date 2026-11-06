@@ -23,7 +23,7 @@ export default async function NewCirclePage({ params, searchParams }: PageProps<
         <div className="space-y-2">
           <h1 className="display text-4xl">{prompt ? "Start a circle around this" : "Propose a circle"}</h1>
           <p className="text-[var(--ink-soft)]">
-            It begins when four people are in, and holds up to twelve. If it hasn&apos;t filled in {gathering.proposalExpiryDays} days, it lapses.
+            It begins when four people are in, and holds up to twelve. Once someone else is in or invited, it has {gathering.proposalExpiryDays} days to fill before it lapses.
           </p>
         </div>
         <Form action={proposeCircle} submit="Propose" pending="Proposing…">

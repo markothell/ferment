@@ -1,5 +1,6 @@
 // The clock (PLAN §7): the only work that happens because time passed.
-// Rounds whose timer ran out close, unfilled proposals lapse, invitations and
+// Rounds whose timer ran out close, unfilled proposals lapse (not while their
+// host is alone: that's a draft), invitations and
 // seat requests nobody decided in 14 days lapse, harvests get their reminder
 // and lapse at the end of their week, waiting notifications go out
 // by email, and recordings still without a transcript

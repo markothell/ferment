@@ -175,10 +175,41 @@ describe("circles", () => {
 
   it("expires an unformed proposal after the gathering's window", async () => {
     const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Quiet", now: t0 });
+    const amy = await member("amy");
     expect(await expireProposals(db, days(6))).toEqual([]);
     expect(await expireProposals(db, days(8))).toEqual([circle.id]);
-    const amy = await member("amy");
     await expect(joinCircle(db, { circleId: circle.id, userId: amy, now: days(8) })).rejects.toThrow(/expired/);
+  });
+
+  const windowOf = async (id: string) => (await db.select().from(groups).where(eq(groups.id, id)))[0];
+
+  it("keeps a draft: no window runs while the host is alone, and a whole one starts at the first invitation", async () => {
+    const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Draft", now: t0 });
+    expect(await expireProposals(db, days(100))).toEqual([]);
+    expect(await windowOf(circle.id)).toMatchObject({ status: "forming", formingExpiresAt: null });
+
+    await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: "amy@example.com", now: days(100) });
+    expect(await expireProposals(db, days(101))).toEqual([]);
+    expect((await windowOf(circle.id)).formingExpiresAt).toEqual(days(108));
+    expect(await expireProposals(db, days(107))).toEqual([]);
+    expect(await expireProposals(db, days(109))).toEqual([circle.id]);
+  });
+
+  it("goes back to being a draft when the invitation runs out with nobody in", async () => {
+    const circle = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Draft", now: t0 });
+    await createInvite(db, { gatheringId: gathering.id, invitedBy: "u_host", email: "amy@example.com", now: t0 });
+    await expireProposals(db, days(1));
+    await db.update(invites).set({ status: "revoked" }).where(eq(invites.groupId, gathering.id));
+    expect(await expireProposals(db, days(30))).toEqual([]);
+    expect(await windowOf(circle.id)).toMatchObject({ status: "forming", formingExpiresAt: null });
+  });
+
+  it("keeps a circle on its own as a draft too, until its link opens", async () => {
+    const lone = await createLoneCircle(db, { userId: "u_host", name: "Alone", now: t0 });
+    expect(await expireProposals(db, days(100))).toEqual([]);
+    await db.update(groups).set({ joinToken: "t", joinOpen: true }).where(eq(groups.id, lone.id));
+    await expireProposals(db, days(100));
+    expect((await windowOf(lone.id)).formingExpiresAt).toEqual(days(107));
   });
 
   it("empties the host seat when the host leaves, and lets people rejoin", async () => {

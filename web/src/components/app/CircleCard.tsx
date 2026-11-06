@@ -27,7 +27,7 @@ export function CircleCard({ circle, gathering }: { circle: CircleRow; gathering
           {circle.name}
         </Link>
         <span className="label shrink-0">
-          {forming ? `forming · ${daysLeft(circle.formingExpiresAt)}` : circle.status}
+          {forming ? (circle.formingExpiresAt ? `forming · ${daysLeft(circle.formingExpiresAt)}` : "forming") : circle.status}
         </span>
       </div>
       {circle.description && <p className="text-[var(--ink-soft)]">{circle.description}</p>}
