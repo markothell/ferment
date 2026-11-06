@@ -16,9 +16,10 @@ The name carries the metaphor. Everything else just tastes like it.
 - **Alive.** Handmade, but steady. What's open now is the only thing that changes colour.
 
 **Words.** Reach for everyday kitchen and table words: table, feed, keep, pass on, bring, open,
-chew on. Use culture, starter, rise, jar and ferment rarely, only where they're true. Never:
-puns, winks, emoji telling the joke, or explaining the metaphor. The look can be juicy; the
-words shouldn't say so. The table of examples is in `archive/juicy.html`.
+chew on. Use culture, starter, rise, jar and ferment rarely, only where they're true. Never
+emoji telling the joke, or explaining the metaphor. The table of examples is in
+`archive/juicy.html`. (The "no puns" rule that stood here until 2026-10-29 was a brake on
+cleverness during branding, not a rule for naming what the app does: "Coin a phrase" is fine.)
 
 ## Decided
 
