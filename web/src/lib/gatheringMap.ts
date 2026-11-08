@@ -10,12 +10,13 @@ export const RING_R = 232;
 const CENTER_CLEAR = 58; // room for the open questions
 const CENTER_R = 24;     // the open questions' mark
 const PAD = 8;           // between one circle-and-label and the next
-// Labels: a rough width per character at 11.5px, and the line height; a long
-// name breaks onto two lines.
+// Labels: a rough width per character at 11.5px, and the line height. A long
+// name breaks onto two lines of LINE_MAX at most, and past that it's cut short
+// (the full name is in the tooltip and on the circle's page).
 const CHAR_W = 6.2;
 const LINE_H = 13.5;
 const LABEL_GAP = 4;
-const WRAP_AT = 18;
+const LINE_MAX = 18;
 // Seats sit no further apart than they would with this many people, so a young
 // gathering gathers in an arc at the top instead of scattering round the ring;
 // from here on the ring closes.
@@ -31,14 +32,24 @@ export type GatheringCircle = {
   forming: boolean; explored: number; open: number;
 };
 
-/** A circle's name on one line, or two, broken at the space nearest the middle. */
+/** Cut a line to LINE_MAX with an ellipsis, at a space where one falls in the second half. */
+function cut(s: string): string {
+  if (s.length <= LINE_MAX) return s;
+  const room = s.slice(0, LINE_MAX - 1);
+  const space = room.lastIndexOf(" ");
+  return `${(space >= LINE_MAX / 2 ? room.slice(0, space) : room).trimEnd()}…`;
+}
+
+/** A circle's name for the map: one line, or two filled word by word, cut short past that. */
 export function wrapLabel(name: string): string[] {
-  if (name.length <= WRAP_AT) return [name];
-  let best = -1;
-  for (let i = 0; i < name.length; i++) {
-    if (name[i] === " " && (best < 0 || Math.abs(i - name.length / 2) < Math.abs(best - name.length / 2))) best = i;
-  }
-  return best < 0 ? [name] : [name.slice(0, best), name.slice(best + 1)];
+  const words = name.trim().split(/\s+/);
+  if (name.length <= LINE_MAX) return [name];
+  let first = words[0];
+  let k = 1;
+  while (k < words.length && `${first} ${words[k]}`.length <= LINE_MAX) first += ` ${words[k++]}`;
+  if (first.length > LINE_MAX) return [cut(first), ...(k < words.length ? [cut(words.slice(k).join(" "))] : [])];
+  const rest = words.slice(k).join(" ");
+  return rest ? [first, cut(rest)] : [first];
 }
 
 export function layoutGathering(people: GatheringPerson[], circlesIn: GatheringCircle[]) {

@@ -56,10 +56,17 @@ describe("layoutGathering", () => {
     }
   });
 
-  it("breaks a long name onto two lines at the space nearest the middle", async () => {
+  it("breaks a long name onto two short lines, cut short past that", async () => {
     const { wrapLabel } = await import("./gatheringMap");
     expect(wrapLabel("Visions")).toEqual(["Visions"]);
+    expect(wrapLabel("Raising whole sexuality")).toEqual(["Raising whole", "sexuality"]);
     expect(wrapLabel("Partnership: true communication")).toEqual(["Partnership: true", "communication"]);
+    expect(wrapLabel("Possibility: what could be true for us here")).toEqual(["Possibility: what", "could be true…"]);
+    for (const n of ["Partnership: true communication", "Food: sovereign eating log", "A very long circle name that goes on and on", "Supercalifragilisticexpialidocious"]) {
+      const lines = wrapLabel(n);
+      expect(lines.length).toBeLessThanOrEqual(2);
+      for (const l of lines) expect(l.length).toBeLessThanOrEqual(18);
+    }
   });
 
   it("marks what's open with a dot, and gives a forming circle no core", () => {
