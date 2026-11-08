@@ -140,7 +140,7 @@ export function GatheringMap({
             )}
             {nd.dot && <circle cx={nd.dot.x} cy={nd.dot.y} r={4.5} strokeWidth={2} style={{ fill: "var(--live)", stroke: "var(--raised)" }} />}
             <text x={nd.x} y={nd.y + nd.r + 15} textAnchor="middle" fontFamily={SANS} fontSize={11.5} style={{ fill: "var(--ink-soft)" }}>
-              {nd.name}
+              {nd.label.map((line, k) => <tspan key={k} x={nd.x} dy={k ? 13.5 : 0}>{line}</tspan>)}
             </text>
           </g>
         ))}

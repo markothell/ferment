@@ -34,6 +34,34 @@ describe("layoutGathering", () => {
     }
   });
 
+  it("fans out a new gathering's circles, all its host's, so neither circles nor labels touch", () => {
+    const names = ["Raising whole sexuality", "Food: sovereign eating log", "Partnership: true communication", "Holiday gift talk", "Raising whole sexuality", "Visions"];
+    const solo = layoutGathering([{ id: "u0", name: "Host" }], names.map((n, i) => circle(`c${i}`, [0], { name: n, forming: true, explored: 0 })));
+    const C = CSIZE / 2;
+    const box = (nd: (typeof solo.nodes)[number]) => {
+      const w = Math.max(nd.r, (Math.max(...nd.label.map((l) => l.length)) * 6.2) / 2 + 4);
+      return { l: nd.x - w, r: nd.x + w, t: nd.y - nd.r, b: nd.y + nd.r + 4 + nd.label.length * 13.5 };
+    };
+    for (let i = 0; i < solo.nodes.length; i++) {
+      const a = box(solo.nodes[i]);
+      expect(a.l).toBeGreaterThanOrEqual(0);
+      expect(a.r).toBeLessThanOrEqual(CSIZE);
+      expect(a.b).toBeLessThanOrEqual(CSIZE);
+      // clear of the center's mark
+      expect(a.r < C - 24 || a.l > C + 24 || a.b < C - 24 || a.t > C + 24).toBe(true);
+      for (let j = i + 1; j < solo.nodes.length; j++) {
+        const b = box(solo.nodes[j]);
+        expect(a.r <= b.l || b.r <= a.l || a.b <= b.t || b.b <= a.t).toBe(true);
+      }
+    }
+  });
+
+  it("breaks a long name onto two lines at the space nearest the middle", async () => {
+    const { wrapLabel } = await import("./gatheringMap");
+    expect(wrapLabel("Visions")).toEqual(["Visions"]);
+    expect(wrapLabel("Partnership: true communication")).toEqual(["Partnership: true", "communication"]);
+  });
+
   it("marks what's open with a dot, and gives a forming circle no core", () => {
     expect(nodes[0].dot).not.toBeNull();
     expect(nodes[1].dot).toBeNull();
