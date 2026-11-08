@@ -2,7 +2,9 @@
 // "Editing and deleting what you made"). Only the author, for now. Deleting is
 // for real: the rows go, and a question nothing else uses goes with them.
 //
-//   edit a question:   until someone else has answered it, picked it, or adapted it
+//   edit a question:   until someone else has answered it, picked it, or adapted it;
+//                      its shape, reveal and timer too, until it has opened anywhere
+//   edit a circle:     its name and what it's for, by its host, until it begins
 //   delete a round:    a circle suggestion until it opens; an open question
 //                      until someone else answers. Never while it's pinned.
 //   delete a circle:   its creator, until it has formed and has a question
@@ -11,12 +13,12 @@
 import { and, count, eq, inArray, isNull, isNotNull, ne } from "drizzle-orm";
 import type { DB } from "@/db";
 import { groups, harvests, invites, members, prompts, responses, rounds, seatRequests } from "@/db/schema";
-import { circleById, type Circle } from "./circles";
+import { circleById, DESCRIPTION_MAX, type Circle } from "./circles";
 import { refuse } from "./errors";
 import { notifyPeople } from "./notifications";
-import { cleanWording, promptById } from "./prompts";
+import { cleanTimer, cleanWording, normalizePrompt, promptById, type PromptInput } from "./prompts";
 import { isPinned, roundById, type Round } from "./rounds";
-import { groupById } from "./gatherings";
+import { groupById, NAME_MAX } from "./gatherings";
 
 const some = async (q: Promise<{ n: number }[]>) => (await q)[0].n > 0;
 
@@ -52,11 +54,38 @@ async function deleteBlock(db: DB, round: Round, userId: string): Promise<string
   return others ? "Someone has answered, so it stays." : null;
 }
 
-/** What the round's author may still do to it. */
-export async function authorRights(db: DB, round: Round, userId: string): Promise<{ edit: boolean; delete: boolean }> {
-  if (round.authorId !== userId) return { edit: false, delete: false };
-  const [edit, del] = await Promise.all([editBlock(db, round, userId), deleteBlock(db, round, userId)]);
-  return { edit: edit === null, delete: del === null };
+/** Has the question opened anywhere? Then how it's answered is fixed, and only its words can change. */
+async function hasOpened(db: DB, promptId: string): Promise<boolean> {
+  return some(db.select({ n: count() }).from(rounds)
+    .where(and(eq(rounds.promptId, promptId), inArray(rounds.phase, ["open", "closed"]))));
+}
+
+/** What the round's author may still do to it. `settings`: its shape, reveal and timer as well as its words. */
+export async function authorRights(db: DB, round: Round, userId: string): Promise<{ edit: boolean; settings: boolean; delete: boolean }> {
+  if (round.authorId !== userId) return { edit: false, settings: false, delete: false };
+  const [edit, del, opened] = await Promise.all([editBlock(db, round, userId), deleteBlock(db, round, userId), hasOpened(db, round.promptId)]);
+  return { edit: edit === null, settings: edit === null && !opened, delete: del === null };
+}
+
+/**
+ * Rewrite a question that hasn't opened anywhere: its words, how people
+ * answer, when they see each other, and this round's timer.
+ */
+export async function editQuestionSettings(
+  db: DB,
+  { roundId, userId, prompt, timerHours }: { roundId: string; userId: string; prompt: PromptInput; timerHours: number | string | null },
+): Promise<void> {
+  const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
+  const blocked = await editBlock(db, round, userId);
+  if (blocked) refuse(blocked);
+  if (await hasOpened(db, round.promptId)) refuse("It has opened, so only its words can change.");
+  const before = (await promptById(db, round.promptId))!;
+  const clean = normalizePrompt({ ...prompt, secondsPerNote: before.secondsPerNote ?? undefined, adaptedFromId: null });
+  const timer = cleanTimer(timerHours);
+  await db.transaction(async (tx) => {
+    await tx.update(prompts).set(clean).where(eq(prompts.id, round.promptId));
+    await tx.update(rounds).set({ timerHours: timer }).where(eq(rounds.id, round.id));
+  });
 }
 
 /** Fix a question's wording. It changes everywhere the question is used, which is only ever its author's own rounds. */
@@ -93,6 +122,26 @@ export async function pruneQuestion(db: DB, promptId: string): Promise<void> {
 }
 
 // ── Circles ───────────────────────────────────────────────────────────────
+
+/** A circle's name and what it's for change until it begins: its host's to set. Its address stays. */
+export function mayEditCircle(circle: Circle, userId: string): boolean {
+  return circle.hostId === userId && circle.status === "forming";
+}
+
+export async function editCircle(
+  db: DB,
+  { circleId, userId, name, description }: { circleId: string; userId: string; name: string; description: string },
+): Promise<void> {
+  const circle = (await circleById(db, circleId)) ?? refuse("That circle doesn't exist.");
+  if (circle.hostId !== userId) refuse("Only the circle's host can change it.");
+  if (circle.status !== "forming") refuse("It has begun, so its name stays.");
+  const clean = name.trim().replace(/\s+/g, " ");
+  if (!clean) refuse("Give the circle a name.");
+  if (clean.length > NAME_MAX) refuse(`Circle names are ${NAME_MAX} characters at most.`);
+  const note = description.trim();
+  if (note.length > DESCRIPTION_MAX) refuse("That description is too long.");
+  await db.update(groups).set({ name: clean, note }).where(eq(groups.id, circle.id));
+}
 
 /** Why this person can't delete the circle, or null if they can. */
 async function circleBlock(db: DB, circle: Circle, userId: string): Promise<string | null> {

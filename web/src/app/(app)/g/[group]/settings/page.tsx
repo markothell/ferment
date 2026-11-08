@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/db";
+import { mayEditCircle } from "@/domain/authoring";
 import { joinLinkOf } from "@/domain/joinLinks";
 import { loadGroup } from "@/lib/group";
 import { appUrl } from "@/lib/urls";
@@ -10,7 +11,7 @@ import { CopyLine } from "@/components/app/CopyLine";
 import { Field } from "@/components/app/Field";
 import { Form } from "@/components/app/Form";
 import { Top } from "@/components/app/Top";
-import { archive, circleColor, emailPref, growIntoGathering, joinLinkMake, joinLinkOpen } from "../actions";
+import { archive, circleColor, circleDetails, emailPref, growIntoGathering, joinLinkMake, joinLinkOpen } from "../actions";
 
 export const metadata: Metadata = { title: "Settings · ferment" };
 
@@ -32,6 +33,18 @@ export default async function SettingsPage({ params }: PageProps<"/g/[group]/set
 
         {circle && !circleHost && (
           <p className="text-[var(--ink-soft)]">Only the circle&apos;s host changes its settings. Your email and your list are in <Link href={`${base}/settings`} className="link">{gathering.name}&apos;s settings</Link>.</p>
+        )}
+        {circle && mayEditCircle(circle, me.id) && (
+          <section className="space-y-3" id="details">
+            <h2 className="display text-2xl">Its name</h2>
+            <p className="text-[var(--ink-soft)]">Yours to change until it begins. Its address stays the same.</p>
+            <Form action={circleDetails} submit="Save" quiet className="space-y-4">
+              <input type="hidden" name="gathering" value={gathering.slug} />
+              <input type="hidden" name="circle" value={circle.id} />
+              <Field label="Name" name="name" required maxLength={60} defaultValue={circle.name} />
+              <Field label="What it's for" name="description" multiline rows={3} maxLength={500} defaultValue={circle.note} placeholder="Optional" />
+            </Form>
+          </section>
         )}
         {circleHost && (
           <section className="space-y-3">

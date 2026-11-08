@@ -281,12 +281,27 @@ export default async function RoundPage({ params }: Props) {
               <details className="card">
                 <summary className="cursor-pointer font-medium">Edit the question</summary>
                 <div className="pt-4">
-                  <Form action={edit} submit="Save" pending="Saving…">
-                    {hidden}
-                    <Field label="Question" name="question" defaultValue={prompt.question} maxLength={200} required />
-                    <Field label="Context" name="context" defaultValue={prompt.context} multiline maxLength={1000} placeholder="Optional" />
-                    <p className="text-sm text-[var(--ink-soft)]">You can change the words until someone else answers.</p>
-                  </Form>
+                  {rights.settings ? (
+                    <Form action={edit} submit="Save" pending="Saving…">
+                      {hidden}
+                      <input type="hidden" name="settings" value="yes" />
+                      <PromptFields
+                        defaults={{
+                          question: prompt.question, context: prompt.context, shape: prompt.shape, telling: prompt.telling,
+                          reveal: prompt.reveal, axes: prompt.axes, placing: prompt.placing, seedWords: prompt.seedWords,
+                          pickMax: prompt.pickMax, coinMax: prompt.coinMax, timerHours: round.timerHours,
+                        }}
+                      />
+                      <p className="text-sm text-[var(--ink-soft)]">Everything here can change until it opens. After that, only the words, until someone else answers.</p>
+                    </Form>
+                  ) : (
+                    <Form action={edit} submit="Save" pending="Saving…">
+                      {hidden}
+                      <Field label="Question" name="question" defaultValue={prompt.question} maxLength={200} required />
+                      <Field label="Context" name="context" defaultValue={prompt.context} multiline maxLength={1000} placeholder="Optional" />
+                      <p className="text-sm text-[var(--ink-soft)]">You can change the words until someone else answers.</p>
+                    </Form>
+                  )}
                 </div>
               </details>
             )}

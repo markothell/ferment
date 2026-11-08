@@ -30,7 +30,15 @@ export type PromptDefaults = {
   seedWords?: string[];
   pickMax?: number | null;
   coinMax?: number | null;
+  /** The round's timer, in hours; none if absent. */
+  timerHours?: number | null;
 };
+
+const TIMERS = [
+  { value: "24", label: "A day" },
+  { value: "72", label: "Three days" },
+  { value: "168", label: "A week" },
+];
 
 /** The question builder's fields: the question, how people answer, and when they see each other. */
 export function PromptFields({
@@ -149,11 +157,12 @@ export function PromptFields({
       </fieldset>
       <label className="block space-y-2">
         <span className="block font-medium">Close after</span>
-        <select name="timer" className="field" defaultValue="">
+        <select name="timer" className="field" defaultValue={defaults.timerHours ? String(defaults.timerHours) : ""}>
           <option value="">No timer: when everyone has answered, or by hand</option>
-          <option value="24">A day</option>
-          <option value="72">Three days</option>
-          <option value="168">A week</option>
+          {TIMERS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          {defaults.timerHours && !TIMERS.some((t) => t.value === String(defaults.timerHours)) && (
+            <option value={String(defaults.timerHours)}>{defaults.timerHours} hours</option>
+          )}
         </select>
       </label>
     </>

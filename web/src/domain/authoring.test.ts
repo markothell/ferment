@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { prompts, user } from "@/db/schema";
+import { prompts, rounds, user } from "@/db/schema";
 import { testDb } from "@/db/testing";
-import { deleteCircle, deleteRound, editQuestion } from "./authoring";
+import { authorRights, deleteCircle, deleteRound, editCircle, editQuestion, editQuestionSettings, mayEditCircle } from "./authoring";
 import { circleById, createCircle, joinCircle, seatInCircle, type Circle } from "./circles";
 import { createGathering, listMyArchived, listMyGatherings, pinQuestion, setArchived, type Gathering } from "./gatherings";
 import { acceptInvite, createInvite } from "./invites";
@@ -74,6 +74,49 @@ describe("editing a question", () => {
     await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: id });
     await editQuestion(db, { roundId: id, userId: "u_host", question: "What brought you here?", context: "" });
     await expect(deleteRound(db, { roundId: id, userId: "u_host" })).rejects.toThrow(/pinned/);
+  });
+});
+
+describe("rewriting a question before it opens", () => {
+  it("changes its shape, reveal and timer until it opens, then only its words", async () => {
+    const [, amy, ben] = people;
+    const r = await suggestRound(db, { circleId: circle.id, userId: amy, prompt: { question: "What fed you?" }, now: t0 });
+    expect(await authorRights(db, r, amy)).toMatchObject({ edit: true, settings: true });
+    expect(await authorRights(db, r, ben)).toMatchObject({ edit: false, settings: false });
+
+    await editQuestionSettings(db, {
+      roundId: r.id, userId: amy, timerHours: "72",
+      prompt: { question: "Where do you stand?", shape: "placement", axes: [{ poleA: "Fed", poleB: "Hungry" }], reveal: "open" },
+    });
+    const p = (await db.select().from(prompts).where(eq(prompts.id, r.promptId)))[0];
+    expect(p).toMatchObject({ question: "Where do you stand?", shape: "placement", reveal: "open", telling: null });
+    expect(p.axes).toEqual([{ poleA: "Fed", poleB: "Hungry" }]);
+    expect((await db.select().from(rounds).where(eq(rounds.id, r.id)))[0].timerHours).toBe(72);
+    await expect(editQuestionSettings(db, { roundId: r.id, userId: amy, timerHours: null, prompt: { question: "Q?", shape: "placement" } }))
+      .rejects.toThrow(/axes/);
+    await expect(editQuestionSettings(db, { roundId: r.id, userId: ben, timerHours: null, prompt: { question: "Q?" } })).rejects.toThrow(/wrote/);
+
+    await toggleSupport(db, { roundId: r.id, userId: ben, now: t0 });
+    const opened = (await roundById(db, r.id))!;
+    expect(opened.phase).toBe("open");
+    expect(await authorRights(db, opened, amy)).toMatchObject({ edit: true, settings: false });
+    await expect(editQuestionSettings(db, { roundId: r.id, userId: amy, timerHours: null, prompt: { question: "Tell it?" } })).rejects.toThrow(/opened/);
+  });
+});
+
+describe("renaming a circle", () => {
+  it("lets its host change its name and what it's for until it begins, keeping its address", async () => {
+    const [, amy] = people;
+    const rye = await createCircle(db, { gatheringId: gathering.id, userId: "u_host", name: "Rye", now: t0 });
+    expect(mayEditCircle(rye, "u_host")).toBe(true);
+    expect(mayEditCircle(rye, amy)).toBe(false);
+    await editCircle(db, { circleId: rye.id, userId: "u_host", name: "  Sourdough   rye ", description: " For the slow ones. " });
+    expect(await circleById(db, rye.id)).toMatchObject({ name: "Sourdough rye", note: "For the slow ones.", slug: rye.slug });
+    await expect(editCircle(db, { circleId: rye.id, userId: amy, name: "Mine", description: "" })).rejects.toThrow(/host/);
+    await expect(editCircle(db, { circleId: rye.id, userId: "u_host", name: " ", description: "" })).rejects.toThrow(/name/);
+    // Bread has begun.
+    expect(mayEditCircle((await circleById(db, circle.id))!, "u_host")).toBe(false);
+    await expect(editCircle(db, { circleId: circle.id, userId: "u_host", name: "Loaves", description: "" })).rejects.toThrow(/begun/);
   });
 });
 

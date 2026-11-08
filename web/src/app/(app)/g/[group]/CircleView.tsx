@@ -94,6 +94,7 @@ export async function CircleView({ me, gathering, circle }: { me: SessionUser; g
             <p className="text-[var(--ink-soft)]">
               {need > 0 ? `Needs ${need} more to begin.` : "Ready to begin."}
               {lone && isHost && need > 0 && <> <Link href={`/g/${gathering.slug}/invite`} className="link">Invite them</Link>.</>}
+              {isHost && <> <Link href={`${circleBase}/settings#details`} className="link">Rename it, or change what it&apos;s for</Link>.</>}
             </p>
           )}
         </header>

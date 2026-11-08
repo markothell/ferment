@@ -22,7 +22,7 @@ import { uniqueSlug } from "./slug";
 
 export const CIRCLE_MIN = KINDS.circle.people.min;
 export const CIRCLE_MAX = KINDS.circle.people.max!;
-const DESCRIPTION_MAX = 500;
+export const DESCRIPTION_MAX = 500;
 const DAY_MS = 86_400_000;
 
 export type Circle = Group;

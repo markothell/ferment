@@ -15,7 +15,7 @@ import { transcribeResponse } from "@/domain/transcripts";
 import {
   postOpenQuestion, promoteRound, respond, revealNow, suggestRound, toggleSupport,
 } from "@/domain/rounds";
-import { deleteCircle, deleteRound, editQuestion } from "@/domain/authoring";
+import { deleteCircle, deleteRound, editCircle, editQuestion, editQuestionSettings } from "@/domain/authoring";
 import { attempt, type ActionState } from "@/lib/actions";
 import { promptFrom, str, timerFrom } from "@/lib/promptForm";
 import { deepgram } from "@/lib/deepgram";
@@ -60,6 +60,20 @@ export async function circleColor(_prev: ActionState, form: FormData): Promise<A
   const circle = await circleById(db, str(form, "circle"));
   if (!circle || circle.rootId !== gathering.id) return { error: "That circle isn't here." };
   const failed = await attempt(() => setCircleColor(db, { circleId: circle.id, userId: me.id, color: str(form, "color") }));
+  if (failed) return failed;
+  revalidatePath(`/g/${gathering.slug}`, "layout");
+  revalidatePath(`/g/${circle.slug}`, "layout");
+  return { ok: "Saved." };
+}
+
+/** A forming circle's host renames it, or says again what it's for. */
+export async function circleDetails(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const { me, gathering } = await loadGroup(str(form, "gathering"));
+  const circle = await circleById(db, str(form, "circle"));
+  if (!circle || circle.rootId !== gathering.id) return { error: "That circle isn't here." };
+  const failed = await attempt(() =>
+    editCircle(db, { circleId: circle.id, userId: me.id, name: str(form, "name"), description: str(form, "description") }),
+  );
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
   revalidatePath(`/g/${circle.slug}`, "layout");
@@ -317,8 +331,11 @@ export async function remove(_prev: ActionState, form: FormData): Promise<Action
 
 export async function edit(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGroup(str(form, "gathering"));
+  const roundId = str(form, "round");
   const failed = await attempt(() =>
-    editQuestion(db, { roundId: str(form, "round"), userId: me.id, question: str(form, "question"), context: str(form, "context") }),
+    str(form, "settings") === "yes"
+      ? editQuestionSettings(db, { roundId, userId: me.id, prompt: promptFrom(form), timerHours: timerFrom(form) })
+      : editQuestion(db, { roundId, userId: me.id, question: str(form, "question"), context: str(form, "context") }),
   );
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
