@@ -13,20 +13,11 @@ const CIRCLES = demoCircles().map((c) => ({
   open: c.rounds.filter((r) => r.open).length,
 }));
 
-const DRAFTS = ["Why gather at all?", "Visions", "Ownership", "Dissent", "Commitment", "The gifts we bring", "Possibility: what could be true here"];
-
 // ?n=6 trims the fixture to its first n people, to see a young gathering.
-// ?draft=5 is a host alone with that many circles drafted (all theirs); ?names=a|b|c names them.
-export default async function DemoGathering({ searchParams }: { searchParams: Promise<{ n?: string; draft?: string; names?: string }> }) {
-  const sp = await searchParams;
-  const drafting = sp.draft !== undefined || sp.names !== undefined;
-  const given = sp.names?.split("|").map((s) => s.trim()).filter(Boolean).slice(0, 12);
-  const draftNames = given?.length ? given : DRAFTS.slice(0, Math.min(DRAFTS.length, Math.max(1, Number(sp.draft) || 5)));
-  const n = drafting ? 1 : Math.min(NAMES.length, Math.max(1, Number(sp.n) || NAMES.length));
+export default async function DemoGathering({ searchParams }: { searchParams: Promise<{ n?: string }> }) {
+  const n = Math.min(NAMES.length, Math.max(1, Number((await searchParams).n) || NAMES.length));
   const names = NAMES.slice(0, n);
-  const circles = drafting
-    ? draftNames.map((name, i) => ({ id: `draft-${i}`, slug: `draft-${i}`, name, forming: true, members: [id(0)], explored: 0, open: 0 }))
-    : CIRCLES.map((c) => ({ ...c, members: c.members.filter((m) => Number(m.slice(1)) < n) })).filter((c) => c.members.length > 0);
+  const circles = CIRCLES.map((c) => ({ ...c, members: c.members.filter((m) => Number(m.slice(1)) < n) })).filter((c) => c.members.length > 0);
   return (
     <>
       <Top trail={[{ label: "Hillside Tables, an example" }]} />
@@ -36,7 +27,7 @@ export default async function DemoGathering({ searchParams }: { searchParams: Pr
           circles={circles}
           openQuestions={2}
           answerers={names.map((_, i) => id(i)).filter((_, i) => (i * 7) % 3 !== 0).slice(0, 26)}
-          viewerId={drafting ? id(0) : id(6)}
+          viewerId={id(6)}
           base="/demo/gathering"
           circleBase="/demo/gathering/circles"
           label={`${n} people on an outer ring, gathered into ${circles.length} circles, with two open questions at the center.`}
