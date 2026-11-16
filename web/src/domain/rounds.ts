@@ -3,6 +3,10 @@
 //
 //   circle:     nominated ─(enough support, or the host promotes)→ queued
 //               queued ─(a live slot frees, circle formed and hosted)→ open
+//               Answering a waiting question is how a member says yes: the
+//               answer counts as their support, and is there when it opens.
+//               If everyone has already answered by then, it closes at once.
+//               "No thanks" sets it aside for that member only.
 //   gathering:  open from the moment it's posted (an open question)
 //   open ─(every member responded · timer · author/host reveals)→ closed
 //
@@ -15,7 +19,7 @@
 
 import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
 import type { DB } from "@/db";
-import { groups, members, prompts, responseWords, responses, roundSupports, rounds, user, words } from "@/db/schema";
+import { groups, members, prompts, responseWords, responses, roundPasses, roundSupports, rounds, user, words } from "@/db/schema";
 import { isOurAudio, listenPath } from "@/lib/audioStore";
 import { newId } from "@/lib/id";
 import { activeMemberCount, CIRCLE_MIN, isCircleMember } from "./circles";
@@ -119,13 +123,28 @@ async function openRound(db: DB, round: Round, now: Date, inCircle: boolean): Pr
   if (inCircle && round.phase !== "open") {
     await notifyCircle(db, round.groupId, { kind: "round_opened", gatheringId: round.rootId, roundId: round.id, now });
   }
-  const prompt = (await promptById(db, round.promptId))!;
-  if (prompt.shape === "words" && prompt.seedWords.length) {
-    await db
-      .insert(words)
-      .values(prompt.seedWords.map((label) => ({ id: newId(), roundId: round.id, label, key: wordKey(label), origin: "seeded" as const })))
-      .onConflictDoNothing();
-  }
+  await seedWords(db, round.id, (await promptById(db, round.promptId))!);
+}
+
+/** A words question's starting list, in the round: from the moment anyone can answer. Idempotent. */
+export async function seedWords(db: DB, roundId: string, prompt: Prompt): Promise<void> {
+  if (prompt.shape !== "words" || !prompt.seedWords.length) return;
+  await db
+    .insert(words)
+    .values(prompt.seedWords.map((label) => ({ id: newId(), roundId, label, key: wordKey(label), origin: "seeded" as const })))
+    .onConflictDoNothing();
+}
+
+/** A circle round closes when every member has answered. */
+async function closeIfComplete(db: DB, roundId: string, circleId: string, now: Date): Promise<boolean> {
+  const [{ m }] = await db
+    .select({ m: count() })
+    .from(members)
+    .innerJoin(responses, and(eq(responses.userId, members.userId), eq(responses.roundId, roundId)))
+    .where(and(eq(members.groupId, circleId), isNull(members.leftAt)));
+  if (m < (await activeMemberCount(db, circleId))) return false;
+  await closeRound(db, roundId, "complete", now, true);
+  return true;
 }
 
 async function closeRound(db: DB, roundId: string, via: "complete" | "timer" | "manual", now: Date, inCircle: boolean): Promise<void> {
@@ -168,7 +187,13 @@ export async function settleCircle(db: DB, circleId: string, now = new Date()): 
     .where(and(eq(rounds.groupId, circleId), eq(rounds.phase, "queued")))
     .orderBy(sql`${rounds.promotedAt} desc nulls last`, desc(supportCount), asc(rounds.queuedAt))
     .limit(free);
-  for (const r of next) await openRound(db, r, now, true);
+  let finished = false;
+  for (const r of next) {
+    await openRound(db, r, now, true);
+    // Everyone answered while it waited: it's done as it opens, and its slot is free again.
+    if (await closeIfComplete(db, r.id, circleId, now)) finished = true;
+  }
+  if (finished) await settleCircle(db, circleId, now);
 }
 
 /** Queue a nominated round once it has enough support. */
@@ -300,11 +325,14 @@ export async function respond(
   { roundId, userId, input, now = new Date() }: { roundId: string; userId: string; input: ResponseInput; now?: Date },
 ): Promise<string> {
   const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
-  if (round.phase !== "open" && round.phase !== "closed") refuse("This question hasn't opened yet.");
   const circle = await circleOf(db, round);
+  // Waiting in a circle: answering is saying yes to it.
+  const early = Boolean(circle) && (round.phase === "nominated" || round.phase === "queued");
+  if (!early && round.phase !== "open" && round.phase !== "closed") refuse("This question hasn't opened yet.");
   if (!(await mayTakePart(db, round, userId))) refuse("You're not part of this one.");
   const prompt = (await promptById(db, round.promptId))!;
   const closed = round.phase === "closed";
+  await seedWords(db, roundId, prompt);
 
   const [existing] = await db
     .select()
@@ -389,18 +417,33 @@ export async function respond(
     await notifyOne(db, round.authorId, { kind: "answered", gatheringId: round.rootId, actorId: userId, roundId, now });
   }
 
-  // A circle round closes when every member has responded.
+  if (circle && early && !existing) {
+    await db.insert(roundSupports).values({ roundId, userId, createdAt: now }).onConflictDoNothing();
+    await db.delete(roundPasses).where(and(eq(roundPasses.roundId, roundId), eq(roundPasses.userId, userId)));
+    await maybeQueue(db, round, now);
+    await settleCircle(db, circle.id, now);
+  }
   if (circle && round.phase === "open" && !existing) {
-    const [{ m }] = await db
-      .select({ m: count() })
-      .from(members)
-      .innerJoin(responses, and(eq(responses.userId, members.userId), eq(responses.roundId, roundId)))
-      .where(and(eq(members.groupId, circle.id), isNull(members.leftAt)));
-    const n_members = await activeMemberCount(db, circle.id);
-    if (m >= n_members) await closeRound(db, roundId, "complete", now, true);
+    await closeIfComplete(db, roundId, circle.id, now);
     await settleCircle(db, circle.id, now);
   }
   return responseId;
+}
+
+/** "No thanks": set a waiting question aside, for you only. Again to bring it back. Returns whether it's now set aside. */
+export async function togglePass(db: DB, { roundId, userId, now = new Date() }: { roundId: string; userId: string; now?: Date }): Promise<boolean> {
+  const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
+  const circle = (await circleOf(db, round)) ?? refuse("Only a circle's waiting questions can be set aside.");
+  if (!(await isCircleMember(db, circle.id, userId))) refuse("Only members can do that here.");
+  const removed = await db.delete(roundPasses).where(and(eq(roundPasses.roundId, roundId), eq(roundPasses.userId, userId))).returning();
+  if (removed.length) return false;
+  if (round.authorId === userId) refuse("It's your own question. Remove it instead.");
+  if (round.phase !== "nominated" && round.phase !== "queued") refuse("It isn't waiting any more.");
+  const [answered] = await db.select({ id: responses.id }).from(responses)
+    .where(and(eq(responses.roundId, roundId), eq(responses.userId, userId))).limit(1);
+  if (answered) refuse("You've answered it already.");
+  await db.insert(roundPasses).values({ roundId, userId, createdAt: now });
+  return true;
 }
 
 /** Reveal now: the author or host closes it by hand. */
@@ -447,6 +490,8 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
   }
   const prompt = (await promptById(db, round.promptId))!;
   const canTakePart = await mayTakePart(db, round, viewerId);
+  // Waiting in a circle, it can be answered already, so its words are out.
+  if (circle && (round.phase === "nominated" || round.phase === "queued")) await seedWords(db, round.id, prompt);
 
   const all = await db
     .select({
@@ -464,7 +509,7 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
   const mine = all.find((r) => r.userId === viewerId) ?? null;
   const closed = round.phase === "closed";
   const vis = visibility(prompt.reveal, closed, Boolean(mine));
-  const visible = !canTakePart ? [] : vis === "all" ? all : vis === "own" && mine ? [mine] : [];
+  const visible = !canTakePart ? [] : vis === "all" ? all : vis === "own" ? (mine ? [mine] : []) : all.filter((r) => isPreview(round, prompt, r.userId));
 
   const ids = visible.map((r) => r.id);
   const [wordRows, roundWords] = await Promise.all([
@@ -527,12 +572,22 @@ export async function responseAudio(db: DB, responseId: string, viewerId: string
   const round = (await roundById(db, r.roundId))!;
   if (!(await mayTakePart(db, round, viewerId))) return null;
   const prompt = (await promptById(db, round.promptId))!;
+  if (isPreview(round, prompt, r.userId)) return r.audioUrl;
   const [mine] = await db
     .select({ id: responses.id })
     .from(responses)
     .where(and(eq(responses.roundId, round.id), eq(responses.userId, viewerId)))
     .limit(1);
   return visibility(prompt.reveal, round.phase === "closed", Boolean(mine)) === "all" ? r.audioUrl : null;
+}
+
+/**
+ * Whoever asked a circle question can answer it first, so the circle can feel
+ * what it'll be like. Unless it's sealed, that answer is shown to anyone who
+ * could take part, before they share their own.
+ */
+function isPreview(round: Round, prompt: Prompt, userId: string): boolean {
+  return userId === round.authorId && prompt.reveal !== "sealed";
 }
 
 /** The circle's rounds, with support counts, for its page. */
@@ -549,13 +604,30 @@ export async function circleRounds(db: DB, circleId: string, viewerId: string, n
       supportedByMe: sql<boolean>`exists(select 1 from ${roundSupports} where ${roundSupports.roundId} = ${rounds.id} and ${roundSupports.userId} = ${viewerId})`,
       responded: sql<number>`(select count(*)::int from ${responses} where ${responses.roundId} = ${rounds.id})`,
       respondedByMe: sql<boolean>`exists(select 1 from ${responses} where ${responses.roundId} = ${rounds.id} and ${responses.userId} = ${viewerId})`,
+      passedByMe: sql<boolean>`exists(select 1 from ${roundPasses} where ${roundPasses.roundId} = ${rounds.id} and ${roundPasses.userId} = ${viewerId})`,
     })
     .from(rounds)
     .innerJoin(prompts, eq(prompts.id, rounds.promptId))
     .innerJoin(user, eq(user.id, rounds.authorId))
     .where(eq(rounds.groupId, circleId))
     .orderBy(asc(rounds.createdAt));
-  return rows;
+
+  // A waiting question's author may have gone first: show it, unless it's sealed.
+  const previewable = rows.filter((r) => (r.phase === "nominated" || r.phase === "queued") && (r.reveal !== "sealed" || r.authorId === viewerId));
+  const firsts = previewable.length
+    ? await db
+      .select({ roundId: responses.roundId, userId: responses.userId, text: responses.text, audioSeconds: responses.audioSeconds, transcript: responses.transcript, x: responses.x })
+      .from(responses)
+      .where(inArray(responses.roundId, previewable.map((r) => r.id)))
+    : [];
+  return rows.map((r) => {
+    const first = firsts.find((f) => f.roundId === r.id && f.userId === r.authorId);
+    return {
+      ...r,
+      /** The author's own answer, shown with a waiting question. */
+      first: first ? { text: first.text || first.transcript || "", audioSeconds: first.audioSeconds, placed: first.x !== null } : null,
+    };
+  });
 }
 
 /** Gathering members who can see an open question: used for counts on the gathering page. */

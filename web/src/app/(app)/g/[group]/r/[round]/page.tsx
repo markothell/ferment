@@ -24,7 +24,7 @@ import { Top } from "@/components/app/Top";
 import { TurnDot } from "@/components/app/TurnDot";
 import Link from "next/link";
 import { PromptFields } from "@/components/app/PromptFields";
-import { edit, pin, remove, reply, reveal, share } from "../../actions";
+import { edit, pass, pin, remove, reply, reveal, share } from "../../actions";
 
 type Props = PageProps<"/g/[group]/r/[round]">;
 
@@ -63,6 +63,8 @@ export default async function RoundPage({ params }: Props) {
   const base = `/g/${gathering.slug}`;
   const open = round.phase === "open";
   const closed = round.phase === "closed";
+  // Waiting in a circle: answering it is how a member says yes.
+  const early = Boolean(circle) && (round.phase === "nominated" || round.phase === "queued");
   const hidden = (
     <>
       <input type="hidden" name="gathering" value={gathering.slug} />
@@ -72,7 +74,7 @@ export default async function RoundPage({ params }: Props) {
   const tells = prompt.shape === "story" || prompt.shape === "story_placement";
   const places = prompt.shape === "placement" || prompt.shape === "story_placement";
   // After the close only words can change, so a placement or words answer is settled once given.
-  const canWrite = view.canTakePart && (open || closed) && (!view.mine || open || (round.editAfterClose && tells));
+  const canWrite = view.canTakePart && (open || closed || early) && (!view.mine || open || early || (round.editAfterClose && tells));
   const placing = places ? (
     <PlacementInput axes={prompt.axes} placing={prompt.placing} initial={view.mine ? { x: view.mine.x, y: view.mine.y } : null} />
   ) : null;
@@ -85,7 +87,7 @@ export default async function RoundPage({ params }: Props) {
   // to a round that has happened, and only once you can see its answers.
   const replyable = Boolean(circle) && view.canTakePart && (open || closed);
   const replyBlocked = !replyable ? null : view.visibility === "own" ? "You can follow up once this one closes." : view.visibility === "after_share" ? "Share yours first, then you can follow up." : null;
-  const REPLY_STATE = { nominated: "waiting for support", queued: "up next", open: "open now", closed: "explored" } as const;
+  const REPLY_STATE = { nominated: "waiting", queued: "up next", open: "open now", closed: "explored" } as const;
 
   return (
     <>
@@ -96,7 +98,7 @@ export default async function RoundPage({ params }: Props) {
             <TurnDot open={open} answered={Boolean(view.mine)} />
             {pinned ? "pinned to the centre" : circle ? `a ${round.replyToRoundId ? "follow-up" : "round"} in ${circle.name}` : "open question"}
             {" · "}
-            {open ? (round.closesAt ? `closes ${relative(round.closesAt)}` : "open") : round.phase === "closed" ? "closed" : "not open yet"}
+            {open ? (round.closesAt ? `closes ${relative(round.closesAt)}` : "open") : round.phase === "closed" ? "closed" : early ? "waiting: answer it to say yes" : "not open yet"}
           </span>
           {context && (
             <p className="mono text-xs text-[var(--ink-faint)]">
@@ -125,8 +127,20 @@ export default async function RoundPage({ params }: Props) {
         </header>
 
         {canWrite && (
-          <section className="card space-y-3">
-            <h2 className="font-medium">{view.mine ? "Your answer" : "Your turn"}</h2>
+          <section className="card space-y-3" id="share">
+            <h2 className="font-medium">{view.mine ? "Your answer" : early && round.authorId === me.id ? "Go first" : "Your turn"}</h2>
+            {early && !view.mine && (
+              <p className="text-sm text-[var(--ink-soft)]">
+                {round.authorId === me.id
+                  ? prompt.reveal === "sealed"
+                    ? "It's sealed, so nobody sees your answer until it closes."
+                    : "The circle will see your answer with the question, before they share their own."
+                  : "Sharing is your yes. It's held until the question opens."}
+                {round.authorId !== me.id && (
+                  <Form action={pass} submit="No thanks" quiet className="mt-2">{hidden}</Form>
+                )}
+              </p>
+            )}
             {view.mine && closed && !round.editAfterClose ? null : tells ? (
               <Composer
                 action={share}

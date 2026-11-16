@@ -299,6 +299,19 @@ export const roundSupports = pgTable(
   (t) => [primaryKey({ columns: [t.roundId, t.userId] })],
 );
 
+/** "No thanks": a member sets a waiting question aside, for themselves only. */
+export const roundPasses = pgTable(
+  "round_passes",
+  {
+    roundId: text()
+      .notNull()
+      .references(() => rounds.id, { onDelete: "cascade" }),
+    userId: userRef().notNull(),
+    createdAt: timestamp().notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.roundId, t.userId] })],
+);
+
 // ── Responses ──────────────────────────────────────────────────────────────
 
 export const responses = pgTable(

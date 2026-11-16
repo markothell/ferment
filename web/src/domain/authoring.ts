@@ -5,14 +5,15 @@
 //   edit a question:   until someone else has answered it, picked it, or adapted it;
 //                      its shape, reveal and timer too, until it has opened anywhere
 //   edit a circle:     its name and what it's for, by its host, until it begins
-//   delete a round:    a circle suggestion until it opens; an open question
-//                      until someone else answers. Never while it's pinned.
+//   delete a round:    a circle suggestion until it opens or someone else
+//                      answers it; an open question until someone else
+//                      answers. Never while it's pinned.
 //   delete a circle:   its creator, until it has formed and has a question
 //                      queued or open; a forming one can go whatever it holds.
 
 import { and, count, eq, inArray, isNull, isNotNull, ne } from "drizzle-orm";
 import type { DB } from "@/db";
-import { groups, harvests, invites, members, prompts, responses, rounds, seatRequests } from "@/db/schema";
+import { groups, harvests, invites, members, prompts, responses, rounds, seatRequests, words } from "@/db/schema";
 import { circleById, DESCRIPTION_MAX, type Circle } from "./circles";
 import { refuse } from "./errors";
 import { notifyPeople } from "./notifications";
@@ -47,10 +48,10 @@ async function editBlock(db: DB, round: Round, userId: string): Promise<string |
 async function deleteBlock(db: DB, round: Round, userId: string): Promise<string | null> {
   if (round.authorId !== userId) return "Only whoever asked it can delete it.";
   if (await isPinned(db, round)) return "It's pinned to the centre. Unpin it first.";
-  if ((await groupById(db, round.groupId))?.kind === "circle") {
-    return round.phase === "nominated" || round.phase === "queued" || round.phase === "skipped" ? null : "It has already opened in the circle.";
-  }
   const others = await some(db.select({ n: count() }).from(responses).where(and(eq(responses.roundId, round.id), ne(responses.userId, userId))));
+  if ((await groupById(db, round.groupId))?.kind === "circle") {
+    if (round.phase !== "nominated" && round.phase !== "queued" && round.phase !== "skipped") return "It has already opened in the circle.";
+  }
   return others ? "Someone has answered, so it stays." : null;
 }
 
@@ -69,12 +70,14 @@ export async function authorRights(db: DB, round: Round, userId: string): Promis
 
 /**
  * Rewrite a question that hasn't opened anywhere: its words, how people
- * answer, when they see each other, and this round's timer.
+ * answer, when they see each other, and this round's timer. If how people
+ * answer changed, the author's own early answer no longer fits and goes;
+ * returns whether it did.
  */
 export async function editQuestionSettings(
   db: DB,
   { roundId, userId, prompt, timerHours }: { roundId: string; userId: string; prompt: PromptInput; timerHours: number | string | null },
-): Promise<void> {
+): Promise<{ cleared: boolean }> {
   const round = (await roundById(db, roundId)) ?? refuse("That question doesn't exist.");
   const blocked = await editBlock(db, round, userId);
   if (blocked) refuse(blocked);
@@ -82,10 +85,23 @@ export async function editQuestionSettings(
   const before = (await promptById(db, round.promptId))!;
   const clean = normalizePrompt({ ...prompt, secondsPerNote: before.secondsPerNote ?? undefined, adaptedFromId: null });
   const timer = cleanTimer(timerHours);
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const reshaped = !same(
+    [before.shape, before.axes, before.placing, before.seedWords, before.pickMax, before.coinMax, before.telling],
+    [clean.shape, clean.axes, clean.placing, clean.seedWords, clean.pickMax, clean.coinMax, clean.telling],
+  );
+  let cleared = false;
   await db.transaction(async (tx) => {
     await tx.update(prompts).set(clean).where(eq(prompts.id, round.promptId));
     await tx.update(rounds).set({ timerHours: timer }).where(eq(rounds.id, round.id));
+    if (!reshaped) return;
+    // Nothing on this question has opened and nobody else has answered, so any answer is the author's.
+    const waiting = (await tx.select({ id: rounds.id }).from(rounds).where(eq(rounds.promptId, round.promptId))).map((r) => r.id);
+    if (!waiting.length) return;
+    cleared = (await tx.delete(responses).where(inArray(responses.roundId, waiting)).returning({ id: responses.id })).length > 0;
+    await tx.delete(words).where(inArray(words.roundId, waiting));
   });
+  return { cleared };
 }
 
 /** Fix a question's wording. It changes everywhere the question is used, which is only ever its author's own rounds. */

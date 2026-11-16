@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { DB } from "@/db";
-import { rounds, user } from "@/db/schema";
+import { groups, rounds, user } from "@/db/schema";
+import { deleteRound, editQuestionSettings } from "./authoring";
 import { testDb } from "@/db/testing";
 import { createCircle, seatInCircle, leaveCircle, type Circle } from "./circles";
 import { createGathering, pinQuestion, updateWelcomeNote, type Gathering } from "./gatherings";
@@ -10,7 +11,7 @@ import { acceptInvite, createInvite } from "./invites";
 import { normalizePrompt } from "./prompts";
 import {
   approvalsNeeded, postOpenQuestion, promoteRound, respond, responseAudio, revealNow, roundById, roundView,
-  suggestRound, toggleSupport, visibility,
+  circleRounds, settleCircle, suggestRound, togglePass, toggleSupport, visibility,
 } from "./rounds";
 
 let db: DB;
@@ -230,10 +231,13 @@ describe("reveal", () => {
   it("opens an after-share wall to those who've shared", async () => {
     const r = await suggestRound(db, { circleId: circle.id, userId: people[1], prompt: { question: "After", reveal: "after_share" }, now: t0 });
     await toggleSupport(db, { roundId: r.id, userId: people[2], now: t0 });
-    await respond(db, { roundId: r.id, userId: people[1], input: { text: "one" }, now: t0 });
+    await respond(db, { roundId: r.id, userId: people[3], input: { text: "three" }, now: t0 });
     expect((await roundView(db, r.id, people[2], t0)).responses).toEqual([]);
+    // Its author's answer is the preview: there before you share.
+    await respond(db, { roundId: r.id, userId: people[1], input: { text: "one" }, now: t0 });
+    expect((await roundView(db, r.id, people[2], t0)).responses.map((x) => x.text)).toEqual(["one"]);
     await respond(db, { roundId: r.id, userId: people[2], input: { text: "two" }, now: t0 });
-    expect((await roundView(db, r.id, people[2], t0)).responses).toHaveLength(2);
+    expect((await roundView(db, r.id, people[2], t0)).responses).toHaveLength(3);
   });
 
 });
@@ -277,5 +281,82 @@ describe("open questions", () => {
     await pinQuestion(db, { gatheringId: gathering.id, userId: "u_host", roundId: null });
     await revealNow(db, { roundId: w.id, userId: "u_host" });
     expect(await phase(w.id)).toBe("closed");
+  });
+});
+
+describe("answering a waiting question", () => {
+  const ask = (reveal: "open" | "after_share" | "sealed" = "open", question = "What fed you?") =>
+    suggestRound(db, { circleId: circle.id, userId: people[1], prompt: { question, reveal }, now: t0 });
+  const waitingFor = async (viewer: string, roundId: string) => (await circleRounds(db, circle.id, viewer, t0)).find((r) => r.id === roundId)!;
+
+  it("lets the author go first, and counts anyone's answer as their yes", async () => {
+    const r = await ask("open");
+    await respond(db, { roundId: r.id, userId: people[1], input: { text: "soup" }, now: t0 });
+    expect(await phase(r.id)).toBe("nominated");
+    expect((await waitingFor(people[2], r.id)).first).toMatchObject({ text: "soup" });
+
+    await respond(db, { roundId: r.id, userId: people[2], input: { text: "bread" }, now: t0 });
+    expect(await phase(r.id)).toBe("open");
+    expect((await roundView(db, r.id, people[3], t0)).responses.map((x) => x.text)).toEqual(["soup", "bread"]);
+  });
+
+  it("keeps a sealed author's answer to themselves", async () => {
+    const r = await ask("sealed");
+    await respond(db, { roundId: r.id, userId: people[1], input: { text: "soup" }, now: t0 });
+    expect((await waitingFor(people[2], r.id)).first).toBeNull();
+    expect((await waitingFor(people[1], r.id)).first).toMatchObject({ text: "soup" });
+    expect((await roundView(db, r.id, people[2], t0)).responses).toEqual([]);
+  });
+
+  it("closes as it opens when everyone answered while it waited", async () => {
+    // No host: nothing opens.
+    await db.update(groups).set({ hostId: null }).where(eq(groups.id, circle.id));
+    const r = await ask("sealed");
+    for (const p of people) await respond(db, { roundId: r.id, userId: p, input: { text: `from ${p}` }, now: t0 });
+    expect(await phase(r.id)).toBe("queued");
+    await db.update(groups).set({ hostId: people[0] }).where(eq(groups.id, circle.id));
+    await settleCircle(db, circle.id, hours(1));
+    expect((await roundById(db, r.id))!).toMatchObject({ phase: "closed", closedVia: "complete" });
+  });
+
+  it("lets you answer a words question before it opens", async () => {
+    const r = await suggestRound(db, {
+      circleId: circle.id, userId: people[1], now: t0,
+      prompt: { question: "A word?", shape: "words", seedWords: ["rest", "play"], pickMax: 1, coinMax: 0, reveal: "open" },
+    });
+    const vocab = (await roundView(db, r.id, people[1], t0)).vocabulary;
+    expect(vocab.map((w) => w.label)).toEqual(["play", "rest"]);
+    await respond(db, { roundId: r.id, userId: people[1], input: { pick: [vocab[1].id] }, now: t0 });
+    expect((await roundView(db, r.id, people[2], t0)).responses[0].words).toEqual(["rest"]);
+  });
+
+  it("sets a question aside for you alone with No thanks, until you bring it back or answer it", async () => {
+    const r = await ask();
+    expect(await togglePass(db, { roundId: r.id, userId: people[2], now: t0 })).toBe(true);
+    expect((await waitingFor(people[2], r.id)).passedByMe).toBe(true);
+    expect((await waitingFor(people[3], r.id)).passedByMe).toBe(false);
+    await expect(togglePass(db, { roundId: r.id, userId: people[1], now: t0 })).rejects.toThrow(/your own/);
+    expect(await togglePass(db, { roundId: r.id, userId: people[2], now: t0 })).toBe(false);
+    await togglePass(db, { roundId: r.id, userId: people[2], now: t0 });
+    await respond(db, { roundId: r.id, userId: people[2], input: { text: "changed my mind" }, now: t0 });
+    expect((await waitingFor(people[2], r.id)).passedByMe).toBe(false);
+    await expect(togglePass(db, { roundId: r.id, userId: people[2], now: t0 })).rejects.toThrow(/isn't waiting|answered/);
+  });
+
+  it("clears the author's early answer when how people answer changes, and keeps the question once someone else answers", async () => {
+    // No host: nothing opens.
+    await db.update(groups).set({ hostId: null }).where(eq(groups.id, circle.id));
+    const r = await ask("open", "Waht fed you?");
+    await respond(db, { roundId: r.id, userId: people[1], input: { text: "soup" }, now: t0 });
+    expect((await editQuestionSettings(db, { roundId: r.id, userId: people[1], timerHours: null, prompt: { question: "What fed you?", reveal: "open" } })).cleared).toBe(false);
+    expect((await roundView(db, r.id, people[1], t0)).mine?.text).toBe("soup");
+    const reshaped = await editQuestionSettings(db, {
+      roundId: r.id, userId: people[1], timerHours: null, prompt: { question: "Where are you?", shape: "placement", axes: [{ poleA: "fed", poleB: "hungry" }], reveal: "open" },
+    });
+    expect(reshaped.cleared).toBe(true);
+    expect((await roundView(db, r.id, people[1], t0)).mine).toBeNull();
+
+    await respond(db, { roundId: r.id, userId: people[2], input: { x: 0.3 }, now: t0 });
+    await expect(deleteRound(db, { roundId: r.id, userId: people[1] })).rejects.toThrow(/answered/);
   });
 });

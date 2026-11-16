@@ -8,6 +8,7 @@ import { myAsk, suggestableFor, waitingSeats } from "@/domain/seats";
 import type { SessionUser } from "@/lib/session";
 import { displayName } from "@/lib/session";
 import { relative } from "@/lib/time";
+import { formatDuration } from "@/lib/audio/recorder";
 import { CircleMap } from "@/components/app/CircleMap";
 import { ConfirmForm } from "@/components/app/ConfirmForm";
 import { Form } from "@/components/app/Form";
@@ -18,7 +19,7 @@ import { RoundRow } from "@/components/app/RoundRow";
 import { Top } from "@/components/app/Top";
 import { Field } from "@/components/app/Field";
 import {
-  askToJoin, join, leave, promote, seatDecline, seatMakeRoom, seatSupport, seatWithdraw, suggest, support, remove, removeCircle,
+  askToJoin, join, leave, promote, seatDecline, seatMakeRoom, seatSupport, seatWithdraw, suggest, pass, remove, removeCircle,
 } from "@/app/(app)/g/[group]/actions";
 
 /**
@@ -41,6 +42,9 @@ export async function CircleView({ me, gathering, circle }: { me: SessionUser; g
   const live = all.filter((r) => r.phase === "open");
   const queued = all.filter((r) => r.phase === "queued");
   const suggested = all.filter((r) => r.phase === "nominated");
+  // Answering is how you say yes; "No thanks" sets one aside, for you only.
+  const waiting = [...queued, ...suggested].filter((r) => !r.passedByMe);
+  const passed = [...queued, ...suggested].filter((r) => r.passedByMe);
   const past = all.filter((r) => r.phase === "closed").reverse();
   // Your own waiting questions you can still fix: someone else may have picked or adapted the same question.
   const editable = new Set(
@@ -211,48 +215,85 @@ export async function CircleView({ me, gathering, circle }: { me: SessionUser; g
               )}
             </section>
 
-            {(queued.length > 0 || suggested.length > 0) && (
+            {waiting.length > 0 && (
               <section className="space-y-3">
                 <h2 className="display text-2xl">Waiting</h2>
+                <p className="text-sm text-[var(--ink-soft)]">Answer one to say yes. It opens once {needed} {needed === 1 ? "has" : "have"}, and your answer is already in.</p>
                 <ul className="space-y-3">
-                  {[...queued, ...suggested].map((r) => (
-                    <li key={r.id} className="card space-y-3">
-                      <span className="label">
-                        {r.phase === "queued"
-                          ? (r.promotedAt ? "up next · promoted" : "up next")
-                          : `${r.replyToRoundId ? "reply" : "suggested"} · ${r.supports} of ${r.replyToRoundId ? neededForReply : needed} to queue`}
-                      </span>
-                      {r.replyToRoundId && (
-                        <p className="text-sm text-[var(--ink-soft)]">
-                          replying to <Link href={roundHref(r.replyToRoundId)} className="link">{replyTo(r)}</Link>
-                        </p>
-                      )}
-                      <p className="text-lg leading-snug">{r.question}</p>
-                      <p className="text-sm text-[var(--ink-soft)]">from {r.authorId === me.id ? "you" : displayName({ name: r.authorName, email: r.authorEmail })}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {r.phase === "nominated" && (
-                          <Form action={support} submit={r.supportedByMe ? "● supported" : "○ support"} quiet className="">
-                            {hidden}<input type="hidden" name="round" value={r.id} />
-                          </Form>
+                  {waiting.map((r) => {
+                    const mineQ = r.authorId === me.id;
+                    const from = mineQ ? "you" : displayName({ name: r.authorName, email: r.authorEmail });
+                    return (
+                      <li key={r.id} className="card space-y-3">
+                        <span className="label">
+                          {r.phase === "queued"
+                            ? (r.promotedAt ? "up next · promoted" : "up next")
+                            : `${r.replyToRoundId ? "follow-up" : "suggested"} · ${r.supports} of ${r.replyToRoundId ? neededForReply : needed} in`}
+                        </span>
+                        {r.replyToRoundId && (
+                          <p className="text-sm text-[var(--ink-soft)]">
+                            following up on <Link href={roundHref(r.replyToRoundId)} className="link">{replyTo(r)}</Link>
+                          </p>
                         )}
-                        {isHost && (r.phase === "nominated" || !r.promotedAt) && (
-                          <Form action={promote} submit="Promote" quiet className="">
-                            {hidden}<input type="hidden" name="round" value={r.id} />
-                          </Form>
+                        <Link href={roundHref(r.id)} className="block text-lg leading-snug">{r.question}</Link>
+                        {r.first ? (
+                          <div className="space-y-1 border-l-2 border-[var(--shared)] pl-3">
+                            <p className="mono text-xs text-[var(--ink-faint)]">
+                              {mineQ ? "you went first" : `${from} went first`}
+                              {r.first.audioSeconds ? ` · a voice note, ${formatDuration(r.first.audioSeconds * 1000)}` : ""}
+                              {mineQ && r.reveal === "sealed" ? " · sealed, so only you see it" : ""}
+                            </p>
+                            {r.first.text && <p className="line-clamp-3 whitespace-pre-line">{r.first.text}</p>}
+                            {!r.first.text && !r.first.audioSeconds && <p className="text-[var(--ink-soft)]">{r.shape === "words" ? "Chose their words." : "Placed themselves."}</p>}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[var(--ink-soft)]">from {from}</p>
                         )}
-                        {r.authorId === me.id && (
-                          <>
-                            {editable.has(r.id) && <Link href={`${roundHref(r.id)}#edit`} className="button-quiet">Edit</Link>}
-                            <ConfirmForm action={remove} submit="Remove" confirm="This removes your question from the circle for good.">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {r.respondedByMe ? (
+                            <Link href={`${roundHref(r.id)}#share`} className="button-quiet">{mineQ ? "Your answer" : "You're in · your answer"}</Link>
+                          ) : (
+                            <Link href={`${roundHref(r.id)}#share`} className="button">{mineQ ? "Go first" : "Answer"}</Link>
+                          )}
+                          {!mineQ && !r.respondedByMe && (
+                            <Form action={pass} submit="No thanks" quiet className="">
                               {hidden}<input type="hidden" name="round" value={r.id} />
-                            </ConfirmForm>
-                          </>
-                        )}
-                      </div>
+                            </Form>
+                          )}
+                          {isHost && (r.phase === "nominated" || !r.promotedAt) && (
+                            <Form action={promote} submit="Promote" quiet className="">
+                              {hidden}<input type="hidden" name="round" value={r.id} />
+                            </Form>
+                          )}
+                          {mineQ && (
+                            <>
+                              {editable.has(r.id) && <Link href={`${roundHref(r.id)}#edit`} className="button-quiet">Edit</Link>}
+                              <ConfirmForm action={remove} submit="Remove" confirm="This removes your question from the circle for good.">
+                                {hidden}<input type="hidden" name="round" value={r.id} />
+                              </ConfirmForm>
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+            {passed.length > 0 && (
+              <details className="text-sm text-[var(--ink-soft)]">
+                <summary className="cursor-pointer">{passed.length} set aside</summary>
+                <ul className="space-y-2 pt-3">
+                  {passed.map((r) => (
+                    <li key={r.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <Link href={roundHref(r.id)} className="link">{r.question}</Link>
+                      <Form action={pass} submit="Bring it back" quiet className="">
+                        {hidden}<input type="hidden" name="round" value={r.id} />
+                      </Form>
                     </li>
                   ))}
                 </ul>
-              </section>
+              </details>
             )}
 
             {running && room && others.length > 0 && (
@@ -281,6 +322,7 @@ export async function CircleView({ me, gathering, circle }: { me: SessionUser; g
                 <Form action={suggest} submit="Suggest" pending="Suggesting…">
                   {hidden}
                   <PromptFields />
+                  <p className="text-sm text-[var(--ink-soft)]">Next you can answer it first, so the circle can feel what it&apos;ll be like.</p>
                 </Form>
               </div>
             </details>

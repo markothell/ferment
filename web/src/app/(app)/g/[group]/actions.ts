@@ -13,7 +13,7 @@ import { setEmailPref } from "@/domain/notifications";
 import { suggestReply } from "@/domain/replies";
 import { transcribeResponse } from "@/domain/transcripts";
 import {
-  postOpenQuestion, promoteRound, respond, revealNow, suggestRound, toggleSupport,
+  postOpenQuestion, promoteRound, respond, revealNow, suggestRound, togglePass,
 } from "@/domain/rounds";
 import { deleteCircle, deleteRound, editCircle, editQuestion, editQuestionSettings } from "@/domain/authoring";
 import { attempt, type ActionState } from "@/lib/actions";
@@ -267,12 +267,13 @@ export async function leave(_prev: ActionState, form: FormData): Promise<ActionS
 export async function suggest(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGroup(str(form, "gathering"));
   const circleId = str(form, "circle");
-  const failed = await attempt(() =>
-    suggestRound(db, { circleId, userId: me.id, prompt: promptFrom(form), timerHours: str(form, "timer") || null }),
-  );
+  let round: { id: string } | undefined;
+  const failed = await attempt(async () => {
+    round = await suggestRound(db, { circleId, userId: me.id, prompt: promptFrom(form), timerHours: str(form, "timer") || null });
+  });
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
-  return { ok: "Suggested. It opens once enough of the circle supports it." };
+  redirect(`/g/${gathering.slug}/r/${round!.id}#share`);
 }
 
 /** A follow-up round the whole circle takes a turn on, answering this one. */
@@ -302,9 +303,10 @@ export async function ask(_prev: ActionState, form: FormData): Promise<ActionSta
   redirect(`/g/${gathering.slug}/r/${round!.id}`);
 }
 
-export async function support(_prev: ActionState, form: FormData): Promise<ActionState> {
+/** "No thanks", or bring it back. */
+export async function pass(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGroup(str(form, "gathering"));
-  const failed = await attempt(() => toggleSupport(db, { roundId: str(form, "round"), userId: me.id }));
+  const failed = await attempt(() => togglePass(db, { roundId: str(form, "round"), userId: me.id }));
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
   return undefined;
@@ -332,14 +334,17 @@ export async function remove(_prev: ActionState, form: FormData): Promise<Action
 export async function edit(_prev: ActionState, form: FormData): Promise<ActionState> {
   const { me, gathering } = await loadGroup(str(form, "gathering"));
   const roundId = str(form, "round");
-  const failed = await attempt(() =>
-    str(form, "settings") === "yes"
-      ? editQuestionSettings(db, { roundId, userId: me.id, prompt: promptFrom(form), timerHours: timerFrom(form) })
-      : editQuestion(db, { roundId, userId: me.id, question: str(form, "question"), context: str(form, "context") }),
-  );
+  let cleared = false;
+  const failed = await attempt(async () => {
+    if (str(form, "settings") === "yes") {
+      cleared = (await editQuestionSettings(db, { roundId, userId: me.id, prompt: promptFrom(form), timerHours: timerFrom(form) })).cleared;
+    } else {
+      await editQuestion(db, { roundId, userId: me.id, question: str(form, "question"), context: str(form, "context") });
+    }
+  });
   if (failed) return failed;
   revalidatePath(`/g/${gathering.slug}`, "layout");
-  return { ok: "Saved." };
+  return { ok: cleared ? "Saved. How people answer changed, so your answer was cleared: share again below." : "Saved." };
 }
 
 export async function share(_prev: ActionState, form: FormData): Promise<ActionState> {
