@@ -509,7 +509,7 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
   const mine = all.find((r) => r.userId === viewerId) ?? null;
   const closed = round.phase === "closed";
   const vis = visibility(prompt.reveal, closed, Boolean(mine));
-  const visible = !canTakePart ? [] : vis === "all" ? all : vis === "own" ? (mine ? [mine] : []) : all.filter((r) => isPreview(round, prompt, r.userId));
+  const visible = !canTakePart ? [] : vis === "all" ? all : vis === "own" ? (mine ? [mine] : []) : all.filter((r) => isPreview(round, prompt, r, Boolean(circle)));
 
   const ids = visible.map((r) => r.id);
   const [wordRows, roundWords] = await Promise.all([
@@ -563,7 +563,7 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
  */
 export async function responseAudio(db: DB, responseId: string, viewerId: string): Promise<string | null> {
   const [r] = await db
-    .select({ roundId: responses.roundId, userId: responses.userId, audioUrl: responses.audioUrl })
+    .select({ roundId: responses.roundId, userId: responses.userId, audioUrl: responses.audioUrl, createdAt: responses.createdAt })
     .from(responses)
     .where(eq(responses.id, responseId))
     .limit(1);
@@ -572,7 +572,7 @@ export async function responseAudio(db: DB, responseId: string, viewerId: string
   const round = (await roundById(db, r.roundId))!;
   if (!(await mayTakePart(db, round, viewerId))) return null;
   const prompt = (await promptById(db, round.promptId))!;
-  if (isPreview(round, prompt, r.userId)) return r.audioUrl;
+  if (isPreview(round, prompt, r, Boolean(await circleOf(db, round)))) return r.audioUrl;
   const [mine] = await db
     .select({ id: responses.id })
     .from(responses)
@@ -583,11 +583,13 @@ export async function responseAudio(db: DB, responseId: string, viewerId: string
 
 /**
  * Whoever asked a circle question can answer it first, so the circle can feel
- * what it'll be like. Unless it's sealed, that answer is shown to anyone who
- * could take part, before they share their own.
+ * what it'll be like. Unless it's sealed, that answer, given while the question
+ * waited, is shown to anyone who could take part, before they share their own.
+ * Not for questions to everyone, and not for an answer given once it opened.
  */
-function isPreview(round: Round, prompt: Prompt, userId: string): boolean {
-  return userId === round.authorId && prompt.reveal !== "sealed";
+function isPreview(round: Round, prompt: Prompt, response: { userId: string; createdAt: Date }, inCircle: boolean): boolean {
+  return inCircle && response.userId === round.authorId && prompt.reveal !== "sealed"
+    && (!round.openedAt || response.createdAt < round.openedAt);
 }
 
 /** The circle's rounds, with support counts, for its page. */

@@ -233,9 +233,9 @@ describe("reveal", () => {
     await toggleSupport(db, { roundId: r.id, userId: people[2], now: t0 });
     await respond(db, { roundId: r.id, userId: people[3], input: { text: "three" }, now: t0 });
     expect((await roundView(db, r.id, people[2], t0)).responses).toEqual([]);
-    // Its author's answer is the preview: there before you share.
+    // Open already, so its author's answer is no preview.
     await respond(db, { roundId: r.id, userId: people[1], input: { text: "one" }, now: t0 });
-    expect((await roundView(db, r.id, people[2], t0)).responses.map((x) => x.text)).toEqual(["one"]);
+    expect((await roundView(db, r.id, people[2], t0)).responses).toEqual([]);
     await respond(db, { roundId: r.id, userId: people[2], input: { text: "two" }, now: t0 });
     expect((await roundView(db, r.id, people[2], t0)).responses).toHaveLength(3);
   });
@@ -341,6 +341,18 @@ describe("answering a waiting question", () => {
     await respond(db, { roundId: r.id, userId: people[2], input: { text: "changed my mind" }, now: t0 });
     expect((await waitingFor(people[2], r.id)).passedByMe).toBe(false);
     await expect(togglePass(db, { roundId: r.id, userId: people[2], now: t0 })).rejects.toThrow(/isn't waiting|answered/);
+  });
+
+  it("doesn't preview a question to everyone, or an author's answer given once it opened", async () => {
+    const q = await postOpenQuestion(db, { gatheringId: gathering.id, userId: people[1], prompt: { question: "To all?", reveal: "after_share" }, now: t0 });
+    await respond(db, { roundId: q.id, userId: people[1], input: { text: "mine" }, now: t0 });
+    expect((await roundView(db, q.id, people[2], t0)).responses).toEqual([]);
+
+    const r = await ask("after_share");
+    await respond(db, { roundId: r.id, userId: people[2], input: { text: "yes" }, now: t0 });
+    expect(await phase(r.id)).toBe("open");
+    await respond(db, { roundId: r.id, userId: people[1], input: { text: "late" }, now: hours(1) });
+    expect((await roundView(db, r.id, people[3], hours(1))).responses).toEqual([]);
   });
 
   it("clears the author's early answer when how people answer changes, and keeps the question once someone else answers", async () => {

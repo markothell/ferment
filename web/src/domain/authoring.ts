@@ -95,10 +95,15 @@ export async function editQuestionSettings(
     await tx.update(prompts).set(clean).where(eq(prompts.id, round.promptId));
     await tx.update(rounds).set({ timerHours: timer }).where(eq(rounds.id, round.id));
     if (!reshaped) return;
-    // Nothing on this question has opened and nobody else has answered, so any answer is the author's.
+    // Only the author's own answer goes. Anyone else's arriving meanwhile stops the edit.
     const waiting = (await tx.select({ id: rounds.id }).from(rounds).where(eq(rounds.promptId, round.promptId))).map((r) => r.id);
     if (!waiting.length) return;
-    cleared = (await tx.delete(responses).where(inArray(responses.roundId, waiting)).returning({ id: responses.id })).length > 0;
+    if (await some(tx.select({ n: count() }).from(responses).where(and(inArray(responses.roundId, waiting), ne(responses.userId, userId))))) {
+      refuse("Someone else has answered it meanwhile, so it stays as it is.");
+    }
+    cleared = (await tx.delete(responses)
+      .where(and(inArray(responses.roundId, waiting), eq(responses.userId, userId)))
+      .returning({ id: responses.id })).length > 0;
     await tx.delete(words).where(inArray(words.roundId, waiting));
   });
   return { cleared };
