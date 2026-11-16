@@ -26,13 +26,15 @@ Pages that need no sign-in: the library of starters (`/library`, `/library/<slug
 Our own starters are `starters/*.json`. `npm run dev` loads them into the local store at start;
 elsewhere, run `npm run starters:load` after `npm run db:migrate`.
 
-**Known weakness of the local store.** If the dev server is stopped hard (a crash, a forced
-kill, a sleeping laptop at the wrong moment), PGlite can come back with "could not locate a
-valid checkpoint record" and refuse to open; it ships no `pg_resetwal`. This has happened more
-than once (last 2026-10-28). Recovery is a rebuild: stop everything on port 3000, move
-`.data/pglite` aside, then `npm run db:migrate` and `npm run starters:load`, and start the
-server. Stop the server with a plain interrupt and let it exit before starting it again. A
-reset script, or a periodic copy of the store, is still to do.
+**One process per local store.** Only one process may open `.data/pglite`. A second handle
+writes its own checkpoint while the first keeps writing over it, and after the next hard stop
+PGlite refuses to open with "could not locate a valid checkpoint record" (it ships no
+`pg_resetwal`). That is how the store broke before 2026-11-16: `next dev` imports every dynamic
+route in a throwaway worker, and the store used to open on import. Now it opens on first use,
+and `.data/pglite.lock` holds the owner's pid so any second opener stops with an error;
+`db:migrate`, `db:studio` and `starters:load` refuse to run against it while the dev server
+holds it. Stop the server with Ctrl-C. If a store is ever lost anyway, rebuild it: move
+`.data/pglite` aside, then `npm run db:migrate` and `npm run starters:load`.
 
 ## Layout
 

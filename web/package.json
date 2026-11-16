@@ -9,9 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate && node scripts/migrated.mjs",
-    "starters:load": "vite-node --config vitest.config.ts scripts/load-starters.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:migrate": "node scripts/store-free.mjs && drizzle-kit migrate && node scripts/migrated.mjs",
+    "starters:load": "node scripts/store-free.mjs && vite-node --config vitest.config.ts scripts/load-starters.ts",
+    "db:studio": "node scripts/store-free.mjs && drizzle-kit studio"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",
