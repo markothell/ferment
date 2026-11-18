@@ -330,6 +330,20 @@ describe("answering a waiting question", () => {
     expect((await roundView(db, r.id, people[2], t0)).responses[0].words).toEqual(["rest"]);
   });
 
+  it("keeps words others coined out of the list until you may see their answers", async () => {
+    const r = await suggestRound(db, {
+      circleId: circle.id, userId: people[1], now: t0,
+      prompt: { question: "A word?", shape: "words", seedWords: ["rest"], pickMax: 1, coinMax: 1, reveal: "sealed" },
+    });
+    await respond(db, { roundId: r.id, userId: people[2], input: { coin: ["grief"] }, now: t0 });
+    const labels = async (who: string) => (await roundView(db, r.id, who, t0)).vocabulary.map((w) => w.label);
+    expect(await labels(people[2])).toEqual(["grief", "rest"]);
+    expect(await labels(people[3])).toEqual(["rest"]);
+    // Coining the same word joins it, all the same.
+    await respond(db, { roundId: r.id, userId: people[3], input: { coin: ["Grief"] }, now: t0 });
+    expect(await labels(people[3])).toEqual(["grief", "rest"]);
+  });
+
   it("sets a question aside for you alone with No thanks, until you bring it back or answer it", async () => {
     const r = await ask();
     expect(await togglePass(db, { roundId: r.id, userId: people[2], now: t0 })).toBe(true);

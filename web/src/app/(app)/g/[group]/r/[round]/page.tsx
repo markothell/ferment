@@ -81,7 +81,7 @@ export default async function RoundPage({ params }: Props) {
   const trail = [
     { label: gathering.name, href: base },
     ...(circle && circle.id !== gathering.id ? [{ label: circle.name, href: `/g/${circle.slug}` }] : []),
-    { label: pinned ? "Pinned question" : round.replyToRoundId ? "Reply" : circle ? "Round" : "Open question" },
+    { label: pinned ? "Pinned question" : round.replyToRoundId ? "Follow-up" : circle ? "Round" : "Open question" },
   ];
   // A follow-up is a round for the whole circle that answers this one (domain/replies.ts): only
   // to a round that has happened, and only once you can see its answers.

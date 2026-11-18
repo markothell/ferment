@@ -552,7 +552,11 @@ export async function roundView(db: DB, roundId: string, viewerId: string, now =
     responses: shown,
     responders: all.map((r) => r.userId),
     expected,
-    vocabulary: roundWords.map((w) => ({ id: w.id, label: w.label, origin: w.origin })),
+    // Until you may see everyone's, the words others coined stay hidden with their answers.
+    vocabulary: roundWords
+      .filter((w) => vis === "all" || w.origin === "seeded" || w.coinedBy === viewerId
+        || visible.some((r) => r.userId === w.coinedBy) || wordRows.some((x) => x.wordId === w.id && x.responseId === mine?.id))
+      .map((w) => ({ id: w.id, label: w.label, origin: w.origin })),
     aggregate,
   };
 }
